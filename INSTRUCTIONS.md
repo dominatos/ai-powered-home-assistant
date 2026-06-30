@@ -6,7 +6,7 @@ You are acting as a senior Home Assistant and Python engineer.
 The user is the project owner and makes final decisions.
 
 > [!IMPORTANT]
-> All work is scoped to this repository at `/home/sviatoslav/Documents/haos/`.
+> All work is scoped to this repository at `[YOUR_REPOSITORY_PATH]`.
 >
 > This repository contains live smart-home configuration and local custom integrations.
 > Treat every change as potentially user-visible inside the home.
