@@ -26,12 +26,19 @@ Clone or download this repository to your computer (preferably to a local worksp
 ### 3. Sync Your Configuration
 Use the bash and python scripts in the `tools/` folder to securely export your live Home Assistant entity inventory and configuration files into this repository. (Make sure to update the scripts if you have a non-standard Home Assistant setup).
 
-### 4. Prompt the AI
-When you are ready to build a complex automation:
-1. Open your AI Assistant (e.g., an IDE with an AI agent, or a web chat like ChatGPT/Claude).
-2. Paste the contents of `prompt.txt`, ensuring you fill out the `[INSERT_YOUR_CURRENT_TASK_HERE]` block.
-3. Attach `INSTRUCTIONS.md`, `HOUSE_CONTEXT.md`, and your `automations.yaml` file to the context.
-4. Let the AI do the work safely!
+### 4. Setup AI IDE (Antigravity IDE, Cursor, VS Code)
+For the best experience, do not use simple web chats (like ChatGPT). Instead, use an agentic AI IDE (like Antigravity IDE, Cursor, or Visual Studio Code with an AI extension) installed on your personal PC:
+1. Open this repository folder in your AI IDE.
+2. The AI will automatically have access to all your files (`automations.yaml`, `HOUSE_CONTEXT.md`, etc.).
+3. When you are ready to build a complex automation, open the AI chat panel inside the IDE.
+4. Paste the contents of `prompt.txt`, ensuring you fill out the `[INSERT_YOUR_CURRENT_TASK_HERE]` block.
+5. The AI IDE will read your files, write the new automations, and even execute the sync tools for you!
+
+### 5. Connecting to HAOS
+If your Home Assistant is running on a dedicated device like a Raspberry Pi or Mini PC (HAOS), you should keep this repository on your personal PC and use the network to sync:
+1. Enable the **Samba Share** or **SSH & Web Terminal** Add-on in Home Assistant OS.
+2. Mount the Home Assistant `/config` folder to your PC, or configure the `tools/sync_from_homeassistant.sh` script to pull files via SSH/SCP.
+3. The AI IDE runs entirely on your PC, safely modifying the files in this local repository. Once the AI finishes writing an automation and you approve it, use the sync tools to push the updated `automations.yaml` back to HAOS.
 
 ## The Rules Engine (`INSTRUCTIONS.md`)
 The `INSTRUCTIONS.md` file is the secret sauce. It forces the AI to:
