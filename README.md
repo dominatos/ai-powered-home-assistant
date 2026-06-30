@@ -6,6 +6,43 @@ Many people use AI to generate simple Home Assistant YAML scripts, but they quic
 
 This repository solves that problem by providing a **strict context and tooling framework**.
 
+## What's Included
+
+### 🛠️ Sync & Export Scripts (`tools/`)
+Shell scripts to safely move files between your live Home Assistant and this repository:
+
+| Script | Purpose |
+|--------|---------|
+| `tools/sync_from_homeassistant.sh` | Pull latest config from HA → repo (run *before* AI work) |
+| `tools/sync_to_homeassistant.sh` | Push AI-generated changes repo → HA (run *after* review) |
+| `tools/export_ha_inventory.sh` | Export all device/entity IDs so the AI never guesses |
+
+All scripts create automatic backups, support `--dry-run` and `--diff` flags, and require a clean Git tree for safety. See [Sync Your Configuration](#3-sync-your-configuration-tools-folder) below for details.
+
+### 🤖 Ready-to-Use AI Prompts (`prompts/`)
+Drop-in prompt templates you paste into your AI IDE to perform specific tasks:
+
+| Prompt | What It Does |
+|--------|-------------|
+| `prompts/prompt.txt` | **Main session prompt** — the starting point for any AI task |
+| `prompts/HC-gen.md` | Auto-generate `HOUSE_CONTEXT.md` from your existing inventory |
+| `prompts/naming-fix.md` | Standardize all automation names to `Room: Action` format |
+| `prompts/energy-saving.md` | Audit for energy waste (vampire drain, missing timeouts) |
+| `prompts/security-audit.md` | Find security flaws and missing fallbacks in your automations |
+| `prompts/dashboard-gen.md` | Auto-generate a Lovelace dashboard from your house context |
+| `prompts/yaml-cleanup.md` | Modernize YAML syntax without changing behavior |
+| `prompts/optimise.md` | Merge redundant automations and improve robustness |
+| `prompts/invent-new.md` | Brainstorm brand new automations based on your devices |
+| `prompts/describe-idea.md` | Architect your idea into a detailed plan in `FUTURE-automations.md` |
+| `prompts/replace-device.md` | Swap old entity IDs for new ones across all files |
+| `prompts/troubleshoot-trace.md` | Paste a JSON trace or error log and get a plain-English diagnosis |
+
+### 📋 Context & Rules
+| File | Purpose |
+|------|---------|
+| `INSTRUCTIONS.md` | Strict rules that prevent the AI from guessing or breaking things |
+| `HOUSE_CONTEXT.template.md` | Template to describe your physical house layout and devices |
+
 ## How It Works
 
 Instead of just asking the AI to "write an automation," you provide it with this entire repository (or parts of it) so the AI understands:
@@ -101,19 +138,8 @@ Once your context is set up and your files are synced, you can ask your AI IDE t
 ### 4. Analyzing Blast Radius
 > "I want to change the 'Goodnight' script to also lock the front door and arm the alarm. Before doing this, please analyze all other automations that call the 'Goodnight' script. Will this change cause issues if someone runs it while someone else is still in the backyard?"
 
-### 5. Utility Prompts
-This repository also contains specialized prompts to help you organize your workspace:
-- **`prompts/HC-gen.md`**: Paste this into the AI to have it automatically scan your exported inventory and automations to generate your `HOUSE_CONTEXT.md`.
-- **`prompts/naming-fix.md`**: Paste this into the AI to have it automatically clean up and standardize all your automation names and descriptions to follow a strict `Room: Action` format.
-- **`prompts/energy-saving.md`**: A prompt to audit your setup and find energy waste (vampire drain, missing timeouts).
-- **`prompts/security-audit.md`**: A prompt to audit your automations for security flaws and missing fallbacks.
-- **`prompts/dashboard-gen.md`**: A prompt to auto-generate a Lovelace UI based on your `HOUSE_CONTEXT.md`.
-- **`prompts/yaml-cleanup.md`**: A prompt to modernize and clean up YAML syntax without changing behavior.
-- **`prompts/optimise.md`**: A prompt to merge redundant automations and improve logic robustness using Trigger IDs and templates.
-- **`prompts/invent-new.md`**: A prompt to analyze your devices and propose brand new, creative automations you haven't thought of yet.
-- **`prompts/describe-idea.md`**: A prompt for when you have an idea and want the AI to draft a detailed architecture and YAML plan in `FUTURE-automations.md` before applying it.
-- **`prompts/replace-device.md`**: A prompt to instantly find and replace a broken or swapped device's entity ID across your entire repository.
-- **`prompts/troubleshoot-trace.md`**: Paste a raw JSON trace or error log here, and the AI will cross-reference it with your context to explain exactly why an automation failed.
+### 5. Using Utility Prompts
+This repository ships with 11 ready-to-use prompt templates in the `prompts/` folder. See the full list in the [What's Included](#whats-included) section above. Simply copy the contents of any prompt file, paste it into your AI IDE chat, and fill in the placeholders.
 
 ## The Rules Engine (`INSTRUCTIONS.md`)
 The `INSTRUCTIONS.md` file is the secret sauce. It forces the AI to:
