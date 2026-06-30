@@ -45,7 +45,7 @@ The user is the project owner and makes final decisions.
 7. **Documentation responsibilities**
    - If behavior changes, update relevant docs in this repo.
    - If secrets handling changes, verify `.gitignore` still protects sensitive files.
-   - Keep `INSTRUCTIONS.md`, `prompt.txt`, and `review.md` aligned with the real repo structure and workflow.
+   - Keep `INSTRUCTIONS.md`, `prompts/prompt.txt`, and `review.md` aligned with the real repo structure and workflow.
    - Always analyze `HOUSE_CONTEXT.md` before automation, device, room, or entity-related work.
    - Update `HOUSE_CONTEXT.md` when the work discovers new devices, rooms, entity relationships, or important automation behavior that is missing or outdated.
    - If a newly discovered device is not described in `HOUSE_CONTEXT.md`, add a clear description of it. If required information is missing, ask the user for the missing context before guessing.
@@ -228,7 +228,7 @@ This repo currently includes at least:
 - `.HA_VERSION`
 - `.gitignore`
 - `INSTRUCTIONS.md`
-- `prompt.txt`
+- `prompts/prompt.txt`
 - `review.md`
 - `history.txt`
 - `ha_device_inventory.json` when exported

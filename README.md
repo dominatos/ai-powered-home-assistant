@@ -20,8 +20,8 @@ Clone or download this repository to your computer (preferably to a local worksp
 
 ### 2. Set Up Your Context
 1. Rename `HOUSE_CONTEXT.template.md` to `HOUSE_CONTEXT.md`.
-2. Open it and document your physical house layout, rooms, and devices. Be as descriptive as possible. *(Tip: You can write a rough draft of your devices/rooms and ask the AI IDE to rewrite and properly structure the `HOUSE_CONTEXT.md` for you!)*
-3. Open `prompt.txt` and read the prompt structure. Update the `Repository root:` path to match your local setup.
+2. Open it and document your physical house layout, rooms, and devices. Be as descriptive as possible. *(Tip: If you already have a lot of devices and automations in Home Assistant, you can paste the contents of `prompts/HC-gen.md` into the AI IDE to have it automatically generate your `HOUSE_CONTEXT.md` for you!)*
+3. Open `prompts/prompt.txt` and read the prompt structure. Update the `Repository root:` path to match your local setup.
 
 ### 3. Sync Your Configuration (`tools/` folder)
 
@@ -51,7 +51,7 @@ For the best experience, do not use simple web chats (like ChatGPT). Instead, us
 1. Open this repository folder in your AI IDE.
 2. The AI will automatically have access to all your files (`automations.yaml`, `HOUSE_CONTEXT.md`, etc.).
 3. When you are ready to build a complex automation, open the AI chat panel inside the IDE.
-4. Paste the contents of `prompt.txt`, ensuring you fill out the `[INSERT_YOUR_CURRENT_TASK_HERE]` block.
+4. Paste the contents of `prompts/prompt.txt`, ensuring you fill out the `[INSERT_YOUR_CURRENT_TASK_HERE]` block.
 5. The AI IDE will read your files, write the new automations, and even execute the sync tools for you!
 
 ### 5. Connecting to HAOS
@@ -87,7 +87,7 @@ Next, create a private repository to sync with your PC:
 
 ## Example Use Cases (What to ask the AI)
 
-Once your context is set up and your files are synced, you can ask your AI IDE to perform complex tasks safely. Here are a few examples of what you can paste into the `[INSERT_YOUR_CURRENT_TASK_HERE]` section of `prompt.txt`:
+Once your context is set up and your files are synced, you can ask your AI IDE to perform complex tasks safely. Here are a few examples of what you can paste into the `[INSERT_YOUR_CURRENT_TASK_HERE]` section of `prompts/prompt.txt`:
 
 ### 1. Creating a New Smart Automation
 > "I bought a new Zigbee motion sensor and a smart bulb for the bathroom. I've added them to `HOUSE_CONTEXT.md`. Please write an automation that turns on the bathroom light when motion is detected, but only if the illuminance is below 50 lux. Also, make sure it turns off after 5 minutes of no motion, but DO NOT turn it off if the shower humidity sensor indicates someone is taking a shower."
@@ -100,6 +100,20 @@ Once your context is set up and your files are synced, you can ask your AI IDE t
 
 ### 4. Analyzing Blast Radius
 > "I want to change the 'Goodnight' script to also lock the front door and arm the alarm. Before doing this, please analyze all other automations that call the 'Goodnight' script. Will this change cause issues if someone runs it while someone else is still in the backyard?"
+
+### 5. Utility Prompts
+This repository also contains specialized prompts to help you organize your workspace:
+- **`prompts/HC-gen.md`**: Paste this into the AI to have it automatically scan your exported inventory and automations to generate your `HOUSE_CONTEXT.md`.
+- **`prompts/naming-fix.md`**: Paste this into the AI to have it automatically clean up and standardize all your automation names and descriptions to follow a strict `Room: Action` format.
+- **`prompts/energy-saving.md`**: A prompt to audit your setup and find energy waste (vampire drain, missing timeouts).
+- **`prompts/security-audit.md`**: A prompt to audit your automations for security flaws and missing fallbacks.
+- **`prompts/dashboard-gen.md`**: A prompt to auto-generate a Lovelace UI based on your `HOUSE_CONTEXT.md`.
+- **`prompts/yaml-cleanup.md`**: A prompt to modernize and clean up YAML syntax without changing behavior.
+- **`prompts/optimise.md`**: A prompt to merge redundant automations and improve logic robustness using Trigger IDs and templates.
+- **`prompts/invent-new.md`**: A prompt to analyze your devices and propose brand new, creative automations you haven't thought of yet.
+- **`prompts/describe-idea.md`**: A prompt for when you have an idea and want the AI to draft a detailed architecture and YAML plan in `FUTURE-automations.md` before applying it.
+- **`prompts/replace-device.md`**: A prompt to instantly find and replace a broken or swapped device's entity ID across your entire repository.
+- **`prompts/troubleshoot-trace.md`**: Paste a raw JSON trace or error log here, and the AI will cross-reference it with your context to explain exactly why an automation failed.
 
 ## The Rules Engine (`INSTRUCTIONS.md`)
 The `INSTRUCTIONS.md` file is the secret sauce. It forces the AI to:
