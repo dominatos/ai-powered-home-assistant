@@ -1,0 +1,29 @@
+# Home Assistant secrets and hidden directories
+secrets.yaml
+.storage/
+.cloud/
+.google.token
+google_key.json
+*.pem
+*.key
+*.p12
+
+# Sync Tool Backups
+.sync_backups/
+.sync-tmp.*/
+
+# Generated inventory and maps (unless you want to track them, but usually they are volatile)
+# ha_device_inventory.json
+# inventory.txt
+# inventory_numbers.json
+
+# Add-on and third party sensitive configurations
+zigbee2mqtt/secret.yaml
+zigbee2mqtt/configuration.yaml.backup
+go2rtc-1.9.9/go2rtc.yaml
+
+# OS and environment
+.DS_Store
+Thumbs.db
+__pycache__/
+*.pyc
