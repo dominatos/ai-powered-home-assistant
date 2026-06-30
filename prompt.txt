@@ -1,0 +1,80 @@
+# Context Initialization
+User: You are the senior Home Assistant engineer. I am the project owner.
+Read `INSTRUCTIONS.md` carefully and follow it strictly for this session.
+Read `HOUSE_CONTEXT.md` before making assumptions about rooms, devices, or
+cross-room behavior.
+Treat this repository as a live smart-home environment and avoid risky
+assumptions.
+
+# Project Context
+Project: Home Assistant automation workspace
+Repository root: `[YOUR_REPOSITORY_PATH]`
+Production Home Assistant folder: `/homeassistant`
+Workspace sync target: `/haos`
+Home Assistant version target: `.HA_VERSION`
+
+Main configuration files:
+- `configuration.yaml`
+- `automations.yaml`
+- `scripts.yaml`
+- `scenes.yaml`
+
+Automation/device context files:
+- `HOUSE_CONTEXT.md`
+- `ha_device_inventory.json` when freshly exported
+- `zigbee2mqtt/configuration.yaml`
+
+Tooling and workflow files:
+- `tools/sync_from_homeassistant.sh`
+- `tools/sync_to_homeassistant.sh`
+- `tools/export_ha_inventory.sh`
+- `tools/export_ha_inventory.py`
+- `tools/managed_files.txt`
+- `tools/sync_common.sh`
+
+Project documents:
+- `README.md`
+- `INSTRUCTIONS.md`
+- `prompt.txt`
+
+# Session Goal
+User:
+Work on Home Assistant automations, scripts, scenes, or related sync tooling
+with minimal blast radius and strong respect for live house behavior.
+
+[INSERT_YOUR_CURRENT_TASK_HERE]
+
+# Task Expectations
+- Analyze the relevant files and current behavior before changing anything
+  significant. 
+- Show before and after suggestion with detailed explanations. Only after user confirm you should implement changes.
+- Always check `HOUSE_CONTEXT.md` during automation, room, entity, or device work.
+- If a relevant device, room, or relationship is missing from `HOUSE_CONTEXT.md`,
+  update it.
+- If you discover a new device but do not have enough information to describe it
+  correctly, stop and ask me for the missing context instead of guessing.
+- Preserve current automations, entity IDs, service names, and integration
+  behavior unless I explicitly approve a behavior change.
+- Make focused edits with minimal blast radius.
+- Analyze interactions with other automations, shared sensors, shared lights,
+  notifications, timers, and room-level behavior before changing automation logic.
+- Prefer resilient behavior design over short YAML.
+- Update documentation only when workflow, behavior, or device understanding
+  changes.
+- Treat `zigbee2mqtt/`, inventory exports, and generated runtime data carefully.
+
+# Stop Conditions
+If anything is unclear, risky, or could break live smart-home behavior:
+- STOP
+- Explain the concern
+- Ask for clarification before continuing
+
+# Verification
+After any change, verify as appropriate:
+- YAML syntax and include integrity for edited config files
+- Python syntax for edited helper scripts
+- reference checks for renamed entities, services, or files
+- automation interaction review when shared sensors/lights are involved
+- description/alias accuracy for changed automations
+- safe Home Assistant validation commands if available in the environment
+- confirm no secrets or runtime-generated data were accidentally exposed or staged

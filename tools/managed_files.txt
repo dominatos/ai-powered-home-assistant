@@ -1,0 +1,5 @@
+configuration.yaml
+automations.yaml
+scripts.yaml
+scenes.yaml
+zigbee2mqtt/configuration.yaml
