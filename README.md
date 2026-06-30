@@ -20,11 +20,31 @@ Clone or download this repository to your computer (preferably to a local worksp
 
 ### 2. Set Up Your Context
 1. Rename `HOUSE_CONTEXT.template.md` to `HOUSE_CONTEXT.md`.
-2. Open it and document your physical house layout, rooms, and devices. Be as descriptive as possible.
+2. Open it and document your physical house layout, rooms, and devices. Be as descriptive as possible. *(Tip: You can write a rough draft of your devices/rooms and ask the AI IDE to rewrite and properly structure the `HOUSE_CONTEXT.md` for you!)*
 3. Open `prompt.txt` and read the prompt structure. Update the `Repository root:` path to match your local setup.
 
-### 3. Sync Your Configuration
-Use the bash and python scripts in the `tools/` folder to securely export your live Home Assistant entity inventory and configuration files into this repository. (Make sure to update the scripts if you have a non-standard Home Assistant setup).
+### 3. Sync Your Configuration (`tools/` folder)
+
+This repository includes several scripts in the `tools/` folder to safely move files between your live Home Assistant server and this local repository. 
+
+*Note: These scripts default to `/homeassistant` as the Home Assistant directory. If your setup differs (e.g., you use `/config` on HAOS), you can override the paths using environment variables like `SOURCE_ROOT` and `TARGET_ROOT`.*
+
+**Available Scripts:**
+
+- **`tools/sync_from_homeassistant.sh`**
+  Pulls the latest automations, scripts, scenes, and configurations from your live Home Assistant server into this repository. Run this *before* you start working with the AI to ensure the AI has the most up-to-date context. 
+  *Usage:* `./tools/sync_from_homeassistant.sh` (Supports `--dry-run` and `--diff`)
+
+- **`tools/sync_to_homeassistant.sh`**
+  Pushes the generated and modified configuration files from this repository back to your live Home Assistant server. Run this *after* the AI has finished its work and you have reviewed the changes.
+  *Usage:* `./tools/sync_to_homeassistant.sh` (Supports `--dry-run` and `--diff`)
+
+- **`tools/export_ha_inventory.sh`**
+  Reads the hidden `.storage` folder in Home Assistant and exports a clean, sanitized list of all your devices and entities into `ha_device_inventory.json` and `inventory.txt`. This gives the AI exact entity IDs so it never has to guess. (The `sync_from_homeassistant.sh` script usually runs this automatically).
+  *Usage:* `./tools/export_ha_inventory.sh` (Uses `STORAGE_DIR` environment variable)
+
+**Safety Features:**
+Both sync scripts automatically create backups in a `.sync_backups/` folder before making any changes. If something goes wrong, you can easily run the `restore.sh` script found in the backup folder to revert the changes. They also require your Git working tree to be clean before running, ensuring you can undo any mistakes via Git.
 
 ### 4. Setup AI IDE (Antigravity IDE, Cursor, VS Code)
 For the best experience, do not use simple web chats (like ChatGPT). Instead, use an agentic AI IDE (like Antigravity IDE, Cursor, or Visual Studio Code with an AI extension) installed on your personal PC:
@@ -39,6 +59,47 @@ If your Home Assistant is running on a dedicated device like a Raspberry Pi or M
 1. Enable the **Samba Share** or **SSH & Web Terminal** Add-on in Home Assistant OS.
 2. Mount the Home Assistant `/config` folder to your PC, or configure the `tools/sync_from_homeassistant.sh` script to pull files via SSH/SCP.
 3. The AI IDE runs entirely on your PC, safely modifying the files in this local repository. Once the AI finishes writing an automation and you approve it, use the sync tools to push the updated `automations.yaml` back to HAOS.
+
+### 6. Git Syncing (Advanced)
+Alternatively, you can use a private Git repository to sync changes between your PC and HAOS.
+
+First, set up the base template on HAOS (via SSH/Terminal):
+```bash
+cd /config
+git clone https://github.com/dominatos/ai-powered-home-assistant/
+cd ai-powered-home-assistant
+rm -rf .git
+```
+
+Next, create a private repository to sync with your PC:
+1. Create a **New Repository** on GitHub, GitLab, or Bitbucket. Make sure to set its visibility to **Private**.
+2. Initialize your local Git repository on HAOS and push it to your new remote:
+   ```bash
+   git init
+   git add .
+   git commit -m "Initial config"
+   git branch -M main
+   git remote add origin <your-private-repo-url>
+   git push -u origin main
+   ```
+3. **On your PC**, clone your new *private* repository and open it in your AI IDE.
+4. As the AI generates and modifies files on your PC, you can commit and push them. Then, simply run `git pull` on HAOS to deploy the updates and launch `tools/sync_to_homeassistant.sh` to push the changes.
+
+## Example Use Cases (What to ask the AI)
+
+Once your context is set up and your files are synced, you can ask your AI IDE to perform complex tasks safely. Here are a few examples of what you can paste into the `[INSERT_YOUR_CURRENT_TASK_HERE]` section of `prompt.txt`:
+
+### 1. Creating a New Smart Automation
+> "I bought a new Zigbee motion sensor and a smart bulb for the bathroom. I've added them to `HOUSE_CONTEXT.md`. Please write an automation that turns on the bathroom light when motion is detected, but only if the illuminance is below 50 lux. Also, make sure it turns off after 5 minutes of no motion, but DO NOT turn it off if the shower humidity sensor indicates someone is taking a shower."
+
+### 2. Debugging Conflicting Rules
+> "My living room lights keep turning off randomly while we are watching TV. Please review the automations related to the Living Room in `automations.yaml`. Identify any conflicting rules or motion sensor timeouts, explain the issue, and propose a fix that keeps the lights on if the TV (media_player.living_room_tv) is playing."
+
+### 3. Context Updates & Scaffolding
+> "I just added 5 new smart plugs around the house for holiday lights. Here is a rough list of where I put them and what they are called in Home Assistant. Please update `HOUSE_CONTEXT.md` to include these new devices in their respective rooms, and then write a script to turn them all on at sunset and off at midnight."
+
+### 4. Analyzing Blast Radius
+> "I want to change the 'Goodnight' script to also lock the front door and arm the alarm. Before doing this, please analyze all other automations that call the 'Goodnight' script. Will this change cause issues if someone runs it while someone else is still in the backyard?"
 
 ## The Rules Engine (`INSTRUCTIONS.md`)
 The `INSTRUCTIONS.md` file is the secret sauce. It forces the AI to:
