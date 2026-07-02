@@ -42,14 +42,21 @@ require_git_clean() {
     printf '  %s\n' ${untracked}
   fi
 
-  # Unpushed commits
+  # Unpushed / unpulled commits
   local upstream
   upstream="$(git -C "${repo_dir}" rev-parse --abbrev-ref '@{upstream}' 2>/dev/null || true)"
   if [[ -n "${upstream}" ]]; then
-    local ahead
-    ahead="$(git -C "${repo_dir}" rev-list --count HEAD..."${upstream}" -- 2>/dev/null || echo 0)"
+    git -C "${repo_dir}" fetch --quiet 2>/dev/null || true
+    local ahead behind
+    ahead="$(git -C "${repo_dir}" rev-list --count "${upstream}"..HEAD 2>/dev/null || echo 0)"
+    behind="$(git -C "${repo_dir}" rev-list --count HEAD.."${upstream}" 2>/dev/null || echo 0)"
     if [[ "${ahead}" -gt 0 ]]; then
-      die "ERROR: Repository has ${ahead} unpushed/unsynced commit(s) with ${upstream}. Push or pull before syncing."
+      die "ERROR: Repository has ${ahead} unpushed commit(s) ahead of ${upstream}. Push before syncing."
+    fi
+    if [[ "${behind}" -gt 0 ]]; then
+      log "Repository is ${behind} commit(s) behind ${upstream}. Pulling…"
+      git -C "${repo_dir}" pull --ff-only 2>/dev/null \
+        || die "ERROR: Could not fast-forward to ${upstream}. Resolve manually before syncing."
     fi
   else
     log "WARNING: No upstream tracking branch — cannot verify push status."

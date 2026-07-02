@@ -158,6 +158,20 @@ maybe_export_inventory() {
   fi
 }
 
+commit_inventory_files() {
+  if ! command -v git > /dev/null 2>&1 || \
+     ! git -C "${REPO_ROOT}" rev-parse --is-inside-work-tree > /dev/null 2>&1; then
+    return 0
+  fi
+  if ! git -C "${REPO_ROOT}" diff --quiet HEAD -- 2>/dev/null || \
+     [[ -n "$(git -C "${REPO_ROOT}" ls-files --others --exclude-standard 2>/dev/null)" ]]; then
+    log "Committing inventory files to git"
+    git -C "${REPO_ROOT}" add -A
+    git -C "${REPO_ROOT}" commit -m "inventory: update snapshot $(date +%Y-%m-%dT%H:%M:%S)"
+    git -C "${REPO_ROOT}" push || log "WARNING: git push failed — continuing without push"
+  fi
+}
+
 parse_args "$@"
 export SKIP_CONFIRM
 load_managed_files
@@ -180,6 +194,7 @@ write_restore_script "${TARGET_ROOT}" "${BACKUP_DIR}"
 sync_files
 commit_synced_files
 maybe_export_inventory
+commit_inventory_files
 trap - ERR
 log "Sync completed successfully."
 log "Backup created at ${BACKUP_DIR}"
