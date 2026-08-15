@@ -1,0 +1,78 @@
+# CodeRabbit configuration for ai-powered-home-assistant
+# https://docs.coderabbit.ai/configuration
+
+reviews:
+  # Review scope
+  auto_review:
+    enabled: true
+    # Only review PRs, not pushes
+    drafts: false
+    # Base branches to review against
+    base_branches:
+      - main
+      - master
+
+  # Path-based instructions
+  path_instructions:
+    - path: "*.template.yaml"
+      instructions: |
+        This is a Home Assistant YAML template file for a public repository.
+        - Do NOT add any personal data (names, addresses, device IDs, Telegram IDs)
+        - All placeholders must use the format: <your_xxx> or <device_id_here>
+        - Keep automation logic simple and well-commented for beginners
+        - Validate YAML structure and Home Assistant schema
+    - path: "*.template.md"
+      instructions: |
+        This is a documentation template for a public repository.
+        - Do NOT add any personal data
+        - Use generic placeholder examples
+        - Keep language clear and beginner-friendly
+    - path: "tools/*.py"
+      instructions: |
+        Python tools for Home Assistant configuration management.
+        - Ensure all functions have docstrings
+        - Use pathlib for file operations
+        - Handle errors gracefully with user-friendly messages
+        - Keep scripts self-contained (no external dependencies beyond stdlib + pyyaml)
+    - path: "tools/*.sh"
+      instructions: |
+        Bash scripts for syncing Home Assistant configuration.
+        - Use set -Eeuo pipefail for safety
+        - Include proper error handling and cleanup
+        - Support --dry-run and --diff flags where applicable
+        - Create backups before destructive operations
+    - path: "tests/**"
+      instructions: |
+        Test suite for all tools.
+        - Tests must use temporary directories (no real HA installation needed)
+        - Clean up temp dirs in tearDown
+        - Cover both success and error paths
+    - path: "*.md"
+      instructions: |
+        Documentation for a public template repository.
+        - Keep language clear and concise
+        - Use consistent formatting
+        - Do NOT include personal information
+    - path: "patterns/**"
+      instructions: |
+        Reusable automation patterns library.
+        - Patterns must be generic and applicable to any home
+        - Include clear explanations of when to use each pattern
+        - Follow Home Assistant best practices
+
+  # Files to exclude from review
+  path_filters:
+    - "!temp/**"
+    - "!haos/**"
+    - "!backups/**"
+    - "!.sync_backups/**"
+    - "!*.db"
+    - "!*.sqlite"
+    - "!home-assistant.log*"
+    - "!promptproject.txt"
+
+  # Review profile
+  profile: default
+
+  # Show walkthrough for PRs
+  show_walkthrough: true
