@@ -1,0 +1,288 @@
+# ============================================================
+# scripts.template.yaml
+# ============================================================
+# Example reusable scripts for Home Assistant.
+# Copy into your scripts.yaml and adapt entity IDs.
+# ============================================================
+
+# ── Turn off all lights in the house ────────────────────────────────────────
+# Use this as a "master off" button on the dashboard. Define your actual
+# area_ids in the target.area_id list.
+dashboard_all_lights_off:
+  alias: "Dashboard: All Lights Off"
+  description: "Turns off all lights in the house without triggering Night/Away mode actions."
+  icon: mdi:lightbulb-group-off
+  mode: single
+  sequence:
+    - action: light.turn_off
+      target:
+        area_id:
+          - living_room    # replace with your actual area slugs
+          - bedroom
+          - kitchen
+          - bathroom
+
+# ── TV timer: extend or start ───────────────────────────────────────────────
+# Called from a dashboard button. If the TV timer is idle, starts it.
+# If it is running or paused, extends it by the configured number of minutes.
+kitchen_tv_extend_timer:
+  alias: "Kitchen: Extend TV Timer"
+  description: "Extends active or paused TV off timer by input_number.tv_timer_minutes, or starts timer if idle."
+  icon: mdi:timer-plus
+  mode: single
+  sequence:
+    - if:
+        - condition: state
+          entity_id: timer.tv_off_timer
+          state: "idle"
+      then:
+        - action: input_button.press
+          target:
+            entity_id: input_button.tv_start_timer
+      else:
+        - action: timer.change
+          target:
+            entity_id: timer.tv_off_timer
+          data:
+            duration: >
+              {% set m = states('input_number.tv_timer_minutes') | int(15) %}
+              {{ '{:02d}:{:02d}:00'.format(m // 60, m % 60) }}
+
+# ── Transfer media queue between speakers (cycle) ───────────────────────────
+# Cycles Jellyfin/Music Assistant playback between 3 speakers in order.
+# Adapt the player entity IDs and boolean trackers to your setup.
+transfer_media_cycle:
+  alias: "Transfer Media Queue (Cycle)"
+  description: "Cycles active media playback between Room A → Room B → Room C → Room A."
+  icon: mdi:music-box-multiple
+  mode: single
+  sequence:
+    - variables:
+        is_room_a_playing: "{{ is_state('input_boolean.room_a_media_active', 'on') }}"
+        is_room_b_playing: "{{ is_state('input_boolean.room_b_media_active', 'on') }}"
+        is_room_c_playing: "{{ is_state('input_boolean.room_c_media_active', 'on') }}"
+
+        # Cycle: Room A → Room B → Room C → Room A
+        source_player: >
+          {% if is_room_a_playing %} media_player.room_a_speaker
+          {% elif is_room_b_playing %} media_player.room_b_speaker
+          {% elif is_room_c_playing %} media_player.room_c_speaker
+          {% else %} none
+          {% endif %}
+
+        target_player: >
+          {% if is_room_a_playing %} media_player.room_b_speaker
+          {% elif is_room_b_playing %} media_player.room_c_speaker
+          {% elif is_room_c_playing %} media_player.room_a_speaker
+          {% else %} none
+          {% endif %}
+
+        source_boolean: >
+          {% if is_room_a_playing %} input_boolean.room_a_media_active
+          {% elif is_room_b_playing %} input_boolean.room_b_media_active
+          {% elif is_room_c_playing %} input_boolean.room_c_media_active
+          {% else %} none
+          {% endif %}
+
+        target_boolean: >
+          {% if is_room_a_playing %} input_boolean.room_b_media_active
+          {% elif is_room_b_playing %} input_boolean.room_c_media_active
+          {% elif is_room_c_playing %} input_boolean.room_a_media_active
+          {% else %} none
+          {% endif %}
+
+    - if:
+        - condition: template
+          value_template: "{{ source_player != 'none' }}"
+      then:
+        - action: music_assistant.transfer_queue
+          target:
+            entity_id: "{{ target_player }}"
+          data:
+            source_player: "{{ source_player }}"
+            auto_play: true
+
+        - delay:
+            seconds: 2
+
+        - action: input_boolean.turn_on
+          target:
+            entity_id: "{{ target_boolean }}"
+
+        - delay:
+            seconds: 1
+
+        - action: input_boolean.turn_off
+          target:
+            entity_id: "{{ source_boolean }}"
+
+# ── Thermostat: pull schedule from device ───────────────────────────────────
+# Reads the thermostat's native weekly schedule (as currently stored on the
+# device) and writes the values back into the dashboard's helper entities.
+# Run manually after any physical/on-device schedule change.
+# Adapt the sensor entity IDs to your thermostat's Zigbee2MQTT state sensors.
+thermostat_pull_schedule_from_device:
+  alias: "Thermostat: Pull Schedule From Device"
+  description: >-
+    Parses the device's native weekly schedule and writes the values back into
+    the dashboard's input_datetime/input_number schedule helpers. Run manually
+    after any physical on-device schedule change.
+  mode: single
+  sequence:
+    - variables:
+        # Replace with your thermostat's schedule sensor entity IDs
+        weekday_tokens: "{{ states('sensor.<your_thermostat_schedule_monday>').split() }}"
+    - condition: template
+      value_template: >
+        {% if weekday_tokens | length < 4 %}false{% else %}
+        {% set ns = namespace(valid=true) %}
+        {% for i in range(4) %}
+          {% if '/' not in weekday_tokens[i] %}
+            {% set ns.valid = false %}
+          {% else %}
+            {% set parts = weekday_tokens[i].split('/') %}
+            {% if parts|length != 2 or parts[0]|length != 5 or ':' not in parts[0] or parts[1]|length == 0 %}
+              {% set ns.valid = false %}
+            {% else %}
+              {% set hh = parts[0].split(':')[0] %}
+              {% set mm = parts[0].split(':')[1] %}
+              {% set temp = parts[1] | replace('°C','') %}
+              {% if not (hh.isdigit() and mm.isdigit() and 0 <= hh|int <= 23 and 0 <= mm|int <= 59) %}
+                {% set ns.valid = false %}
+              {% elif not (temp | replace('.','',1)).isdigit() %}
+                {% set ns.valid = false %}
+              {% endif %}
+            {% endif %}
+          {% endif %}
+        {% endfor %}
+        {{ ns.valid }}
+        {% endif %}
+    - action: input_datetime.set_datetime
+      target:
+        entity_id: input_datetime.thermostat_schedule_time_1
+      data:
+        time: "{{ weekday_tokens[0].split('/')[0] }}:00"
+    - action: input_number.set_value
+      target:
+        entity_id: input_number.thermostat_schedule_temp_1
+      data:
+        value: "{{ weekday_tokens[0].split('/')[1] | replace('°C','') | int }}"
+    - action: input_datetime.set_datetime
+      target:
+        entity_id: input_datetime.thermostat_schedule_time_2
+      data:
+        time: "{{ weekday_tokens[1].split('/')[0] }}:00"
+    - action: input_number.set_value
+      target:
+        entity_id: input_number.thermostat_schedule_temp_2
+      data:
+        value: "{{ weekday_tokens[1].split('/')[1] | replace('°C','') | int }}"
+    - action: input_datetime.set_datetime
+      target:
+        entity_id: input_datetime.thermostat_schedule_time_3
+      data:
+        time: "{{ weekday_tokens[2].split('/')[0] }}:00"
+    - action: input_number.set_value
+      target:
+        entity_id: input_number.thermostat_schedule_temp_3
+      data:
+        value: "{{ weekday_tokens[2].split('/')[1] | replace('°C','') | int }}"
+    - action: input_datetime.set_datetime
+      target:
+        entity_id: input_datetime.thermostat_schedule_time_4
+      data:
+        time: "{{ weekday_tokens[3].split('/')[0] }}:00"
+    - action: input_number.set_value
+      target:
+        entity_id: input_number.thermostat_schedule_temp_4
+      data:
+        value: "{{ weekday_tokens[3].split('/')[1] | replace('°C','') | int }}"
+transfer_jellyfin_tales:
+  alias: Transfer Jellyfin Tales (Cycle)
+  description: Cycles the active Fairy Tales playback between Child Room, Kitchen,
+    and Bedroom seamlessly.
+  icon: mdi:music-box-multiple
+  mode: single
+  sequence:
+  - variables:
+      is_child_playing: '{{ is_state(''input_boolean.child_room_jellyfin_tales'',
+        ''on'') }}'
+      is_kitchen_playing: '{{ is_state(''input_boolean.kitchen_jellyfin_tales'', ''on'')
+        }}'
+      is_bedroom_playing: '{{ is_state(''input_boolean.bedroom_jellyfin_tales'', ''on'')
+        }}'
+      source_player: '{% if is_child_playing %} media_player.<your_child_room_speaker>
+        {% elif is_kitchen_playing %} media_player.<your_kitchen_playback_speaker> {%
+        elif is_bedroom_playing %} media_player.<your_bedroom_speaker> {% else %} none
+        {% endif %}
+
+        '
+      target_player: '{% if is_child_playing %} media_player.<your_kitchen_playback_speaker>
+        {% elif is_kitchen_playing %} media_player.<your_bedroom_speaker> {% elif is_bedroom_playing
+        %} media_player.<your_child_room_speaker> {% else %} none {% endif %}
+
+        '
+      source_boolean: '{% if is_child_playing %} input_boolean.child_room_jellyfin_tales
+        {% elif is_kitchen_playing %} input_boolean.kitchen_jellyfin_tales {% elif
+        is_bedroom_playing %} input_boolean.bedroom_jellyfin_tales {% else %} none
+        {% endif %}
+
+        '
+      target_boolean: '{% if is_child_playing %} input_boolean.kitchen_jellyfin_tales
+        {% elif is_kitchen_playing %} input_boolean.bedroom_jellyfin_tales {% elif
+        is_bedroom_playing %} input_boolean.child_room_jellyfin_tales {% else %} none
+        {% endif %}
+
+        '
+  - if:
+    - condition: template
+      value_template: '{{ source_player != ''none'' }}'
+    then:
+    - action: music_assistant.transfer_queue
+      target:
+        entity_id: '{{ target_player }}'
+      data:
+        source_player: '{{ source_player }}'
+        auto_play: true
+    - delay:
+        seconds: 2
+    - action: input_boolean.turn_on
+      target:
+        entity_id: '{{ target_boolean }}'
+    - delay:
+        seconds: 1
+    - action: input_boolean.turn_off
+      target:
+        entity_id: '{{ source_boolean }}'
+play_tales_with_retry:
+  alias: Play Tales with Retry
+  description: Plays the tales playlist on the given MA player with up to 3 retries
+    on provider errors.
+  icon: mdi:replay
+  fields:
+    target_player:
+      description: Music Assistant media player entity_id
+  mode: parallel
+  max: 3
+  sequence:
+  - repeat:
+      while:
+      - condition: template
+        value_template: '{{ repeat.index <= 3 }}'
+      - condition: template
+        value_template: '{{ not is_state(target_player, ''playing'') }}'
+      sequence:
+      - if:
+        - condition: template
+          value_template: '{{ repeat.index > 1 }}'
+        then:
+        - delay:
+            seconds: 5
+      - action: music_assistant.play_media
+        data:
+          media_id: '{{ states(''input_text.jellyfin_tales_playlist'') }}'
+          media_type: playlist
+          enqueue: play
+        target:
+          entity_id: '{{ target_player }}'
+        continue_on_error: true

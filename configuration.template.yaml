@@ -1,0 +1,327 @@
+# ============================================================
+# configuration.template.yaml
+# ============================================================
+# This file documents common configuration.yaml patterns used
+# in a real Home Assistant setup. Copy and adapt the sections
+# you need into your own configuration.yaml.
+#
+# IMPORTANT: Do NOT include this file directly with !include.
+# It is a reference document, not a live config file.
+# ============================================================
+
+# --- Core includes ---
+# Loads default set of integrations. Do not remove.
+default_config:
+
+frontend:
+  themes: !include_dir_merge_named themes
+
+automation: !include automations.yaml
+script: !include scripts.yaml
+scene: !include scenes.yaml
+
+# --- Friendly name overrides ---
+# Use this section to give readable names to raw Zigbee entity IDs.
+# Note: Renaming entities here does NOT rename the entity_id —
+# use Settings → Entities in the UI for that.
+homeassistant:
+  external_url: "https://your-ha-instance.example.com"    # optional
+  internal_url: "http://192.168.1.X:8123"                 # optional
+  customize:
+    sensor.your_energy_sensor_1:
+      device_class: energy
+      state_class: total_increasing
+    sensor.your_power_sensor_1:
+      device_class: power
+      state_class: measurement
+
+# --- Common input_boolean helpers ---
+# These are global state flags used across many automations.
+input_boolean:
+
+  # Suppress TTS speech in all rooms while letting push/Telegram notifications proceed.
+  quiet_tts_notifications:
+    name: Quiet TTS Notifications
+    icon: mdi:volume-off
+
+  # Activate when guests are home to disable personal automations.
+  guest_mode:
+    name: Guest Mode
+    icon: mdi:account-group
+
+  # Track whether the kitchen tablet screen is awake.
+  kitchen_tablet_screen_awake:
+    name: Kitchen Tablet Screen Awake
+    icon: mdi:tablet
+
+  # Track whether the bathroom is occupied (used by motion + door automations).
+  bathroom_occupied:
+    name: Bathroom Occupied
+    icon: mdi:human-male-female
+
+  # TV timer state tracker.
+  tv_timer_active:
+    name: TV Timer Active
+    icon: mdi:timer-check
+
+  # Thermostat overrides
+  thermostat_boost_1h:
+    name: Thermostat Boost 1h
+    icon: mdi:fire
+  thermostat_physical_override_fallback:
+    name: Thermostat Physical Override Fallback
+    icon: mdi:thermostat
+    initial: true
+  thermostat_night_mode:
+    name: Thermostat Night Mode Active
+    icon: mdi:weather-night
+
+# --- Dashboard trigger buttons ---
+input_button:
+  tv_start_timer:
+    name: Start TV Timer
+    icon: mdi:play-circle
+
+# --- Thermostat schedule helpers ---
+# 4 time slots × 3 days (weekday, Saturday, Sunday) = 12 helpers each.
+# Shown here for weekdays only; duplicate for Saturday/Sunday if needed.
+input_datetime:
+  thermostat_schedule_time_1:
+    name: Thermostat Schedule Morning Time
+    has_date: false
+    has_time: true
+  thermostat_schedule_time_2:
+    name: Thermostat Schedule Day Time
+    has_date: false
+    has_time: true
+  thermostat_schedule_time_3:
+    name: Thermostat Schedule Evening Time
+    has_date: false
+    has_time: true
+  thermostat_schedule_time_4:
+    name: Thermostat Schedule Night Time
+    has_date: false
+    has_time: true
+
+input_number:
+  # TV timer
+  tv_timer_minutes:
+    name: TV Off Timer (minutes)
+    min: 1
+    max: 180
+    step: 1
+    unit_of_measurement: min
+    icon: mdi:timer
+    mode: box
+
+  # Thermostat schedule temperatures
+  thermostat_schedule_temp_1:
+    name: Thermostat Morning Temperature
+    min: 15
+    max: 30
+    step: 1
+    unit_of_measurement: °C
+    icon: mdi:thermometer
+  thermostat_schedule_temp_2:
+    name: Thermostat Day Temperature
+    min: 15
+    max: 30
+    step: 1
+    unit_of_measurement: °C
+    icon: mdi:thermometer
+  thermostat_schedule_temp_3:
+    name: Thermostat Evening Temperature
+    min: 15
+    max: 30
+    step: 1
+    unit_of_measurement: °C
+    icon: mdi:thermometer
+  thermostat_schedule_temp_4:
+    name: Thermostat Night Temperature
+    min: 15
+    max: 30
+    step: 1
+    unit_of_measurement: °C
+    icon: mdi:thermometer
+  thermostat_night_away_temp:
+    name: Thermostat Night/Away Temperature
+    min: 15
+    max: 25
+    step: 1
+    unit_of_measurement: °C
+    icon: mdi:home-export-outline
+
+# --- AI model selector ---
+# Allows switching between a local Ollama model and a cloud provider
+# from the dashboard or an automation condition.
+input_text:
+  ai_ollama_model:
+    name: "Ollama Model"
+    initial: "your-model-nothink"
+    icon: mdi:robot-outline
+
+input_select:
+  ai_provider_selector:
+    name: AI Provider
+    options:
+      - "Local (Ollama)"
+      - "Cloud (OpenCode)"
+    initial: "Local (Ollama)"
+    icon: mdi:robot
+
+# --- TV Off Timer ---
+timer:
+  tv_off_timer:
+    name: TV Off Timer
+    icon: mdi:television
+
+# --- Shell commands ---
+shell_command:
+  # Reset Bluetooth adapter if devices stop connecting.
+  reset_bluetooth: >
+    echo "power off" | bluetoothctl && sleep 2 && echo "power on" | bluetoothctl && sleep 2 && echo "scan on" | bluetoothctl
+
+# --- Recorder optimizations ---
+# Exclude high-churn, low-value entities from history to reduce DB size.
+recorder:
+  purge_keep_days: 7
+  auto_purge: true
+  commit_interval: 30
+  exclude:
+    domains:
+      - automation
+      - updater
+      - persistent_notification
+    entities:
+      - sensor.time
+      - sensor.date
+      - sensor.date_time
+    entity_globs:
+      - sensor.last_boot*
+      - sensor.date*
+      - sensor.time*
+
+# --- Template sensors ---
+template:
+
+  # Master house occupancy — combines presence helpers, guest mode, and
+  # any area-based presence tracking (e.g., Magic Areas).
+  - binary_sensor:
+      - name: "House Occupied"
+        unique_id: "house_occupied_master"
+        device_class: occupancy
+        icon: mdi:home-account
+        state: >
+          {{
+            is_state('input_boolean.owner_1_home_stable', 'on') or
+            is_state('input_boolean.guest_mode', 'on') or
+            is_state('binary_sensor.magic_areas_presence_tracking_interior_area_state', 'on')
+          }}
+
+  # Wh → kWh conversion for two energy monitoring circuits.
+  # unique_id is required for Long-Term Statistics.
+  - sensor:
+      - name: "Total House Energy kWh"
+        unique_id: "total_house_energy_kwh"
+        unit_of_measurement: "kWh"
+        device_class: energy
+        state_class: total_increasing
+        state: >
+          {{ ((states('sensor.energy_circuit_1') | float(0) +
+               states('sensor.energy_circuit_2') | float(0)) / 1000) | round(3) }}
+
+  # Calendar event detection — polls the Google/CalDAV calendar every minute
+  # and exposes binary_sensor.events_today / events_tomorrow / events_this_week.
+  - trigger:
+      - platform: time_pattern
+        minutes: "/1"
+      - platform: homeassistant
+        event: start
+    action:
+      - service: calendar.get_events
+        data:
+          start_date_time: "{{ now().strftime('%Y-%m-%d 00:00:00') }}"
+          duration:
+            days: 30
+        target:
+          entity_id: calendar.your_shared_calendar
+        response_variable: agenda
+    binary_sensor:
+      - name: "Events Today"
+        state: >
+          {% set has_events = false %}
+          {% if agenda is defined and 'calendar.your_shared_calendar' in agenda %}
+            {% set events = agenda['calendar.your_shared_calendar'].events %}
+            {% set ns = namespace(has_events=false) %}
+            {% set today = now().date() %}
+            {% for event in events %}
+              {% set start_str = event.start %}
+              {% if 'T' in start_str %}
+                {% set dt = as_datetime(start_str) | as_local %}
+              {% else %}
+                {% set dt = (start_str ~ 'T00:00:00Z') | as_datetime | as_local %}
+              {% endif %}
+              {% if dt.date() == today %}
+                {% set ns.has_events = true %}
+              {% endif %}
+            {% endfor %}
+            {% set has_events = ns.has_events %}
+          {% endif %}
+          {{ has_events }}
+
+  # TV daily usage tracker — accumulates minutes while TV is on.
+  # Incremented every minute by "TV: Track Daily Usage" automation.
+  # Reset at midnight by "TV: Reset Daily Usage" automation.
+  - sensor:
+      - name: "TV Daily Usage"
+        unique_id: "tv_daily_usage_minutes"
+        state: "{{ states('input_number.tv_daily_minutes_counter') | int(0) }}"
+        unit_of_measurement: "min"
+        icon: mdi:calendar-clock
+
+# --- Local AI via Ollama ---
+# Replace <your_ollama_host> with the LAN IP of your Ollama server.
+rest_command:
+  ollama_generate:
+    url: "http://<your_ollama_host>:11434/api/generate"
+    method: POST
+    timeout: 60
+    headers:
+      Content-Type: "application/json"
+    payload: >
+      {
+        "model": "{{ states('input_text.ai_ollama_model') }}",
+        "prompt": {{ prompt | to_json }},
+        "stream": false,
+        "think": false,
+        "options": {
+          "num_predict": 500,
+          "temperature": 0.9
+        }
+      }
+
+# --- Powercalc examples ---
+# Powercalc estimates power consumption for devices without built-in power meters.
+# Integration: https://github.com/bramstroker/homeassistant-powercalc
+powercalc:
+  discovery:
+    enabled: true
+  sensors:
+    # Fixed wattage for a light strip (measure with a smart plug to calibrate).
+    - entity_id: light.kitchen_led_strip
+      fixed:
+        states_power:
+          "off": 0.0
+          "on": 10.0
+    # Speaker with standby/idle/playing states.
+    - entity_id: media_player.<your_kitchen_speaker>
+      fixed:
+        states_power:
+          "off": 0.5
+          "idle": 1.5
+          "playing": 3.0
+    # Dimmable LED light with linear power curve.
+    - entity_id: light.bedroom_led
+      linear:
+        min_power: 1.0
+        max_power: 12.0

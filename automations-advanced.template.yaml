@@ -1,0 +1,1377 @@
+# ==========================================
+# === ADVANCED & AI AUTOMATIONS ===
+# ==========================================
+# Complex automations using AI integration (Ollama/OpenCode), choose blocks,
+# actionable notifications, and multi-step logic.
+#
+# Usage: Rename to automations.yaml and replace all <device_id_here>,
+#        <tablet_hostname>, <Your City>, notify.mobile_app_<your_phone>,
+#        and other placeholders with your actual values.
+# Requires: Ollama or OpenCode integration, input_select.ai_provider_selector.
+
+- id: kitchen_evening_meal_reminder_ai
+  alias: 'Kitchen: Evening Meal Reminder'
+  description: Triggered when the kitchen door opens after 20:00; uses Ollama to play
+    a kitchen TTS reminder only when Quiet TTS Notifications is off.
+  triggers:
+  - type: opened
+    device_id: <device_id_here>
+    entity_id: binary_sensor.kitchen_door_contact
+    domain: binary_sensor
+    trigger: device
+  conditions:
+  - condition: time
+    after: '20:00:00'
+    before: '22:00:00'
+    weekday:
+    - mon
+    - tue
+    - wed
+    - thu
+    - fri
+    - sat
+    - sun
+  actions:
+  - choose:
+    - conditions:
+      - condition: state
+        entity_id: input_boolean.quiet_tts_notifications
+        state: 'off'
+      sequence:
+      - variables:
+          ai_prompt: 'Generate a short, funny evening-meal reminder in English. It
+            is between 8 PM and 10 PM and someone just opened the kitchen door —
+            time to eat! Reply STRICTLY with only text for the text-to-speech engine.
+            No greetings, quotes, or emojis. Output the ready text immediately.
+            Something like: ''Dinner won''t eat itself — get in here!'' or ''The kitchen
+            has been waiting. It is getting emotional.'''
+      - choose:
+        - conditions:
+          - condition: state
+            entity_id: input_select.ai_provider_selector
+            state: Cloud (OpenCode)
+          sequence:
+          - action: rest_command.opencode_create_session
+            continue_on_error: true
+            response_variable: session_res
+          - if:
+            - condition: template
+              value_template: '{{ session_res is defined and session_res.status ==
+                200 and session_res.content is defined and session_res.content.id
+                is defined }}'
+            then:
+            - action: rest_command.opencode_post_message
+              continue_on_error: true
+              data:
+                session_id: '{{ session_res.content.id }}'
+                prompt: '{{ ai_prompt }}'
+              response_variable: ai_response
+            - variables:
+                ai_response:
+                  status: '{{ ai_response.status | default(0) | int(0) }}'
+                  content:
+                    response: '{% set parts_list = ai_response.content.parts | default([])
+                      %}{% set text_items = parts_list | selectattr(''type'', ''eq'',
+                      ''text'') | list %}{% if text_items | length > 0 %}{{ text_items[0].text
+                      }}{% endif %}'
+        default:
+        - action: rest_command.ollama_generate
+          continue_on_error: true
+          data:
+            prompt: '{{ ai_prompt }}'
+          response_variable: ai_response
+      - action: tts.speak
+        metadata: {}
+        target:
+          entity_id: tts.google_translate_en_com
+        data:
+          cache: false
+          media_player_entity_id: media_player.<your_kitchen_speaker>
+          language: en
+          message: "{% if ai_response is defined and ai_response.status == 200 %}\n\
+            \  {% set content = ai_response.content %}\n  {% if content is mapping\
+            \ and 'response' in content and content.response | trim | length > 0 %}\n\
+            \    {{ content.response }}\n  {% elif content is mapping and 'choices'\
+            \ in content and content.choices | length > 0 %}\n    {{ content.choices[0].message.content\
+            \ }}\n  {% else %}\n    Eat up! Your tummy will be happy!\n  {% endif\
+            \ %}\n{% else %}\n  Eat up! Your tummy will be happy!\n{% endif %}"
+  mode: single
+- id: weather_morning_alert
+  alias: 'Weather: Morning Alert'
+  description: Triggered at 07:45 on weekdays; announces dynamic radio-style forecast
+    for <your_city> using Ollama.
+  triggers:
+  - trigger: time
+    at: 07:45:00
+    weekday:
+    - mon
+    - tue
+    - wed
+    - thu
+    - fri
+  conditions: []
+  actions:
+  - choose:
+    - conditions:
+      - condition: state
+        entity_id: binary_sensor.<your_occupancy_sensor>
+        state: 'on'
+      sequence: []
+    default:
+    - wait_for_trigger:
+      - trigger: state
+        entity_id: binary_sensor.<your_occupancy_sensor>
+        from: 'off'
+        to: 'on'
+      timeout: 00:45:00
+      continue_on_timeout: true
+  - condition: state
+    entity_id: binary_sensor.<your_occupancy_sensor>
+    state: 'on'
+  - condition: state
+    entity_id: input_boolean.quiet_tts_notifications
+    state: 'off'
+  - action: weather.get_forecasts
+    data:
+      type: daily
+    target:
+      entity_id: weather.forecast_home
+    response_variable: daily_forecast
+  - variables:
+      condition: '{{ daily_forecast[''weather.forecast_home''].forecast[0].condition
+        }}'
+      temp_high: '{{ daily_forecast[''weather.forecast_home''].forecast[0].temperature
+        }}'
+      temp_low: '{{ daily_forecast[''weather.forecast_home''].forecast[0].templow
+        }}'
+      precip_prob: '{{ daily_forecast[''weather.forecast_home''].forecast[0].precipitation_probability
+        | default(0) }}'
+      wind_speed: '{{ daily_forecast[''weather.forecast_home''].forecast[0].wind_speed
+        | default(0) }}'
+      ai_prompt: 'Generate a very short morning weather forecast for <Your City> for
+        a smart home in the style of a morning radio show host in English. Today''s
+        data: Condition: {{ condition }} Temperature: from {{ temp_low }}C to {{ temp_high
+        }}C Precipitation probability: {{ precip_prob }}% Wind: {{ wind_speed }} km/h
+
+
+        Reply STRICTLY with only the ready text for the announcer. No quotes, asterisks,
+        emojis, or confirmations. At the end, definitely add a short funny joke about
+        this weather. 3-4 sentences max.
+
+
+        '
+  - choose:
+    - conditions:
+      - condition: state
+        entity_id: input_select.ai_provider_selector
+        state: Cloud (OpenCode)
+      sequence:
+      - action: rest_command.opencode_create_session
+        continue_on_error: true
+        response_variable: session_res
+      - if:
+        - condition: template
+          value_template: '{{ session_res is defined and session_res.status == 200
+            and session_res.content is defined and session_res.content.id is defined
+            }}'
+        then:
+        - action: rest_command.opencode_post_message
+          continue_on_error: true
+          data:
+            session_id: '{{ session_res.content.id }}'
+            prompt: '{{ ai_prompt }}'
+          response_variable: ai_response
+        - variables:
+            ai_response:
+              status: '{{ ai_response.status | default(0) | int(0) }}'
+              content:
+                response: '{% set parts_list = ai_response.content.parts | default([])
+                  %}{% set text_items = parts_list | selectattr(''type'', ''eq'',
+                  ''text'') | list %}{% if text_items | length > 0 %}{{ text_items[0].text
+                  }}{% endif %}'
+    default:
+    - action: rest_command.ollama_generate
+      continue_on_error: true
+      data:
+        prompt: '{{ ai_prompt }}'
+      response_variable: ai_response
+  - action: media_player.volume_set
+    target:
+      entity_id: media_player.<your_kitchen_speaker>
+    data:
+      volume_level: 0.4
+  - action: tts.speak
+    target:
+      entity_id: tts.google_translate_en_com
+    data:
+      cache: false
+      media_player_entity_id: media_player.<your_kitchen_speaker>
+      language: en
+      message: "{% if ai_response is defined and ai_response.status == 200 %}\n  {%\
+        \ set content = ai_response.content %}\n  {% if content is mapping and 'response'\
+        \ in content and content.response | trim | length > 0 %}\n    {{ content.response\
+        \ }}\n  {% elif content is mapping and 'choices' in content and content.choices\
+        \ | length > 0 %}\n    {{ content.choices[0].message.content }}\n  {% else\
+        \ %}\n    Good morning! Today in <Your City> expect nice weather.\n  {% endif\
+        \ %}\n{% else %}\n  Good morning! Today in <Your City> expect nice weather.\n\
+        {% endif %}"
+  - wait_template: '{{ is_state(''media_player.<your_kitchen_speaker>'', ''playing'') }}'
+    timeout: 00:00:10
+  - wait_template: '{{ is_state(''media_player.<your_kitchen_speaker>'', ''idle'') or is_state(''media_player.<your_kitchen_speaker>'',
+      ''off'') }}'
+    timeout: 00:01:30
+  - action: media_player.volume_set
+    target:
+      entity_id: media_player.<your_kitchen_speaker>
+    data:
+      volume_level: 0.2
+  mode: restart
+- id: presence_generic_car
+  alias: 'Presence: Generic Car Arrival/Departure'
+  description: 'Triggered when the Generic Car tracker enters or leaves the home zone.
+    On arrival: sends push notification with action buttons only if no one was home
+    before. On departure: sends push notification with Turn off lights button only
+    if at least one light is on.'
+  triggers:
+  - trigger: zone
+    entity_id: device_tracker.generic_car
+    zone: zone.home
+    event: enter
+    id: arrival
+  - trigger: zone
+    entity_id: device_tracker.generic_car
+    zone: zone.home
+    event: leave
+    id: departure
+  conditions: []
+  actions:
+  - variables:
+      event_text: '{% if trigger.id == ''arrival'' %}arrived{% else %}departed{% endif
+        %}'
+      event_emoji: '{% if trigger.id == ''arrival'' %}🏠{% else %}🚗{% endif %}'
+  - action: notify.mobile_app_<your_phone>
+    data:
+      title: '{{ event_emoji }} Car {{ event_text }}!'
+      message: Your car has {{ event_text }} the home zone.
+  - variables:
+      active_speakers: "{% set ns = namespace(speakers=[]) %} {% if is_state('input_boolean.quiet_tts_notifications',\
+        \ 'off') %}\n  {% set ns.speakers = ns.speakers + ['media_player.<your_kitchen_speaker>']\
+        \ %}\n  {% if is_state('automation.<your_bedroom_motion_automation_id>', 'on') and is_state('light.<your_bedroom_light>',\
+        \ 'on') %}\n    {% set ns.speakers = ns.speakers + ['media_player.<your_bedroom_speaker>']\
+        \ %}\n  {% endif %}\n{% endif %} {{ ns.speakers | join(', ') }}\n"
+  - if:
+    - condition: template
+      value_template: '{{ active_speakers | length > 0 }}'
+    - condition: or
+      conditions:
+      - condition: time
+        before: '20:00:00'
+      - condition: state
+        entity_id: light.kitchen_light
+        state: 'on'
+    then:
+    - action: media_player.volume_set
+      target:
+        entity_id: '{{ active_speakers }}'
+      data:
+        volume_level: 0.4
+    - action: tts.speak
+      target:
+        entity_id: tts.google_translate_en_com
+      data:
+        cache: true
+        media_player_entity_id: '{{ active_speakers }}'
+        message: Car has {% if trigger.id == 'arrival' %} arrived {% else %} departed
+          {% endif %}!
+        language: en
+    - delay:
+        seconds: 10
+    - action: media_player.volume_set
+      target:
+        entity_id: '{{ active_speakers }}'
+      data:
+        volume_level: 0.2
+  - if:
+    - condition: template
+      value_template: '{{ trigger.id == ''arrival'' }}'
+    - condition: template
+      value_template: '{% set now_ts = now().timestamp() %} {% set person_1 = states.person.person_1
+        %} {% set person_2 = states.person.person_2 %} {% set person_1_was_home =
+        person_1.state == ''home'' and (now_ts - person_1.last_changed.timestamp())
+        > 300 %} {% set person_2_was_home = person_2.state == ''home'' and (now_ts
+        - person_2.last_changed.timestamp()) > 300 %} {{ not person_1_was_home and
+        not person_2_was_home }}
+
+        '
+    then:
+    - action: notify.mobile_app_<your_phone>
+      data:
+        title: '{{ event_emoji }} Car arrived'
+        message: No one was home. Turn on lights or A/C?
+        data:
+          tag: generic_car_arrival
+          actions:
+          - action: CAR_ARRIVE_LIGHTS_ON
+            title: Turn on lights
+          - action: CAR_ARRIVE_AC_ON
+            title: Turn on A/C
+          - action: CAR_ARRIVE_NONE
+            title: None
+    - wait_for_trigger:
+      - platform: event
+        event_type: mobile_app_notification_action
+        event_data:
+          action: CAR_ARRIVE_LIGHTS_ON
+      - platform: event
+        event_type: mobile_app_notification_action
+        event_data:
+          action: CAR_ARRIVE_AC_ON
+      - platform: event
+        event_type: mobile_app_notification_action
+        event_data:
+          action: CAR_ARRIVE_NONE
+      timeout: 00:05:00
+      continue_on_timeout: true
+    - action: notify.mobile_app_<your_phone>
+      data:
+        message: clear_notification
+        data:
+          tag: generic_car_arrival
+    - if:
+      - condition: template
+        value_template: '{{ wait.trigger is not none and wait.trigger.event.data.action
+          == ''CAR_ARRIVE_LIGHTS_ON'' }}'
+      then:
+      - action: light.turn_on
+        target:
+          entity_id: light.<zigbee_device_1>
+        data:
+          brightness_pct: 100
+    - if:
+      - condition: template
+        value_template: '{{ wait.trigger is not none and wait.trigger.event.data.action
+          == ''CAR_ARRIVE_AC_ON'' }}'
+      then:
+      - action: input_boolean.turn_on
+        target:
+          entity_id: input_boolean.kitchen_ac
+  - if:
+    - condition: template
+      value_template: '{{ trigger.id == ''departure'' }}'
+    - condition: not
+      conditions:
+      - condition: zone
+        entity_id: person.person_1
+        zone: zone.home
+    - condition: not
+      conditions:
+      - condition: zone
+        entity_id: person.person_2
+        zone: zone.home
+    - condition: template
+      value_template: '{{ is_state(''light.<zigbee_device_1>'', ''on'') or is_state(''light.<your_kitchen_light>'',
+        ''on'') or is_state(''light.<your_led_strip>'', ''on'') or is_state(''light.<your_fairy_lights>'',
+        ''on'') or is_state(''light.<your_bedroom_light>'', ''on'') or is_state(''light.<your_desk_lamp>'',
+        ''on'') or is_state(''light.<your_yeelink_lamp>'', ''on'') or is_state(''light.<your_bathroom_light>'',
+        ''on'') or is_state(''light.<your_child_room_light>'', ''on'') }}
+
+        '
+    then:
+    - action: notify.mobile_app_<your_phone>
+      data:
+        title: '{{ event_emoji }} Car departed'
+        message: Turn off all lights?
+        data:
+          tag: generic_car_departure
+          actions:
+          - action: CAR_DEPART_LIGHTS_OFF
+            title: Turn off lights
+          - action: CAR_DEPART_NONE
+            title: None
+    - wait_for_trigger:
+      - platform: event
+        event_type: mobile_app_notification_action
+        event_data:
+          action: CAR_DEPART_LIGHTS_OFF
+      - platform: event
+        event_type: mobile_app_notification_action
+        event_data:
+          action: CAR_DEPART_NONE
+      timeout: 00:05:00
+      continue_on_timeout: true
+    - action: notify.mobile_app_<your_phone>
+      data:
+        message: clear_notification
+        data:
+          tag: generic_car_departure
+    - if:
+      - condition: template
+        value_template: '{{ wait.trigger is not none and wait.trigger.event.data.action
+          == ''CAR_DEPART_LIGHTS_OFF'' }}'
+      then:
+      - action: script.turn_on
+        target:
+          entity_id: script.all_lights_off
+  mode: single
+- id: ai_provider_hourly_health_check
+  alias: 'System: AI Provider Hourly Health Check'
+  description: Checks OpenCode API health every hour (at :30). Auto-switches to Local
+    (Ollama) on failure and auto-recovers back to Cloud (OpenCode) when healthy.
+  mode: single
+  triggers:
+  - trigger: time_pattern
+    minutes: '30'
+  actions:
+  - action: rest_command.opencode_health_check
+    continue_on_error: true
+    response_variable: health_response
+  - variables:
+      is_healthy: '{{ health_response is defined and health_response.status == 200
+        and health_response.content is defined and health_response.content.healthy
+        is defined and health_response.content.healthy == true }}'
+      current_provider: '{{ states(''input_select.ai_provider_selector'') }}'
+  - choose:
+    - conditions:
+      - condition: template
+        value_template: '{{ not is_healthy and current_provider == ''Cloud (OpenCode)''
+          }}'
+      sequence:
+      - action: input_select.select_option
+        target:
+          entity_id: input_select.ai_provider_selector
+        data:
+          option: Local (Ollama)
+      - action: notify.mobile_app_<your_phone>
+        data:
+          title: AI Provider Alert
+          message: "OpenCode API health check failed! {% if health_response is defined\
+            \ %}\n  Status: {{ health_response.status | default('unknown') }}\n{%\
+            \ else %}\n  No response received.\n{% endif %} Automatically switched\
+            \ to Local (Ollama) fallback."
+    - conditions:
+      - condition: template
+        value_template: '{{ is_healthy and current_provider == ''Local (Ollama)''
+          }}'
+      sequence:
+      - action: input_select.select_option
+        target:
+          entity_id: input_select.ai_provider_selector
+        data:
+          option: Cloud (OpenCode)
+      - action: notify.mobile_app_<your_phone>
+        data:
+          title: AI Provider Restored
+          message: OpenCode API health restored! Automatically switched back to Cloud
+            (OpenCode).
+- id: ai_provider_daily_reset
+  alias: 'System: AI Provider Daily Reset'
+  description: Resets the AI provider selector to Cloud (OpenCode) every day at 06:00
+    to ensure the best provider is active after any overnight fallback.
+  triggers:
+  - trigger: time
+    at: 06:00:00
+  conditions:
+  - condition: state
+    entity_id: input_select.ai_provider_selector
+    state: Local (Ollama)
+  actions:
+  - action: input_select.select_option
+    target:
+      entity_id: input_select.ai_provider_selector
+    data:
+      option: Cloud (OpenCode)
+  - action: notify.mobile_app_<your_phone>
+    data:
+      title: AI Provider Reset
+      message: AI provider has been reset to Cloud (OpenCode) for the new day.
+  mode: single
+- id: calendar_events_announcement
+  alias: 'Calendar: Events Announcement'
+  description: At 07:50 (today) and 18:10 (tomorrow), fetches calendar events, generates
+    an AI summary via Ollama, and announces via TTS on the kitchen speaker.
+  triggers:
+  - trigger: time
+    at: 07:50:00
+  - trigger: time
+    at: '18:10:00'
+  conditions:
+  - condition: state
+    entity_id: input_boolean.quiet_tts_notifications
+    state: 'off'
+  actions:
+  - variables:
+      is_evening: '{{ now().hour >= 18 }}'
+      time_range: '{% if now().hour >= 18 %}next 24 hours{% else %}today{% endif %}'
+  - action: calendar.get_events
+    target:
+      entity_id: calendar.family
+    data:
+      duration:
+        hours: '{% if now().hour >= 18 %}24{% else %}16{% endif %}'
+    response_variable: calendar_events
+  - variables:
+      events_list: '{% set events = calendar_events[''calendar.family''].events |
+        default([]) %}{% if events | length > 0 %}{% for event in events %}{{ event.summary
+        }} ({{ event.start | default(''unknown time'') }}){% if not loop.last %},
+        {% endif %}{% endfor %}{% else %}No events scheduled{% endif %}'
+      ai_prompt: 'Generate a very short, friendly calendar announcement for a smart
+        home in English. {{ time_range }} events: {{ events_list }}. Reply STRICTLY
+        with only text for the text-to-speech engine. No greetings, quotes, emojis,
+        or confirmations. Keep it concise and natural, like a personal assistant.
+        2-3 sentences max.'
+  - choose:
+    - conditions:
+      - condition: state
+        entity_id: input_select.ai_provider_selector
+        state: Cloud (OpenCode)
+      sequence:
+      - action: rest_command.opencode_create_session
+        continue_on_error: true
+        response_variable: session_res
+      - if:
+        - condition: template
+          value_template: '{{ session_res is defined and session_res.status == 200
+            and session_res.content is defined and session_res.content.id is defined
+            }}'
+        then:
+        - action: rest_command.opencode_post_message
+          continue_on_error: true
+          data:
+            session_id: '{{ session_res.content.id }}'
+            prompt: '{{ ai_prompt }}'
+          response_variable: ai_response
+        - variables:
+            ai_response:
+              status: '{{ ai_response.status | default(0) | int(0) }}'
+              content:
+                response: '{% set parts_list = ai_response.content.parts | default([])
+                  %}{% set text_items = parts_list | selectattr(''type'', ''eq'',
+                  ''text'') | list %}{% if text_items | length > 0 %}{{ text_items[0].text
+                  }}{% endif %}'
+    default:
+    - action: rest_command.ollama_generate
+      continue_on_error: true
+      data:
+        prompt: '{{ ai_prompt }}'
+      response_variable: ai_response
+  - action: tts.speak
+    target:
+      entity_id: tts.google_translate_en_com
+    data:
+      cache: false
+      media_player_entity_id: media_player.<your_kitchen_speaker>
+      language: en
+      message: "{% if ai_response is defined and ai_response.status == 200 %}\n  {%\
+        \ set content = ai_response.content %}\n  {% if content is mapping and 'response'\
+        \ in content and content.response | trim | length > 0 %}\n    {{ content.response\
+        \ }}\n  {% elif content is mapping and 'choices' in content and content.choices\
+        \ | length > 0 %}\n    {{ content.choices[0].message.content }}\n  {% else\
+        \ %}\n    Here are your upcoming events.\n  {% endif %}\n{% else %}\n  Here\
+        \ are your upcoming events.\n{% endif %}"
+  mode: single
+- id: bedroom_weight_announcement_ai
+  alias: 'Bedroom: Weight Announcement with AI'
+  description: When a scale weight change is detected (07:00-23:59, quiet mode off),
+    generates a personalized AI comment via Ollama and announces via TTS on the bedroom
+    speaker.
+  triggers:
+  - trigger: state
+    entity_id: sensor.body_weight
+    not_to:
+    - unavailable
+    - unknown
+  conditions:
+  - condition: time
+    after: 07:00:00
+    before: '23:59:00'
+  - condition: state
+    entity_id: input_boolean.quiet_tts_notifications
+    state: 'off'
+  - condition: template
+    value_template: '{{ trigger.to_state.state | float(0) > 0 }}'
+  - condition: template
+    value_template: '{{ trigger.from_state is defined and trigger.from_state.state
+      is defined }}'
+  actions:
+  - variables:
+      current_weight: '{{ trigger.to_state.state }}'
+      previous_weight: '{{ trigger.from_state.state | default(0) }}'
+      weight_diff: '{{ (trigger.to_state.state | float(0)) - (trigger.from_state.state
+        | float(0)) }}'
+      ai_prompt: 'Generate a very short, motivational, and slightly humorous weight
+        check-in comment in English. Current weight: {{ current_weight }} kg. Previous
+        weight: {{ previous_weight }} kg. Change: {{ weight_diff }} kg. Reply STRICTLY
+        with only text for the text-to-speech engine. No quotes, emojis, or confirmations.
+        Be encouraging but funny. 1-2 sentences max.'
+  - choose:
+    - conditions:
+      - condition: state
+        entity_id: input_select.ai_provider_selector
+        state: Cloud (OpenCode)
+      sequence:
+      - action: rest_command.opencode_create_session
+        continue_on_error: true
+        response_variable: session_res
+      - if:
+        - condition: template
+          value_template: '{{ session_res is defined and session_res.status == 200
+            and session_res.content is defined and session_res.content.id is defined
+            }}'
+        then:
+        - action: rest_command.opencode_post_message
+          continue_on_error: true
+          data:
+            session_id: '{{ session_res.content.id }}'
+            prompt: '{{ ai_prompt }}'
+          response_variable: ai_response
+        - variables:
+            ai_response:
+              status: '{{ ai_response.status | default(0) | int(0) }}'
+              content:
+                response: '{% set parts_list = ai_response.content.parts | default([])
+                  %}{% set text_items = parts_list | selectattr(''type'', ''eq'',
+                  ''text'') | list %}{% if text_items | length > 0 %}{{ text_items[0].text
+                  }}{% endif %}'
+    default:
+    - action: rest_command.ollama_generate
+      continue_on_error: true
+      data:
+        prompt: '{{ ai_prompt }}'
+      response_variable: ai_response
+  - action: tts.speak
+    target:
+      entity_id: tts.google_translate_en_com
+    data:
+      cache: false
+      media_player_entity_id: media_player.<your_bedroom_speaker>
+      language: en
+      message: "{% if ai_response is defined and ai_response.status == 200 %}\n  {%\
+        \ set content = ai_response.content %}\n  {% if content is mapping and 'response'\
+        \ in content and content.response | trim | length > 0 %}\n    {{ content.response\
+        \ }}\n  {% elif content is mapping and 'choices' in content and content.choices\
+        \ | length > 0 %}\n    {{ content.choices[0].message.content }}\n  {% else\
+        \ %}\n    You weigh {{ current_weight }} kilograms.\n  {% endif %}\n{% else\
+        \ %}\n  You weigh {{ current_weight }} kilograms.\n{% endif %}"
+  mode: restart
+- id: ghostfolio_weekly_investment_summary
+  alias: 'Notification: Ghostfolio Weekly Investment Summary'
+  description: Every Sunday at 18:00, fetches the weekly Ghostfolio portfolio performance,
+    generates an AI summary via Ollama, and sends it via mobile app notification.
+  triggers:
+  - trigger: time
+    at: '18:00:00'
+    weekday:
+    - sun
+  conditions: []
+  actions:
+  - action: rest_command.ghostfolio_api_get_performance
+    continue_on_error: true
+    response_variable: portfolio_response
+  - variables:
+      portfolio_data: '{% if portfolio_response is defined and portfolio_response.status
+        == 200 %}Total value: {{ portfolio_response.content.totalValue | default(''unknown'')
+        }} EUR, Weekly change: {{ portfolio_response.content.weeklyChange | default(''unknown'')
+        }} EUR ({{ portfolio_response.content.weeklyChangePercent | default(''unknown'')
+        }}%), Top performer: {{ portfolio_response.content.topPerformer.name | default(''unknown'')
+        }} ({{ portfolio_response.content.topPerformer.changePercent | default(''unknown'')
+        }}%){% else %}Unable to fetch portfolio data{% endif %}'
+      ai_prompt: 'Generate a very short weekly investment portfolio summary in English.
+        Data: {{ portfolio_data }}. Reply STRICTLY with only text for a Telegram message.
+        No markdown, quotes, or emojis. Be concise and informative. 3-4 sentences
+        max.'
+  - choose:
+    - conditions:
+      - condition: state
+        entity_id: input_select.ai_provider_selector
+        state: Cloud (OpenCode)
+      sequence:
+      - action: rest_command.opencode_create_session
+        continue_on_error: true
+        response_variable: session_res
+      - if:
+        - condition: template
+          value_template: '{{ session_res is defined and session_res.status == 200
+            and session_res.content is defined and session_res.content.id is defined
+            }}'
+        then:
+        - action: rest_command.opencode_post_message
+          continue_on_error: true
+          data:
+            session_id: '{{ session_res.content.id }}'
+            prompt: '{{ ai_prompt }}'
+          response_variable: ai_response
+        - variables:
+            ai_response:
+              status: '{{ ai_response.status | default(0) | int(0) }}'
+              content:
+                response: '{% set parts_list = ai_response.content.parts | default([])
+                  %}{% set text_items = parts_list | selectattr(''type'', ''eq'',
+                  ''text'') | list %}{% if text_items | length > 0 %}{{ text_items[0].text
+                  }}{% endif %}'
+    default:
+    - action: rest_command.ollama_generate
+      continue_on_error: true
+      data:
+        prompt: '{{ ai_prompt }}'
+      response_variable: ai_response
+  - action: notify.mobile_app_<your_phone>
+    data:
+      title: Weekly Investment Summary
+      message: "{% if ai_response is defined and ai_response.status == 200 %}\n  {%\
+        \ set content = ai_response.content %}\n  {% if content is mapping and 'response'\
+        \ in content and content.response | trim | length > 0 %}\n    {{ content.response\
+        \ }}\n  {% elif content is mapping and 'choices' in content and content.choices\
+        \ | length > 0 %}\n    {{ content.choices[0].message.content }}\n  {% else\
+        \ %}\n    Your weekly Ghostfolio investment summary is ready. Please check\
+        \ the dashboard for details.\n  {% endif %}\n{% else %}\n  Your weekly Ghostfolio\
+        \ investment summary is ready. Please check the dashboard for details.\n{%\
+        \ endif %}"
+  mode: single
+- id: fridge_supermarket_preparation
+  alias: 'Fridge: Preparation after supermarket'
+  description: When someone leaves the supermarket zone, sends an actionable notification
+    to choose Cool/Freeze/Both. The selected cooling mode activates immediately upon
+    selection, with a 10-minute timeout for the notification.
+  triggers:
+  - trigger: zone
+    entity_id: person.person_1
+    zone: zone.supermarket
+    event: leave
+  conditions:
+  - condition: state
+    entity_id: person.person_2
+    state: not_home
+  actions:
+  - action: notify.mobile_app_<your_phone>
+    data:
+      title: Fridge Preparation
+      message: You left the supermarket. Set fridge preparation mode?
+      data:
+        tag: fridge_supermarket
+        actions:
+        - action: FRIDGE_COOL
+          title: Cool
+        - action: FRIDGE_FREEZE
+          title: Freeze
+        - action: FRIDGE_BOTH
+          title: Both
+        - action: FRIDGE_NONE
+          title: None
+  - wait_for_trigger:
+    - platform: event
+      event_type: mobile_app_notification_action
+      event_data:
+        action: FRIDGE_COOL
+    - platform: event
+      event_type: mobile_app_notification_action
+      event_data:
+        action: FRIDGE_FREEZE
+    - platform: event
+      event_type: mobile_app_notification_action
+      event_data:
+        action: FRIDGE_BOTH
+    - platform: event
+      event_type: mobile_app_notification_action
+      event_data:
+        action: FRIDGE_NONE
+    timeout: 00:10:00
+    continue_on_timeout: true
+  - action: notify.mobile_app_<your_phone>
+    data:
+      message: clear_notification
+      data:
+        tag: fridge_supermarket
+  - if:
+    - condition: template
+      value_template: '{{ wait.trigger is not none and wait.trigger.event.data.action
+        in [''FRIDGE_COOL'', ''FRIDGE_BOTH''] }}'
+    then:
+    - action: climate.set_temperature
+      target:
+        entity_id: climate.fridge
+      data:
+        temperature: 2
+        hvac_mode: cool
+  - if:
+    - condition: template
+      value_template: '{{ wait.trigger is not none and wait.trigger.event.data.action
+        in [''FRIDGE_FREEZE'', ''FRIDGE_BOTH''] }}'
+    then:
+    - action: climate.set_temperature
+      target:
+        entity_id: climate.freezer
+      data:
+        temperature: -18
+        hvac_mode: cool
+  - if:
+    - condition: template
+      value_template: '{{ wait.trigger is not none and wait.trigger.event.data.action
+        not in [''FRIDGE_NONE''] }}'
+    then:
+    - delay:
+        minutes: 20
+    - action: notify.mobile_app_<your_phone>
+      data:
+        title: Fridge Mode Active
+        message: Fridge preparation mode has been activated. Groceries are being cooled.
+  mode: single
+- id: bedroom_smart_ac_advisor
+  alias: 'Bedroom: Smart A/C Advisor (Open Windows)'
+  description: Every 15 minutes (08:00-20:00), checks if A/C is running while outdoor
+    temperature is suitable for natural ventilation. Sends actionable notification
+    and TTS if windows should be opened.
+  triggers:
+  - trigger: time_pattern
+    minutes: /15
+  conditions:
+  - condition: time
+    after: 08:00:00
+    before: '20:00:00'
+  - condition: state
+    entity_id: input_boolean.bedroom_ac
+    state: 'on'
+  - condition: state
+    entity_id: binary_sensor.<your_occupancy_sensor>
+    state: 'on'
+  actions:
+  - action: weather.get_forecasts
+    data:
+      type: daily
+    target:
+      entity_id: weather.forecast_home
+    response_variable: outdoor_weather
+  - variables:
+      outdoor_temp: '{{ outdoor_weather[''weather.forecast_home''].forecast[0].temperature
+        }}'
+      outdoor_condition: '{{ outdoor_weather[''weather.forecast_home''].forecast[0].condition
+        }}'
+      ac_threshold: 24
+      should_ventilate: '{{ outdoor_temp | float(0) < ac_threshold and outdoor_condition
+        not in [''rainy'', ''snowy'', ''stormy''] }}'
+  - if:
+    - condition: template
+      value_template: '{{ should_ventilate | bool }}'
+    then:
+    - action: notify.mobile_app_<your_phone>
+      data:
+        title: A/C vs Open Windows
+        message: Outdoor temp is {{ outdoor_temp }}C ({{ outdoor_condition }}). Turn
+          off A/C and open windows?
+        data:
+          tag: bedroom_ac_ventilate
+          actions:
+          - action: AC_WINDOWS_OPEN
+            title: Open windows
+          - action: AC_KEEP_RUNNING
+            title: Keep A/C
+          - action: AC_DISMISS
+            title: Dismiss
+    - action: tts.speak
+      target:
+        entity_id: tts.google_translate_en_com
+      data:
+        cache: false
+        media_player_entity_id: media_player.<your_bedroom_speaker>
+        language: en
+        message: It's {{ outdoor_temp }} degrees outside with {{ outdoor_condition
+          }} conditions. Consider turning off the A/C and opening the windows for
+          fresh air.
+    - wait_for_trigger:
+      - platform: event
+        event_type: mobile_app_notification_action
+        event_data:
+          action: AC_WINDOWS_OPEN
+      - platform: event
+        event_type: mobile_app_notification_action
+        event_data:
+          action: AC_KEEP_RUNNING
+      - platform: event
+        event_type: mobile_app_notification_action
+        event_data:
+          action: AC_DISMISS
+      timeout: 00:10:00
+      continue_on_timeout: true
+    - action: notify.mobile_app_<your_phone>
+      data:
+        message: clear_notification
+        data:
+          tag: bedroom_ac_ventilate
+    - if:
+      - condition: template
+        value_template: '{{ wait.trigger is not none and wait.trigger.event.data.action
+          == ''AC_WINDOWS_OPEN'' }}'
+      then:
+      - action: climate.turn_off
+        target:
+          entity_id: climate.bedroom_ac
+      - action: notify.mobile_app_<your_phone>
+        data:
+          title: A/C Turned Off
+          message: Bedroom A/C has been turned off. Open the windows for fresh air!
+  mode: single
+- alias: 'Room: Fan follows Oven Power'
+  id: "room_fan_follows_oven_power"
+  description: Turns on <your_fan_name> when <your_oven_name> draws cooking-level power, then turns
+    <your_fan_name> off after <your_oven_name> has stayed idle for 20 minutes, but only if this oven
+    cycle marked the fan as active.
+  triggers:
+  - trigger: numeric_state
+    entity_id: sensor.<entity_id_here>
+    id: "trigger_1"
+    above: 50
+    for: 00:01:00
+  - trigger: numeric_state
+    entity_id: sensor.<entity_id_here>
+    id: "trigger_2"
+    below: 10
+    for: 00:20:00
+  conditions: []
+  actions:
+  - choose:
+    - conditions:
+      - condition: trigger
+        id: "trigger_1"
+      sequence:
+      - action: input_boolean.turn_on
+        target:
+          entity_id: input_boolean.kitchen_fan_started_by_oven
+        data: {}
+      - action: switch.turn_on
+        target:
+          entity_id: switch.<entity_id_here>
+        data: {}
+    - conditions:
+      - condition: trigger
+        id: "trigger_2"
+      - condition: state
+        entity_id: input_boolean.kitchen_fan_started_by_oven
+        state: 'on'
+      sequence:
+      - action: switch.turn_off
+        target:
+          entity_id: switch.<entity_id_here>
+        data: {}
+      - action: input_boolean.turn_off
+        target:
+          entity_id: input_boolean.kitchen_fan_started_by_oven
+        data: {}
+  mode: single
+- alias: 'Room: Knob Brightness Control'
+  id: room_knob_brightness_control
+  description: 'Rotating <your_knob_name> right sets the target light to 100% at
+    6500K; rotating left dims it to 10%.'
+  triggers:
+  - domain: mqtt
+    device_id: <your_knob_device_id>
+    type: action
+    subtype: rotate_right
+    trigger: device
+    id: rotate_right
+  - domain: mqtt
+    device_id: <your_knob_device_id>
+    type: action
+    subtype: rotate_left
+    trigger: device
+    id: rotate_left
+  conditions: []
+  actions:
+  - choose:
+    - conditions:
+      - condition: trigger
+        id: rotate_right
+      sequence:
+      - action: light.turn_on
+        target:
+          entity_id: light.<entity_id_here>
+        data:
+          brightness_pct: 100
+          color_temp_kelvin: 6500
+    - conditions:
+      - condition: trigger
+        id: rotate_left
+      sequence:
+      - action: light.turn_on
+        target:
+          entity_id: light.<entity_id_here>
+        data:
+          brightness_pct: 10
+  mode: single
+- alias: 'Room: Fan on High Humidity'
+  id: room_fan_on_high_humidity
+  description: Turns on <your_fan_name> when <your_humidity_sensor> reaches 70%
+    or higher, then keeps it on until humidity drops to 60% or one hour passes.
+  triggers:
+  - trigger: numeric_state
+    entity_id: sensor.<your_humidity_sensor>
+    above: 69.9
+    for: 00:02:00
+  conditions: []
+  actions:
+  - action: switch.turn_on
+    target:
+      entity_id: switch.<your_fan_switch>
+    data: {}
+  - wait_for_trigger:
+    - trigger: numeric_state
+      entity_id: sensor.<your_humidity_sensor>
+      below: 60.1
+      for: 00:02:00
+    timeout: 01:00:00
+    continue_on_timeout: true
+  - action: switch.turn_off
+    target:
+      entity_id: switch.<your_fan_switch>
+    data: {}
+  mode: restart
+- alias: 'Room: Kill Motion Logic for 2 Hours'
+  id: room_kill_motion_logic_2h
+  description: Disables <your_auto_light_automation> for 2 hours on double click.
+  triggers:
+  - domain: mqtt
+    device_id: <your_button_device_id>
+    type: action
+    subtype: double
+    trigger: device
+  actions:
+  - action: automation.turn_off
+    data:
+      stop_actions: true
+    target:
+      entity_id: automation.<your_auto_light_automation_id>
+  - type: turn_off
+    device_id: <your_light_device_id>
+    entity_id: light.<your_light_entity>
+    domain: light
+  - action: tts.speak
+    metadata: {}
+    target:
+      entity_id: tts.google_translate_en_com
+    data:
+      cache: true
+      media_player_entity_id: media_player.<your_kitchen_speaker>
+      message: Auto-light is disabled for 2 hours
+      language: en
+  - delay: 02:00:00
+  - action: automation.turn_on
+    target:
+      entity_id: automation.<your_auto_light_automation_id>
+    data: {}
+  - action: tts.speak
+    target:
+      entity_id: tts.google_translate_en_com
+    data:
+      cache: true
+      media_player_entity_id: media_player.<your_kitchen_speaker>
+      message: Auto-light is enabled
+      language: en
+  mode: restart
+- alias: 'System: Daily Resets'
+  id: system_daily_resets
+  description: Consolidates daily resets for TV usage tracking, bedroom motion, AI
+    provider, and kitchen/TTS states.
+  mode: parallel
+  triggers:
+  - trigger: time
+    at: 00:00:00
+    id: reset_tv
+  - trigger: time
+    at: 04:00:00
+    id: reset_bedroom_motion
+  - trigger: time
+    at: 06:00:00
+    id: reset_ai_provider
+  - trigger: time
+    at: 07:00:00
+    id: reset_kitchen_tts
+  actions:
+  - choose:
+    - conditions:
+      - condition: trigger
+        id: reset_tv
+      sequence:
+      - action: input_number.set_value
+        target:
+          entity_id: input_number.tv_daily_minutes_counter
+        data:
+          value: 0
+    - conditions:
+      - condition: trigger
+        id: reset_bedroom_motion
+      sequence:
+      - action: automation.turn_on
+        target:
+          entity_id: automation.<your_bedroom_motion_automation_id>
+      - action: input_boolean.turn_off
+        target:
+          entity_id: input_boolean.<your_bedroom_kill_motion_boolean>
+    - conditions:
+      - condition: trigger
+        id: reset_ai_provider
+      sequence:
+      - if:
+        - condition: not
+          conditions:
+          - condition: state
+            entity_id: input_select.ai_provider_selector
+            state: Cloud (OpenCode)
+        then:
+        - action: input_select.select_option
+          target:
+            entity_id: input_select.ai_provider_selector
+          data:
+            option: Cloud (OpenCode)
+    - conditions:
+      - condition: trigger
+        id: reset_kitchen_tts
+      sequence:
+      - action: automation.turn_on
+        target:
+          entity_id: automation.<your_kitchen_light_automation_id>
+      - action: input_boolean.turn_off
+        target:
+          entity_id: input_boolean.quiet_tts_notifications
+- alias: 'Presence: Stable Presence Sync'
+  id: presence_stable_presence_sync
+  description: Synchronizes the raw person entities with the stable input_booleans
+    to filter out short GPS glitches.
+  mode: parallel
+  max: 10
+  trigger:
+  - platform: state
+    entity_id: person.<your_person_1>, person.<your_person_2>
+  action:
+  - variables:
+      person_id: '{{ trigger.entity_id }}'
+      is_home: '{{ trigger.to_state.state == ''home'' }}'
+      helper: "{% if person_id == 'person.<your_person_1>' %}\n  input_boolean.<your_person_1>_home_stable\n\
+        {% else %}\n  input_boolean.<your_person_2>_home_stable\n{% endif %}\n"
+  - if:
+    - condition: template
+      value_template: '{{ is_home }}'
+    then:
+    - action: input_boolean.turn_on
+      target:
+        entity_id: '{{ helper }}'
+    else:
+    - delay:
+        minutes: 5
+    - condition: template
+      value_template: '{{ states(person_id) != ''home'' }}'
+    - action: input_boolean.turn_off
+      target:
+        entity_id: '{{ helper }}'
+- alias: 'Room: Jellyfin Tales (Dashboard)'
+  description: Toggles fairy tales (<your_tales_folder>) from dashboard boolean on the kitchen
+    speaker. Only allowed between 07:00 and 21:00. Auto-off after 10 min of no kitchen
+    motion. Hard stop after 60 min of no motion or at 23:00.
+  triggers:
+  - trigger: state
+    entity_id: input_boolean.kitchen_jellyfin_tales
+    to: 'on'
+  - trigger: state
+    entity_id: input_boolean.kitchen_jellyfin_tales
+    to: 'off'
+  - trigger: state
+    entity_id: binary_sensor.<entity_id_here>
+    to: 'off'
+    for:
+      minutes: 10
+  - trigger: state
+    entity_id: binary_sensor.<entity_id_here>
+    to: 'off'
+    for:
+      minutes: 60
+  - trigger: time
+    at: '23:00:00'
+  conditions: []
+  actions:
+  - choose:
+    - conditions:
+      - condition: trigger
+      sequence:
+      - if:
+        - condition: time
+          after: 07:00:00
+          before: '21:00:00'
+        then:
+        - if:
+          - condition: state
+            entity_id: media_player.<your_kitchen_playback_speaker>
+            state: playing
+          then:
+          - action: media_player.volume_set
+            target:
+              entity_id: media_player.<your_kitchen_speaker>
+            data:
+              volume_level: 0.3
+          - stop: Already playing (transferred queue)
+        - if:
+          - condition: state
+            entity_id: media_player.<your_kitchen_playback_speaker>
+            state: paused
+          then:
+          - action: media_player.volume_set
+            target:
+              entity_id: media_player.<your_kitchen_speaker>
+            data:
+              volume_level: 0.3
+          - action: media_player.media_play
+            target:
+              entity_id: media_player.<your_kitchen_playback_speaker>
+            continue_on_error: true
+          - delay:
+              seconds: 2
+          - if:
+            - condition: not
+              conditions:
+              - condition: state
+                entity_id: media_player.<your_kitchen_playback_speaker>
+                state: playing
+            then:
+            - action: media_player.volume_set
+              target:
+                entity_id: media_player.<your_kitchen_speaker>
+              data:
+                volume_level: 0
+            - action: media_player.shuffle_set
+              target:
+                entity_id: media_player.<your_kitchen_playback_speaker>
+              data:
+                shuffle: true
+            - action: script.play_tales_with_retry
+              data:
+                target_player: media_player.<your_kitchen_playback_speaker>
+            - delay:
+                seconds: 1
+            - action: media_player.media_next_track
+              target:
+                entity_id: media_player.<your_kitchen_playback_speaker>
+            - delay:
+                seconds: 1
+            - action: media_player.volume_set
+              target:
+                entity_id: media_player.<your_kitchen_speaker>
+              data:
+                volume_level: 0.3
+          else:
+          - action: media_player.volume_set
+            target:
+              entity_id: media_player.<your_kitchen_speaker>
+            data:
+              volume_level: 0
+          - action: media_player.shuffle_set
+            target:
+              entity_id: media_player.<your_kitchen_playback_speaker>
+            data:
+              shuffle: true
+          - action: script.play_tales_with_retry
+            data:
+              target_player: media_player.<your_kitchen_playback_speaker>
+          - delay:
+              seconds: 1
+          - action: media_player.media_next_track
+            target:
+              entity_id: media_player.<your_kitchen_playback_speaker>
+          - delay:
+              seconds: 1
+          - action: media_player.volume_set
+            target:
+              entity_id: media_player.<your_kitchen_speaker>
+            data:
+              volume_level: 0.3
+        - if:
+          - condition: state
+            entity_id: binary_sensor.<entity_id_here>
+            state: 'off'
+          then:
+          - wait_for_trigger:
+            - trigger: state
+              entity_id: binary_sensor.<entity_id_here>
+              to: 'on'
+            timeout: 00:10:00
+            continue_on_timeout: true
+          - if:
+            - condition: template
+              value_template: '{{ wait.trigger is none }}'
+            then:
+            - action: input_boolean.turn_off
+              target:
+                entity_id: input_boolean.kitchen_jellyfin_tales
+        else:
+        - action: input_boolean.turn_off
+          target:
+            entity_id: input_boolean.kitchen_jellyfin_tales
+          data: {}
+    - conditions:
+      - condition: trigger
+      sequence:
+      - action: media_player.media_pause
+        data: {}
+        target:
+          entity_id: media_player.<your_kitchen_playback_speaker>
+    - conditions:
+      - condition: trigger
+      sequence:
+      - action: input_boolean.turn_off
+        target:
+          entity_id: input_boolean.kitchen_jellyfin_tales
+        data: {}
+    - conditions:
+      - condition: trigger
+      sequence:
+      - action: input_boolean.turn_off
+        target:
+          entity_id: input_boolean.kitchen_jellyfin_tales
+        data: {}
+      - action: media_player.media_stop
+        target:
+          entity_id: media_player.<your_kitchen_playback_speaker>
+        data: {}
+  mode: restart
+- alias: 'Tales: Pause After Current Track'
+  description: Waits until the current playing track finishes or playback stops, then
+    turns off Tales.
+  mode: restart
+  triggers:
+  - trigger: state
+    entity_id: input_boolean.pause_tales_after_track
+    to: 'on'
+  conditions: []
+  actions:
+  - variables:
+      active_player: '{% if is_state(''input_boolean.child_room_jellyfin_tales'',
+        ''on'') %} media_player.<your_child_room_speaker> {% elif is_state(''input_boolean.kitchen_jellyfin_tales'',
+        ''on'') %} media_player.<your_kitchen_speaker> {% elif is_state(''input_boolean.bedroom_jellyfin_tales'',
+        ''on'') %} media_player.<your_bedroom_speaker> {% else %} none {% endif %}
+
+        '
+      active_boolean: '{% if is_state(''input_boolean.child_room_jellyfin_tales'',
+        ''on'') %} input_boolean.child_room_jellyfin_tales {% elif is_state(''input_boolean.kitchen_jellyfin_tales'',
+        ''on'') %} input_boolean.kitchen_jellyfin_tales {% elif is_state(''input_boolean.bedroom_jellyfin_tales'',
+        ''on'') %} input_boolean.bedroom_jellyfin_tales {% else %} none {% endif %}
+
+        '
+  - if:
+    - condition: template
+      value_template: '{{ active_player != ''none'' and is_state(active_player, ''playing'')
+        }}'
+    then:
+    - variables:
+        current_title: '{{ state_attr(active_player, ''media_title'') }}'
+    - wait_for_trigger:
+      - trigger: template
+        value_template: '{{ state_attr(active_player, ''media_title'') != current_title
+          or not is_state(active_player, ''playing'') }}'
+      timeout: "00:05:00"
+      continue_on_timeout: true
+    - if:
+      - condition: template
+        value_template: '{{ state_attr(active_player, ''media_title'') != current_title
+          }}'
+      then:
+      - action: input_boolean.turn_off
+        target:
+          entity_id: '{{ active_boolean }}'
+  - action: input_boolean.turn_off
+    target:
+      entity_id: input_boolean.pause_tales_after_track

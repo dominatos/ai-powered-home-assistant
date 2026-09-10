@@ -19,6 +19,19 @@ DEFAULT_VIRTUAL_OUTPUT = Path("virtual-inventory.json")
 
 
 def load_storage_json(path: Path, optional: bool = False) -> list[dict]:
+    """
+    Load registry entries from a Home Assistant storage JSON file.
+    
+    Parameters:
+        path (Path): Path to the storage file.
+        optional (bool): Whether a missing or empty entries list should produce an empty result.
+    
+    Returns:
+        list[dict]: Valid dictionary entries from the storage file.
+    
+    Raises:
+        SystemExit: If a required file is missing, the JSON is invalid, or the file structure is unexpected.
+    """
     try:
         data = json.loads(path.read_text())
     except FileNotFoundError:
@@ -42,10 +55,27 @@ def load_storage_json(path: Path, optional: bool = False) -> list[dict]:
             return []
         raise SystemExit(f"Unexpected entries list in {path}")
 
-    return entries
+    # Filter out null or non-dictionary items with a warning
+    valid_entries = []
+    for i, item in enumerate(entries):
+        if not isinstance(item, dict):
+            print(f"Warning: skipping non-dictionary item at index {i} in {path}")
+            continue
+        valid_entries.append(item)
+
+    return valid_entries
 
 
 def index_areas(areas: list[dict]) -> dict[str, dict]:
+    """
+    Index area records by their identifiers, retaining names, floor associations, and sorted labels.
+    
+    Parameters:
+    	areas (list[dict]): Area records to index.
+    
+    Returns:
+    	dict[str, dict]: Area data keyed by area identifier.
+    """
     indexed: dict[str, dict] = {}
     for area in areas:
         area_id = area.get("id")
@@ -343,6 +373,13 @@ def build_virtual_inventory(inventory: dict) -> dict:
 
 
 def export_yaml_entities(config_dir: Path, output_dir: Path) -> None:
+    """
+    Export automation, script, and scene definitions from YAML files to JSON inventories.
+    
+    Parameters:
+    	config_dir (Path): Directory containing the YAML configuration files.
+    	output_dir (Path): Directory where the generated JSON inventories are written.
+    """
     for yaml_file, key_id, key_name, output_file in [
         ("automations.yaml", "id", "alias", "automations_inventory.json"),
         ("scripts.yaml", "alias", "alias", "scripts_inventory.json"),
@@ -354,8 +391,7 @@ def export_yaml_entities(config_dir: Path, output_dir: Path) -> None:
             continue
             
         try:
-            with open(in_path, "r", encoding="utf-8") as f:
-                data = yaml.safe_load(f)
+            data = yaml.safe_load(in_path.read_text(encoding="utf-8"))
         except Exception as exc:
             print(f"Failed to load {yaml_file}: {exc}")
             continue

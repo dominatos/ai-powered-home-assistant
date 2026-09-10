@@ -1,0 +1,809 @@
+# ==========================================
+# === BASIC AUTOMATIONS ===
+# ==========================================
+# Legacy combined automations template (superseded by basic/advanced split).
+# Contains both basic and advanced automations in a single file.
+# Rename to automations.yaml and fill in <device_id_here>, <tablet_hostname>,
+# <Your City>, notify.mobile_app_<your_phone>, etc.
+
+- id: '1778264755475'
+  alias: 'Kitchen: Main Light on Door Open'
+  description: Triggered when the kitchen door opens from 17:00 to 07:00; turns on
+    the kitchen light at full brightness if it is currently off.
+  triggers:
+  - type: opened
+    device_id: <device_id_here>
+    entity_id: binary_sensor.kitchen_door_contact
+    domain: binary_sensor
+    trigger: device
+  conditions:
+  - type: is_illuminance
+    condition: device
+    device_id: <device_id_here>
+    entity_id: sensor.kitchen_luminance
+    domain: sensor
+    below: 200
+    enabled: false
+  - condition: device
+    type: is_off
+    device_id: <device_id_here>
+    entity_id: light.kitchen_main
+    domain: light
+  - condition: time
+    after: '17:00:00'
+    before: 07:00:00
+  actions:
+  - type: turn_on
+    device_id: <device_id_here>
+    entity_id: light.kitchen_main
+    domain: light
+    brightness_pct: 100
+  - device_id: <device_id_here>
+    domain: button
+    entity_id: button.kitchen_tablet_wake
+    type: press
+  - device_id: <device_id_here>
+    domain: button
+    entity_id: button.kitchen_tablet_dismiss_lock
+    type: press
+  - device_id: <device_id_here>
+    domain: button
+    entity_id: button.kitchen_tablet_open_dashboard
+    type: press
+  - alias: Mark tablet screen as awake
+    action: input_boolean.turn_on
+    target:
+      entity_id: input_boolean.kitchen_tablet_screen_awake
+    data: {}
+  mode: single
+- id: water_leak_close_valve_notify
+  alias: 'Water Safety: Close Valve on Leak'
+  description: Closes the water valve when any known leak sensor detects moisture,
+    sends push notifications, and announces the alert on the kitchen speaker only
+    when Quiet TTS Notifications is off.
+  triggers:
+  - trigger: state
+    entity_id:
+    - binary_sensor.water_leak_kitchen_water_leak
+    - binary_sensor.water_leak_bathroom_water_leak
+    - binary_sensor.water_leak_child_water_leak
+    to: 'on'
+  - trigger: homeassistant
+    event: start
+  variables:
+    leak_sensors:
+    - binary_sensor.water_leak_kitchen_water_leak
+    - binary_sensor.water_leak_bathroom_water_leak
+    - binary_sensor.water_leak_child_water_leak
+    active_leaks: '{{ expand(leak_sensors) | selectattr(''state'', ''eq'', ''on'')
+      | map(attribute=''name'') | list | join('', '') }}'
+    alert_message: 'WATER LEAK DETECTED! Closing the water valve now. Active sensor(s):
+      {{ active_leaks }}.'
+  conditions:
+  - condition: template
+    value_template: '{{ active_leaks | length > 0 }}'
+  actions:
+  - action: switch.turn_off
+    metadata: {}
+    target:
+      entity_id: switch.water_valve
+  - choose:
+    - conditions:
+      - condition: state
+        entity_id: input_boolean.quiet_tts_notifications
+        state: 'off'
+      sequence:
+      - action: tts.speak
+        metadata: {}
+        target:
+          entity_id: tts.google_translate_en_com
+        data:
+          cache: false
+          media_player_entity_id: media_player.<your_kitchen_speaker>
+          message: '{{ alert_message }}'
+          language: en
+  - action: notify.mobile_app_<your_phone>
+    metadata: {}
+    data:
+      title: 'Water Leak Alert'
+      message: '{{ alert_message }}'
+  mode: single
+- id: '1778447197587'
+  alias: 'Bathroom: Turn Off Idle Washing Machine'
+  description: Turns off washing machine when its smart plug is on and power has stayed
+    below 50 W for 60 minutes.
+  triggers:
+  - type: power
+    device_id: <device_id_here>
+    entity_id: sensor.washing_machine_power
+    domain: sensor
+    trigger: device
+    below: 50
+    for:
+      hours: 1
+      minutes: 0
+      seconds: 0
+  conditions:
+  - condition: device
+    type: is_on
+    device_id: <device_id_here>
+    entity_id: switch.washing_machine
+    domain: switch
+  actions:
+  - type: turn_off
+    device_id: <device_id_here>
+    entity_id: switch.washing_machine
+    domain: switch
+  mode: single
+- id: '1778572239645'
+  alias: 'Power: High Usage Warning (Generic Focus)'
+  description: Repeat alerts every minute and flash lights every 5s while power is
+    high. Sends actionable push notification once offering to turn off A/C.
+  triggers:
+  - trigger: numeric_state
+    entity_id:
+    - sensor.total_house_power
+    above: 3000
+    for:
+      hours: 0
+      minutes: 0
+      seconds: 10
+  actions:
+  - if:
+    - condition: state
+      entity_id: media_player.<your_kitchen_speaker>
+      state: playing
+    then:
+    - type: turn_off
+      device_id: <device_id_here>
+      entity_id: <entity_id_here>
+      domain: switch
+  - if:
+    - condition: or
+      conditions:
+      - condition: zone
+        entity_id: person.person_1
+        zone: zone.home
+      - condition: zone
+        entity_id: person.person_2
+        zone: zone.home
+    then:
+    - if:
+      - condition: state
+        entity_id: input_boolean.bedroom_ac
+        state: 'on'
+      - condition: state
+        entity_id: input_boolean.kitchen_ac
+        state: 'on'
+      then:
+      - action: notify.mobile_app_<your_phone>
+        data:
+          title: 'High Power Usage: {{ states(''sensor.total_house_power'') }}W'
+          message: Turn off A/C to reduce load
+          data:
+            tag: power_warning_ac
+            actions:
+            - action: POWER_AC_OFF_BEDROOM
+              title: Bedroom
+            - action: POWER_AC_OFF_KITCHEN
+              title: Kitchen
+            - action: POWER_AC_OFF_BOTH
+              title: Both
+            - action: POWER_AC_OFF_NONE
+              title: None
+    - if:
+      - condition: state
+        entity_id: input_boolean.bedroom_ac
+        state: 'on'
+      - condition: state
+        entity_id: input_boolean.kitchen_ac
+        state: 'off'
+      then:
+      - action: notify.mobile_app_<your_phone>
+        data:
+          title: 'High Power Usage: {{ states(''sensor.total_house_power'') }}W'
+          message: Turn off bedroom A/C to reduce load
+          data:
+            tag: power_warning_ac
+            actions:
+            - action: POWER_AC_OFF_BEDROOM
+              title: Turn Off
+            - action: POWER_AC_OFF_NONE
+              title: None
+    - if:
+      - condition: state
+        entity_id: input_boolean.bedroom_ac
+        state: 'off'
+      - condition: state
+        entity_id: input_boolean.kitchen_ac
+        state: 'on'
+      then:
+      - action: notify.mobile_app_<your_phone>
+        data:
+          title: 'High Power Usage: {{ states(''sensor.total_house_power'') }}W'
+          message: Turn off kitchen A/C to reduce load
+          data:
+            tag: power_warning_ac
+            actions:
+            - action: POWER_AC_OFF_KITCHEN
+              title: Turn Off
+            - action: POWER_AC_OFF_NONE
+              title: None
+    - wait_for_trigger:
+      - platform: event
+        event_type: mobile_app_notification_action
+        event_data:
+          action: POWER_AC_OFF_BEDROOM
+      - platform: event
+        event_type: mobile_app_notification_action
+        event_data:
+          action: POWER_AC_OFF_KITCHEN
+      - platform: event
+        event_type: mobile_app_notification_action
+        event_data:
+          action: POWER_AC_OFF_BOTH
+      - platform: event
+        event_type: mobile_app_notification_action
+        event_data:
+          action: POWER_AC_OFF_NONE
+      timeout: 00:05:00
+      continue_on_timeout: true
+    - action: notify.mobile_app_<your_phone>
+      data:
+        message: clear_notification
+        data:
+          tag: power_warning_ac
+    - if:
+      - condition: template
+        value_template: '{{ wait.trigger is not none and wait.trigger.event.data.action
+          in [''POWER_AC_OFF_BEDROOM'', ''POWER_AC_OFF_KITCHEN'', ''POWER_AC_OFF_BOTH'']
+          }}'
+      then:
+      - if:
+        - condition: template
+          value_template: '{{ wait.trigger.event.data.action in [''POWER_AC_OFF_BEDROOM'',
+            ''POWER_AC_OFF_BOTH''] }}'
+        then:
+        - action: input_boolean.turn_off
+          target:
+            entity_id: input_boolean.bedroom_ac
+      - if:
+        - condition: template
+          value_template: '{{ wait.trigger.event.data.action in [''POWER_AC_OFF_KITCHEN'',
+            ''POWER_AC_OFF_BOTH''] }}'
+        then:
+        - action: input_boolean.turn_off
+          target:
+            entity_id: input_boolean.kitchen_ac
+  - repeat:
+      while:
+      - condition: numeric_state
+        entity_id: sensor.total_house_power
+        above: 3000
+      sequence:
+      - action: notify.mobile_app_<your_phone>
+        data:
+          title: 'Power Alert'
+          message: 'WARNING: House power is {{ states(''sensor.total_house_power'')
+            }}W! Turn off appliances to avoid blackout.'
+      - if:
+        - condition: state
+          entity_id: input_boolean.quiet_tts_notifications
+          state: 'off'
+        then:
+        - action: media_player.volume_set
+          metadata: {}
+          target:
+            entity_id: media_player.<your_kitchen_speaker>
+          data:
+            volume_level: 0.5
+        - action: tts.speak
+          target:
+            entity_id: tts.google_translate_en_com
+          data:
+            cache: true
+            media_player_entity_id: media_player.<your_kitchen_speaker>
+            message: Warning! High power usage detected. Please turn off some appliances!
+            language: en
+        - action: media_player.volume_set
+          metadata: {}
+          target:
+            entity_id: media_player.<your_kitchen_speaker>
+          data:
+            volume_level: 0.2
+      - repeat:
+          count: 12
+          sequence:
+          - if:
+            - condition: numeric_state
+              entity_id: sensor.total_house_power
+              above: 3000
+            then:
+            - device_id: <device_id_here>
+              domain: light
+              entity_id: <entity_id_here>
+              type: flash
+            - delay:
+                seconds: 5
+  mode: single
+  max_exceeded: silent
+
+
+# ==========================================
+# === ADVANCED & AI AUTOMATIONS ===
+# ==========================================
+# These utilize complex choose blocks, OpenCode sessions, and Ollama integration.
+
+- id: kitchen_evening_meal_reminder_ai
+  alias: 'Kitchen: Evening Meal Reminder'
+  description: Triggered when the kitchen door opens after 20:00; uses Ollama to play
+    a kitchen TTS reminder only when Quiet TTS Notifications is off.
+  triggers:
+  - type: opened
+    device_id: <device_id_here>
+    entity_id: <entity_id_here>
+    domain: binary_sensor
+    trigger: device
+  conditions:
+  - condition: time
+    after: '20:00:00'
+    before: '22:00:00'
+    weekday:
+    - mon
+    - tue
+    - wed
+    - thu
+    - fri
+    - sat
+    - sun
+  actions:
+  - choose:
+    - conditions:
+      - condition: state
+        entity_id: input_boolean.quiet_tts_notifications
+        state: 'off'
+      sequence:
+      - variables:
+          ai_prompt: 'Generate a short, funny, and sarcastic evening-meal reminder
+            for a smart home in English. Someone opened the refrigerator late at night
+            (between 8 PM and 10 PM). Reply STRICTLY with only text for the text-to-speech
+            engine. No greetings, quotes, or emojis. Output the ready text immediately.
+            Something like: ''Snacking again? The door frame is not made of rubber!''
+            or ''I see everything! Put the sausage back!'''
+      - choose:
+        - conditions:
+          - condition: state
+            entity_id: input_select.ai_provider_selector
+            state: Cloud (OpenCode)
+          sequence:
+          - action: rest_command.opencode_create_session
+            continue_on_error: true
+            response_variable: session_res
+          - if:
+            - condition: template
+              value_template: '{{ session_res is defined and session_res.status ==
+                200 and session_res.content is defined and session_res.content.id
+                is defined }}'
+            then:
+            - action: rest_command.opencode_post_message
+              continue_on_error: true
+              data:
+                session_id: '{{ session_res.content.id }}'
+                prompt: '{{ ai_prompt }}'
+              response_variable: ai_response
+            - variables:
+                ai_response:
+                  status: '{{ ai_response.status | default(0) }}'
+                  content:
+                    response: '{% set parts_list = ai_response.content.parts | default([])
+                      %}{% set text_items = parts_list | selectattr(''type'', ''eq'',
+                      ''text'') | list %}{% if text_items | length > 0 %}{{ text_items[0].text
+                      }}{% endif %}'
+            - action: tts.speak
+              metadata: {}
+              target:
+                entity_id: tts.google_translate_en_com
+              data:
+                cache: false
+                media_player_entity_id: media_player.<your_kitchen_speaker>
+                language: en
+                message: "{% if ai_response is defined and ai_response.status == 200 %}\n\
+                  \  {% set content = ai_response.content %}\n  {% if content is mapping\
+                  \ and 'response' in content and content.response | trim | length > 0 %}\n\
+                  \    {{ content.response }}\n  {% elif content is mapping and 'choices'\
+                  \ in content and content.choices | length > 0 %}\n    {{ content.choices[0].message.content\
+                  \ }}\n  {% else %}\n    Eat up! Your tummy will be happy!\n  {% endif\
+                  \ %}\n{% else %}\n  Eat up! Your tummy will be happy!\n{% endif %}"
+        default:
+        - action: rest_command.ollama_generate
+          continue_on_error: true
+          data:
+            prompt: '{{ ai_prompt }}'
+          response_variable: ai_response
+        - action: tts.speak
+          metadata: {}
+          target:
+            entity_id: tts.google_translate_en_com
+          data:
+            cache: false
+            media_player_entity_id: media_player.<your_kitchen_speaker>
+            language: en
+            message: "{% if ai_response is defined and ai_response.status == 200 %}\n\
+              \  {% set content = ai_response.content %}\n  {% if content is mapping\
+              \ and 'response' in content and content.response | trim | length > 0 %}\n\
+              \    {{ content.response }}\n  {% elif content is mapping and 'choices'\
+              \ in content and content.choices | length > 0 %}\n    {{ content.choices[0].message.content\
+              \ }}\n  {% else %}\n    Eat up! Your tummy will be happy!\n  {% endif\
+              \ %}\n{% else %}\n  Eat up! Your tummy will be happy!\n{% endif %}"
+  mode: single
+- id: weather_morning_alert
+  alias: 'Weather: Morning Alert'
+  description: Triggered at 07:45 on weekdays; announces dynamic radio-style forecast
+    for Your City using Ollama.
+  triggers:
+  - trigger: time
+    at: 07:45:00
+    weekday:
+    - mon
+    - tue
+    - wed
+    - thu
+    - fri
+  conditions: []
+  actions:
+  - choose:
+    - conditions:
+      - condition: state
+        entity_id: binary_sensor.<your_entity_id>
+        state: 'on'
+      sequence: []
+    default:
+    - wait_for_trigger:
+      - trigger: state
+        entity_id: binary_sensor.<your_entity_id>
+        from: 'off'
+        to: 'on'
+      timeout: 00:45:00
+      continue_on_timeout: true
+  - condition: state
+    entity_id: binary_sensor.<your_entity_id>
+    state: 'on'
+  - condition: state
+    entity_id: input_boolean.quiet_tts_notifications
+    state: 'off'
+  - action: weather.get_forecasts
+    data:
+      type: daily
+    target:
+      entity_id: weather.forecast_home
+    response_variable: daily_forecast
+  - variables:
+      condition: '{{ daily_forecast[''weather.forecast_home''].forecast[0].condition
+        }}'
+      temp_high: '{{ daily_forecast[''weather.forecast_home''].forecast[0].temperature
+        }}'
+      temp_low: '{{ daily_forecast[''weather.forecast_home''].forecast[0].templow
+        }}'
+      precip_prob: '{{ daily_forecast[''weather.forecast_home''].forecast[0].precipitation_probability
+        | default(0) }}'
+      wind_speed: '{{ daily_forecast[''weather.forecast_home''].forecast[0].wind_speed
+        | default(0) }}'
+      ai_prompt: 'Generate a very short morning weather forecast for <Your City> for
+        a smart home in the style of a morning radio show host in English. Today''s
+        data: Condition: {{ condition }} Temperature: from {{ temp_low }}°C to {{
+        temp_high }}°C Precipitation probability: {{ precip_prob }}% Wind: {{ wind_speed
+        }} km/h
+
+        Reply STRICTLY with only the ready text for the announcer. No quotes, asterisks,
+        emojis, or confirmations (like "Sure, here is the text"). At the end, definitely
+        add a short funny joke about this weather. 3-4 sentences max.
+
+        '
+  - choose:
+    - conditions:
+      - condition: state
+        entity_id: input_select.ai_provider_selector
+        state: Cloud (OpenCode)
+      sequence:
+      - action: rest_command.opencode_create_session
+        continue_on_error: true
+        response_variable: session_res
+      - if:
+        - condition: template
+          value_template: '{{ session_res is defined and session_res.status == 200
+            and session_res.content is defined and session_res.content.id is defined
+            }}'
+        then:
+        - action: rest_command.opencode_post_message
+          continue_on_error: true
+          data:
+            session_id: '{{ session_res.content.id }}'
+            prompt: '{{ ai_prompt }}'
+          response_variable: ai_response
+        - variables:
+            ai_response:
+              status: '{{ ai_response.status | default(0) }}'
+              content:
+                response: '{% set parts_list = ai_response.content.parts | default([])
+                  %}{% set text_items = parts_list | selectattr(''type'', ''eq'',
+                  ''text'') | list %}{% if text_items | length > 0 %}{{ text_items[0].text
+                  }}{% endif %}'
+    default:
+    - action: rest_command.ollama_generate
+      continue_on_error: true
+      data:
+        prompt: '{{ ai_prompt }}'
+      response_variable: ai_response
+  - action: media_player.volume_set
+    target:
+      entity_id: media_player.<your_kitchen_speaker>
+    data:
+      volume_level: 0.4
+  - action: tts.speak
+    target:
+      entity_id: tts.google_translate_en_com
+    data:
+      cache: false
+      media_player_entity_id: media_player.<your_kitchen_speaker>
+      language: en
+      message: "{% if ai_response is defined and ai_response.status == 200 %}\n  {%\
+        \ set content = ai_response.content %}\n  {% if content is mapping and 'response'\
+        \ in content and content.response | trim | length > 0 %}\n    {{ content.response\
+        \ | replace('*', '') | replace('\"', '') }}\n  {% elif content is mapping\
+        \ and 'choices' in content and content.choices | length > 0 %}\n    {{ content.choices[0].message.content\
+        \ | replace('*', '') | replace('\"', '') }}\n  {% else %}\n    Good morning!\
+        \ Today in <Your City> expect {{ condition }}, temperature from {{ temp_low\
+        \ }} to {{ temp_high }} degrees.\n  {% endif %}\n{% else %}\n  Good morning!\
+        \ Today in <Your City> expect {{ condition }}, temperature from {{ temp_low\
+        \ }} to {{ temp_high }} degrees.\n{% endif %}"
+  - wait_template: '{{ is_state(''media_player.<your_kitchen_speaker>'', ''playing'') }}'
+    timeout: 00:00:10
+  - wait_template: '{{ is_state(''media_player.<your_kitchen_speaker>'', ''idle'') or is_state(''media_player.<your_kitchen_speaker>'',
+      ''off'') }}'
+    timeout: 00:01:30
+  - action: media_player.volume_set
+    target:
+      entity_id: media_player.<your_kitchen_speaker>
+    data:
+      volume_level: 0.2
+  mode: restart
+- id: presence_generic_car
+  alias: 'Presence: Generic Car Arrival/Departure'
+  description: 'Triggered when the Generic Car tracker enters or leaves the home zone.
+    On arrival: sends push notification with action buttons only if no one was home
+    before (checks person.last_changed to handle presence updating faster than car
+    tracker). On departure: sends push notification with "Turn off lights" button
+    only if at least one light is on. Always sends Telegram + TTS (active speakers,
+    quiet TTS guard, volume boost/restore).'
+  triggers:
+  - trigger: zone
+    entity_id: device_tracker.generic_car
+    zone: zone.home
+    event: enter
+    id: arrival
+  - trigger: zone
+    entity_id: device_tracker.generic_car
+    zone: zone.home
+    event: leave
+    id: departure
+  conditions: []
+  actions:
+  - variables:
+      event_text: '{% if trigger.id == ''arrival'' %}arrived{% else %}departed{% endif
+        %}'
+      event_emoji: '{% if trigger.id == ''arrival'' %}🏠{% else %}🚗{% endif %}'
+  - action: notify.mobile_app_<your_phone>
+    data:
+      title: '{{ event_emoji }} Car {{ event_text }}!'
+      message: 'Your car has {{ event_text }} the home zone.'
+  - variables:
+      active_speakers: "{% set ns = namespace(speakers=[]) %} {% if is_state('input_boolean.quiet_tts_notifications',\
+        \ 'off') %}\n  {% set ns.speakers = ns.speakers + ['media_player.<your_kitchen_speaker>']\
+        \ %}\n  {% if is_state('automation.bedroom_bed_light_on_day_motion', 'on')\
+        \ and is_state('light.<your_bedroom_light>', 'on') %}\n    {% set ns.speakers = ns.speakers\
+        \ + ['media_player.<your_bedroom_speaker>'] %}\n  {% endif %}\n{% endif %} {{ ns.speakers\
+        \ | join(', ') }}\n"
+  - if:
+    - condition: template
+      value_template: '{{ active_speakers | length > 0 }}'
+    - condition: or
+      conditions:
+      - condition: time
+        before: '20:00:00'
+      - condition: state
+        entity_id: light.kitchen_light
+        state: 'on'
+    then:
+    - action: media_player.volume_set
+      target:
+        entity_id: '{{ active_speakers }}'
+      data:
+        volume_level: 0.4
+    - action: tts.speak
+      target:
+        entity_id: tts.google_translate_en_com
+      data:
+        cache: true
+        media_player_entity_id: '{{ active_speakers }}'
+        message: Car has {% if trigger.id == 'arrival' %} arrived {% else %} departed
+          {% endif %}!
+        language: en
+    - delay:
+        seconds: 10
+    - action: media_player.volume_set
+      target:
+        entity_id: '{{ active_speakers }}'
+      data:
+        volume_level: 0.2
+  - if:
+    - condition: template
+      value_template: '{{ trigger.id == ''arrival'' }}'
+    - condition: template
+      value_template: '{% set now_ts = now().timestamp() %} {% set person_1 = states.person.person_1
+        %} {% set person_2 = states.person.person_2 %} {% set person_1_was_home = person_1.state
+        == ''home'' and (now_ts - person_1.last_changed.timestamp()) > 300 %} {% set
+        person_2_was_home = person_2.state == ''home'' and (now_ts - person_2.last_changed.timestamp())
+        > 300 %} {{ not person_1_was_home and not person_2_was_home }}
+
+        '
+    then:
+    - action: notify.mobile_app_<your_phone>
+      data:
+        title: '{{ event_emoji }} Car arrived'
+        message: No one was home. Turn on lights or A/C?
+        data:
+          tag: generic_car_arrival
+          actions:
+          - action: CAR_ARRIVE_LIGHTS_ON
+            title: Turn on lights
+          - action: CAR_ARRIVE_AC_ON
+            title: Turn on A/C
+          - action: CAR_ARRIVE_NONE
+            title: None
+    - wait_for_trigger:
+      - platform: event
+        event_type: mobile_app_notification_action
+        event_data:
+          action: CAR_ARRIVE_LIGHTS_ON
+      - platform: event
+        event_type: mobile_app_notification_action
+        event_data:
+          action: CAR_ARRIVE_AC_ON
+      - platform: event
+        event_type: mobile_app_notification_action
+        event_data:
+          action: CAR_ARRIVE_NONE
+      timeout: 00:05:00
+      continue_on_timeout: true
+    - action: notify.mobile_app_<your_phone>
+      data:
+        message: clear_notification
+        data:
+          tag: generic_car_arrival
+    - if:
+      - condition: template
+        value_template: '{{ wait.trigger is not none and wait.trigger.event.data.action
+          == ''CAR_ARRIVE_LIGHTS_ON'' }}'
+      then:
+      - action: light.turn_on
+        target:
+          entity_id: light.<zigbee_device_1>
+        data:
+          brightness_pct: 100
+    - if:
+      - condition: template
+        value_template: '{{ wait.trigger is not none and wait.trigger.event.data.action
+          == ''CAR_ARRIVE_AC_ON'' }}'
+      then:
+      - action: input_boolean.turn_on
+        target:
+          entity_id: input_boolean.kitchen_ac
+  - if:
+    - condition: template
+      value_template: '{{ trigger.id == ''departure'' }}'
+    - condition: not
+      conditions:
+      - condition: zone
+        entity_id: person.person_1
+        zone: zone.home
+    - condition: not
+      conditions:
+      - condition: zone
+        entity_id: person.person_2
+        zone: zone.home
+    - condition: template
+      value_template: '{{ is_state(''light.<zigbee_device_1>'', ''on'') or is_state(''light.kitchen_light'',
+        ''on'') or is_state(''light.led_strip'', ''on'') or is_state(''light.fairy_lights'',
+        ''on'') or is_state(''light.bedroom_light'', ''on'') or is_state(''light.desk_lamp'',
+        ''on'') or is_state(''light.yeelink_lamp'', ''on'')
+        or is_state(''light.bathroom_light'', ''on'') or is_state(''light.child_room_light'',
+        ''on'') }}
+
+        '
+    then:
+    - action: notify.mobile_app_<your_phone>
+      data:
+        title: '{{ event_emoji }} Car departed'
+        message: Turn off all lights?
+        data:
+          tag: generic_car_departure
+          actions:
+          - action: CAR_DEPART_LIGHTS_OFF
+            title: Turn off lights
+          - action: CAR_DEPART_NONE
+            title: None
+    - wait_for_trigger:
+      - platform: event
+        event_type: mobile_app_notification_action
+        event_data:
+          action: CAR_DEPART_LIGHTS_OFF
+      - platform: event
+        event_type: mobile_app_notification_action
+        event_data:
+          action: CAR_DEPART_NONE
+      timeout: 00:05:00
+      continue_on_timeout: true
+    - action: notify.mobile_app_<your_phone>
+      data:
+        message: clear_notification
+        data:
+          tag: generic_car_departure
+    - if:
+      - condition: template
+        value_template: '{{ wait.trigger is not none and wait.trigger.event.data.action
+          == ''CAR_DEPART_LIGHTS_OFF'' }}'
+      then:
+      - action: script.turn_on
+        target:
+          entity_id: script.all_lights_off
+  mode: single
+- id: ai_provider_hourly_health_check
+  alias: 'System: AI Provider Hourly Health Check'
+  description: Checks OpenCode API health every hour (at :30). Auto-switches to Local
+    (Ollama) on failure and auto-recovers back to Cloud (OpenCode) when healthy.
+  mode: single
+  triggers:
+  - trigger: time_pattern
+    minutes: '30'
+  actions:
+  - action: rest_command.opencode_health_check
+    continue_on_error: true
+    response_variable: health_response
+  - variables:
+      is_healthy: '{{ health_response is defined and health_response.status == 200
+        and health_response.content is defined and health_response.content.healthy
+        is defined and health_response.content.healthy == true }}'
+      current_provider: '{{ states(''input_select.ai_provider_selector'') }}'
+  - choose:
+    - conditions:
+      - condition: template
+        value_template: '{{ not is_healthy and current_provider == ''Cloud (OpenCode)''
+          }}'
+      sequence:
+      - action: input_select.select_option
+        target:
+          entity_id: input_select.ai_provider_selector
+        data:
+          option: Local (Ollama)
+      - action: notify.mobile_app_<your_phone>
+        data:
+          title: 'AI Provider Alert'
+          message: "OpenCode API health check failed! {% if health_response is\
+            \ defined %}\n  Status: {{ health_response.status | default('unknown')\
+            \ }}\n{% else %}\n  No response received.\n{% endif %} Automatically switched\
+            \ to Local (Ollama) fallback."
+    - conditions:
+      - condition: template
+        value_template: '{{ is_healthy and current_provider == ''Local (Ollama)''
+          }}'
+      sequence:
+      - action: input_select.select_option
+        target:
+          entity_id: input_select.ai_provider_selector
+        data:
+          option: Cloud (OpenCode)
+      - action: notify.mobile_app_<your_phone>
+        data:
+          title: 'AI Provider Restored'
+          message: OpenCode API health restored! Automatically switched back to
+            Cloud (OpenCode).

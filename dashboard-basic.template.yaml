@@ -1,0 +1,425 @@
+# dashboard-basic.template.yaml
+# =============================
+# Basic Lovelace dashboard: Overview, Kitchen, Bedroom, Bathroom, Child Room, Calendar.
+# Simple cards with standard HA components (lights, switches, climate, media_player).
+# Requires HACS custom cards: foundry-digital-clock-card, auto-entities
+# Requires binary_sensor.events_today, binary_sensor.events_tomorrow, and sensor.google_calendar_agenda
+# Rename to dashboard.yaml and map example entity IDs to your real entity IDs.
+views:
+- title: Overview
+  path: overview
+  icon: mdi:home
+  cards:
+  - type: custom:foundry-digital-clock-card
+    size: large
+    show_seconds: true
+    theme: none
+    themeentity: ''
+    ring_style: silver
+    font_bg_color: '#050510'
+    font_color: '#00ff00'
+    title_color: '#ffffff'
+    rivet_color: '#2a2a35'
+    plate_color: '#1c1c24'
+    plate_transparent: true
+    glass_effect_enabled: true
+    aged_texture: none
+    aged_texture_intensity: 0
+    title_font_size: 14
+    use_24h_format: true
+    wear_level: 5010
+  - type: horizontal-stack
+    cards:
+    - type: conditional
+      conditions:
+      - condition: state
+        entity: binary_sensor.events_today
+        state: 'on'
+      card:
+        type: markdown
+        content: "<div style=\"text-align: center; padding: 10px;\">\n  <span style=\"\
+          font-size: 60px;\">\U0001F534\U0001F4C5</span><br>\n  <b style=\"font-size:\
+          \ 25px;\">Events Today!</b>\n</div>"
+    - type: conditional
+      conditions:
+      - condition: state
+        entity: binary_sensor.events_tomorrow
+        state: 'on'
+      card:
+        type: markdown
+        content: "<div style=\"text-align: center; padding: 10px;\">\n  <span style=\"\
+          font-size: 60px;\">\U0001F7E0\U0001F4C5</span><br>\n  <b style=\"font-size:\
+          \ 25px;\">Events Tomorrow!</b>\n</div>"
+  - type: horizontal-stack
+    cards:
+    - type: conditional
+      conditions:
+      - condition: state
+        entity: person.person_1
+        state_not: home
+      card:
+        type: vertical-stack
+        cards:
+        - type: entity
+          entity: person.person_1
+          name: Person 1
+          icon: mdi:account
+        - type: markdown
+          content: '<div style="text-align: center;">
+
+            <ha-icon icon="mdi:car"></ha-icon> ETA: {{ states(''sensor.time_to_home_person_1'')
+            | float(0) | round(0) | int }}m
+
+            </div>'
+    - type: conditional
+      conditions:
+      - condition: state
+        entity: person.person_2
+        state_not: home
+      card:
+        type: vertical-stack
+        cards:
+        - type: entity
+          entity: person.person_2
+          name: Person 2
+          icon: mdi:account
+        - type: markdown
+          content: '<div style="text-align: center;">
+
+            <ha-icon icon="mdi:car"></ha-icon> ETA: {{ states(''sensor.time_to_home_person_2'')
+            | float(0) | round(0) | int }}m
+
+            </div>'
+  - type: weather-forecast
+    entity: weather.forecast_home
+    show_forecast: true
+  - type: entities
+    show_header_toggle: false
+    entities:
+    - entity: sensor.air_conditioner_outdoor_temperature
+      name: 🌡️ Outdoor Temperature
+      icon: mdi:thermometer
+  - type: entities
+    title: 💡 Rooms at a Glance
+    show_header_toggle: false
+    entities:
+    - entity: light.kitchen_main
+      name: Kitchen
+      icon: mdi:silverware-fork-knife
+    - entity: light.bedroom_light
+      name: Bedroom
+      icon: mdi:bed
+    - entity: light.bathroom_light
+      name: Bathroom
+      icon: mdi:shower
+    - entity: light.child_room_light
+      name: Child Room
+      icon: mdi:teddy-bear
+  - type: grid
+    title: 🎛️ Main Controls
+    columns: 2
+    square: false
+    cards:
+    - type: button
+      entity: input_boolean.kitchen_ac
+      name: Kitchen A/C
+      icon: mdi:air-conditioner
+      icon_height: 40px
+    - type: button
+      entity: input_boolean.bedroom_ac
+      name: Bedroom A/C
+      icon: mdi:air-conditioner
+      icon_height: 40px
+    - type: button
+      name: All Lights Off
+      icon: mdi:lightbulb-group-off
+      tap_action:
+        action: call-service
+        service: script.turn_on
+        target:
+          entity_id: script.dashboard_all_lights_off
+      icon_height: 40px
+  - type: custom:auto-entities
+    card:
+      type: entities
+      title: 🎵 Media
+      show_header_toggle: false
+    filter:
+      include:
+      - domain: media_player
+        state: playing
+      - domain: media_player
+        state: paused
+      - domain: media_player
+        state: buffering
+    show_empty: false
+  - type: gauge
+    entity: sensor.total_house_power
+    name: House Power
+    unit: W
+    severity:
+      green: 0
+      yellow: 2000
+      red: 2800
+    needle: true
+    min: 0
+    max: 5000
+  - type: conditional
+    conditions:
+    - condition: state
+      entity: binary_sensor.gas_sensor
+      state: 'on'
+    card:
+      type: markdown
+      content: '## 🚨 GAS LEAK DETECTED
+
+        The kitchen gas sensor has triggered!'
+  - type: conditional
+    conditions:
+    - condition: numeric_state
+      entity: sensor.total_house_power
+      above: 3000
+    card:
+      type: markdown
+      content: '## ⚡ HIGH POWER USAGE
+
+        House power is above 3000W! Turn off some appliances to avoid a blackout.'
+  - type: conditional
+    conditions:
+    - condition: or
+      conditions:
+      - condition: state
+        entity: binary_sensor.water_leak_kitchen_water_leak
+        state: 'on'
+      - condition: state
+        entity: binary_sensor.water_leak_bathroom_water_leak
+        state: 'on'
+      - condition: state
+        entity: binary_sensor.water_leak_child_water_leak
+        state: 'on'
+    card:
+      type: markdown
+      content: '## 💧 WATER LEAK DETECTED
+
+        Check leak sensors immediately!'
+- title: Kitchen
+  path: kitchen
+  icon: mdi:silverware-fork-knife
+  cards:
+  - type: entities
+    title: 💡 Kitchen — Lights
+    show_header_toggle: false
+    entities:
+    - entity: light.kitchen_main
+      name: Main Light
+      icon: mdi:ceiling-light
+  - type: conditional
+    conditions:
+    - condition: or
+      conditions:
+      - condition: state
+        entity: media_player.<your_kitchen_speaker>
+        state: playing
+      - condition: state
+        entity: media_player.<your_kitchen_speaker>
+        state: paused
+    card:
+      type: entities
+      title: 🎵 Kitchen — Media
+      show_header_toggle: false
+      entities:
+      - entity: media_player.<your_kitchen_speaker>
+        name: Kitchen Speaker
+  - type: entities
+    title: ❄️ Kitchen — Climate
+    show_header_toggle: false
+    entities:
+    - entity: input_boolean.kitchen_ac
+      name: Kitchen A/C
+      icon: mdi:air-conditioner
+    - entity: sensor.kitchen_temperature
+      name: Temperature
+      icon: mdi:thermometer
+    - entity: sensor.kitchen_humidity
+      name: Humidity
+      icon: mdi:water-percent
+  - type: glance
+    title: 📡 Kitchen — Sensors
+    show_state: true
+    entities:
+    - entity: binary_sensor.kitchen_motion_occupancy
+      name: Motion
+    - entity: binary_sensor.kitchen_door_contact
+      name: Door
+    - entity: binary_sensor.gas_sensor
+      name: Gas
+  - type: grid
+    title: 🔌 Kitchen — Appliances
+    columns: 2
+    square: false
+    cards:
+    - type: button
+      entity: switch.oven
+      name: Oven
+      icon: mdi:stove
+      icon_height: 40px
+    - type: button
+      entity: switch.kitchen_fan
+      name: Fan
+      icon: mdi:fan
+      icon_height: 40px
+- title: Bedroom
+  path: bedroom
+  icon: mdi:bed
+  cards:
+  - type: entities
+    title: 🛏️ Bedroom — Lights
+    show_header_toggle: false
+    entities:
+    - entity: light.bedroom_light
+      name: Main Light
+      icon: mdi:led-strip
+  - type: conditional
+    conditions:
+    - condition: or
+      conditions:
+      - condition: state
+        entity: media_player.<your_bedroom_speaker>
+        state: playing
+      - condition: state
+        entity: media_player.<your_bedroom_speaker>
+        state: paused
+    card:
+      type: entities
+      title: 🛏️ Bedroom — Media
+      show_header_toggle: false
+      entities:
+      - entity: media_player.<your_bedroom_speaker>
+        name: Bedroom Speaker
+  - type: entities
+    title: ❄️ Bedroom — Climate
+    show_header_toggle: false
+    entities:
+    - entity: input_boolean.bedroom_ac
+      name: Bedroom A/C
+      icon: mdi:air-conditioner
+    - entity: sensor.bedroom_temperature
+      name: Temperature
+      icon: mdi:thermometer
+    - entity: sensor.bedroom_humidity
+      name: Humidity
+      icon: mdi:water-percent
+  - type: glance
+    title: 🛏️ Bedroom — Sensors
+    show_state: true
+    entities:
+    - entity: binary_sensor.bedroom_motion_occupancy
+      name: Motion
+    - entity: sensor.bedroom_temperature
+      name: Temp
+    - entity: sensor.bedroom_humidity
+      name: Humidity
+- title: Bathroom
+  path: bathroom
+  icon: mdi:shower
+  cards:
+  - type: entities
+    title: 🚿 Bathroom — Lights
+    show_header_toggle: false
+    entities:
+    - entity: light.bathroom_light
+      name: Bathroom Light
+      icon: mdi:lightbulb
+  - type: glance
+    title: 🚿 Bathroom — Sensors
+    show_state: true
+    entities:
+    - entity: binary_sensor.bathroom_motion_occupancy
+      name: Motion
+    - entity: binary_sensor.bathroom_door_contact
+      name: Door
+    - entity: sensor.bathroom_temperature
+      name: Temp
+    - entity: sensor.bathroom_humidity
+      name: Humidity
+  - type: entities
+    title: 📊 Bathroom — Status
+    show_header_toggle: false
+    entities:
+    - entity: input_boolean.bathroom_occupied
+      name: Occupied
+      icon: mdi:account-check
+- title: Child Room
+  path: child-room
+  icon: mdi:teddy-bear
+  cards:
+  - type: entities
+    title: 🧒 Child Room — Lights
+    show_header_toggle: false
+    entities:
+    - entity: light.child_room_light
+      name: Child Room Light
+      icon: mdi:lightbulb
+  - type: grid
+    title: 🎛️ Child Room — Controls
+    columns: 2
+    square: false
+    cards:
+    - type: button
+      entity: automation.child_room_turn_on_light_on_motion
+      name: Auto-On Motion
+      icon: mdi:motion-sensor
+      icon_height: 40px
+      show_state: true
+    - type: button
+      entity: automation.child_room_turn_off_light_on_no_motion
+      name: Auto-Off Light
+      icon: mdi:motion-sensor-off
+      icon_height: 40px
+      show_state: true
+  - type: glance
+    title: 🧒 Child Room — Sensors
+    show_state: true
+    entities:
+    - entity: binary_sensor.child_room_presence
+      name: Presence
+    - entity: binary_sensor.child_room_door
+      name: Door
+    - entity: sensor.child_room_temperature
+      name: Temp
+    - entity: sensor.child_room_humidity
+      name: Humidity
+- title: Calendar
+  path: calendar
+  icon: mdi:calendar-month
+  panel: true
+  cards:
+  - type: markdown
+    title: 📅 Family Calendar
+    content: "{% set events = state_attr('sensor.google_calendar_agenda', 'events')\
+      \ %}\n{% if events == none %}\nNo upcoming events or sensor is loading.\n{%\
+      \ else %}\n{% set today = now().date() %}\n{% set tomorrow = today + timedelta(days=1)\
+      \ %}\n{% set end_of_week = today + timedelta(days=6 - today.weekday()) %}\n\
+      {% set next_month = today + timedelta(days=30) %}\n\n{% set ns = namespace(today=[],\
+      \ tomorrow=[], week=[], month=[]) %}\n\n{% for event in events %}\n  {% set\
+      \ start_str = event.start %}\n  {% if 'T' in start_str %}\n    {% set dt = as_datetime(start_str)\
+      \ | as_local %}\n    {% set event_date = dt.date() %}\n    {% set display =\
+      \ dt.strftime('%H:%M') ~ ' - ' ~ event.summary %}\n  {% else %}\n    {% set\
+      \ dt = (start_str ~ 'T00:00:00Z') | as_datetime | as_local %}\n    {% set event_date\
+      \ = dt.date() %}\n    {% set display = 'All Day - ' ~ event.summary %}\n  {%\
+      \ endif %}\n  \n  {% if event_date == today %}\n    {% set ns.today = ns.today\
+      \ + [display] %}\n  {% elif event_date == tomorrow %}\n    {% set ns.tomorrow\
+      \ = ns.tomorrow + [display] %}\n  {% elif event_date > tomorrow and event_date\
+      \ <= end_of_week %}\n    {% set ns.week = ns.week + [event_date.strftime('%a,\
+      \ %d %b') ~ ': ' ~ display] %}\n  {% elif event_date > end_of_week and event_date\
+      \ <= next_month %}\n    {% set ns.month = ns.month + [event_date.strftime('%d\
+      \ %b') ~ ': ' ~ display] %}\n  {% endif %}\n{% endfor %}\n\n{% if ns.today |\
+      \ length > 0 %}\n<strong>Today</strong>\n{% for e in ns.today %}\n<p>- {{ e\
+      \ }}</p>\n{% endfor %}\n{% endif %}\n\n{% if ns.tomorrow | length > 0 %}\n<strong>Tomorrow</strong>\n\
+      {% for e in ns.tomorrow %}\n<p>- {{ e }}</p>\n{% endfor %}\n{% endif %}\n\n\
+      {% if ns.week | length > 0 %}\n<strong>This Week</strong>\n{% for e in ns.week\
+      \ %}\n<p>- {{ e }}</p>\n{% endfor %}\n{% endif %}\n\n{% if ns.month | length\
+      \ > 0 %}\n<strong>Remaining Days</strong>\n{% for e in ns.month %}\n<p>- {{\
+      \ e }}</p>\n{% endfor %}\n{% endif %}\n\n{% if ns.today|length == 0 and ns.tomorrow|length\
+      \ == 0 and ns.week|length == 0 and ns.month|length == 0 %}\n<p>No upcoming events\
+      \ in the next 30 days!</p>\n{% endif %}\n{% endif %}"

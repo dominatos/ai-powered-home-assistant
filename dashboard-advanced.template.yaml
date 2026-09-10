@@ -1,0 +1,904 @@
+# dashboard-advanced.template.yaml
+# ================================
+# Advanced Lovelace dashboard: Climate, Appliances & Safety, Settings, Energy,
+# Tablet, TV Remote, Car. Includes AI controls, IR remotes, and system diagnostics.
+# Requires HACS custom cards: mushroom-entity-card, mini-graph-card, card_mod
+# Rename to dashboard.yaml and fill in <device_id_here>, <your_tablet_hostname>, etc.
+views:
+- title: Climate
+  path: climate
+  icon: mdi:thermometer
+  cards:
+  - type: vertical-stack
+    cards:
+    - type: entities
+      title: Thermostat Status
+      show_header_toggle: false
+      entities:
+      - entity: climate.<device_id_here>
+        name: Thermostat
+      - entity: sensor.<device_id_here>_local_temperature
+        name: Current Temperature
+        icon: mdi:thermometer
+      - entity: select.<device_id_here>_programming_operation_mode
+        name: Mode
+        icon: mdi:cog
+      - entity: switch.<device_id_here>_child_lock
+        name: Child Lock
+        icon: mdi:lock
+    - type: entities
+      title: Weekday Schedule (Mon-Fri)
+      show_header_toggle: false
+      entities:
+      - entity: input_datetime.thermostat_schedule_time_1
+        name: Morning Time
+      - entity: input_number.thermostat_schedule_temp_1
+        name: Morning Temp
+      - entity: input_datetime.thermostat_schedule_time_2
+        name: Day Time
+      - entity: input_number.thermostat_schedule_temp_2
+        name: Day Temp
+      - entity: input_datetime.thermostat_schedule_time_3
+        name: Evening Time
+      - entity: input_number.thermostat_schedule_temp_3
+        name: Evening Temp
+      - entity: input_datetime.thermostat_schedule_time_4
+        name: Night Time
+      - entity: input_number.thermostat_schedule_temp_4
+        name: Night Temp
+    - type: entities
+      title: Saturday Schedule
+      show_header_toggle: false
+      entities:
+      - entity: input_datetime.thermostat_schedule_saturday_time_1
+        name: Morning Time
+      - entity: input_number.thermostat_schedule_saturday_temp_1
+        name: Morning Temp
+      - entity: input_datetime.thermostat_schedule_saturday_time_2
+        name: Day Time
+      - entity: input_number.thermostat_schedule_saturday_temp_2
+        name: Day Temp
+      - entity: input_datetime.thermostat_schedule_saturday_time_3
+        name: Evening Time
+      - entity: input_number.thermostat_schedule_saturday_temp_3
+        name: Evening Temp
+      - entity: input_datetime.thermostat_schedule_saturday_time_4
+        name: Night Time
+      - entity: input_number.thermostat_schedule_saturday_temp_4
+        name: Night Temp
+    - type: entities
+      title: Sunday Schedule
+      show_header_toggle: false
+      entities:
+      - entity: input_datetime.thermostat_schedule_sunday_time_1
+        name: Morning Time
+      - entity: input_number.thermostat_schedule_sunday_temp_1
+        name: Morning Temp
+      - entity: input_datetime.thermostat_schedule_sunday_time_2
+        name: Day Time
+      - entity: input_number.thermostat_schedule_sunday_temp_2
+        name: Day Temp
+      - entity: input_datetime.thermostat_schedule_sunday_time_3
+        name: Evening Time
+      - entity: input_number.thermostat_schedule_sunday_temp_3
+        name: Evening Temp
+      - entity: input_datetime.thermostat_schedule_sunday_time_4
+        name: Night Time
+      - entity: input_number.thermostat_schedule_sunday_temp_4
+        name: Night Temp
+    - type: entities
+      title: Thermostat Controls
+      show_header_toggle: false
+      entities:
+      - entity: input_number.thermostat_night_away_temp
+        name: Night/Away Temperature
+        icon: mdi:home-export-outline
+      - entity: input_boolean.thermostat_boost_1h
+        name: Boost 1 Hour (22C)
+      - entity: input_boolean.thermostat_night_mode
+        name: Night/Away Mode Active
+        icon: mdi:weather-night
+      - entity: input_boolean.thermostat_weekend_schedule_ready
+        name: Weekend Schedules Ready
+        icon: mdi:calendar-check
+      - entity: input_boolean.thermostat_physical_override_fallback
+        name: Physical Override Auto-Return
+    - type: button
+      name: Pull Schedule From Device
+      icon: mdi:cloud-download
+      icon_height: 40px
+      tap_action:
+        action: call-service
+        service: script.thermostat_pull_schedule_from_device
+  - type: horizontal-stack
+    cards:
+    - type: button
+      entity: input_boolean.bedroom_ac
+      name: Bedroom A/C
+      icon: mdi:air-conditioner
+      icon_height: 40px
+    - type: button
+      entity: input_boolean.kitchen_ac
+      name: Kitchen A/C
+      icon: mdi:air-conditioner
+      icon_height: 40px
+  - type: glance
+    title: Bedroom A/C Readings
+    show_state: true
+    entities:
+    - entity: sensor.air_conditioner_indoor_temperature
+      name: Indoor
+    - entity: sensor.air_conditioner_outdoor_temperature
+      name: Outdoor
+    - entity: sensor.air_conditioner_selected_temperature
+      name: Set Point
+  - type: entities
+    title: Dehumidifier
+    show_header_toggle: false
+    entities:
+    - entity: switch.<device_id_here>
+      name: Dehumidifier
+      icon: mdi:air-humidifier
+  - type: history-graph
+    title: Temperature - All Rooms (24h)
+    hours_to_show: 24
+    entities:
+    - entity: sensor.<device_id_here_1>_temperature
+      name: Kitchen
+    - entity: sensor.<device_id_here_2>_temperature
+      name: Bedroom
+    - entity: sensor.<device_id_here_3>_temperature
+      name: Bathroom
+    - entity: sensor.<device_id_here_4>_temperature
+      name: Child Room
+    - entity: sensor.<device_id_here_5>_local_temperature
+      name: Thermostat
+    - entity: sensor.air_conditioner_outdoor_temperature
+      name: Outdoor (A/C)
+  - type: history-graph
+    title: Humidity - All Rooms (24h)
+    hours_to_show: 24
+    entities:
+    - entity: sensor.<device_id_here_1>_humidity
+      name: Kitchen
+    - entity: sensor.<device_id_here_2>_humidity
+      name: Bedroom
+    - entity: sensor.<device_id_here_3>_humidity
+      name: Bathroom
+    - entity: sensor.<device_id_here_4>_humidity
+      name: Child Room
+  - type: entities
+    title: Fridge
+    show_header_toggle: false
+    entities:
+    - entity: sensor.fridge_temperature
+      name: Fridge Temperature
+      icon: mdi:fridge
+    - entity: sensor.freezer_temperature
+      name: Freezer Temperature
+      icon: mdi:fridge-bottom
+    - entity: binary_sensor.fridge_door
+      name: Fridge Door
+      icon: mdi:fridge-alert
+    - entity: switch.fridge_power_cool
+      name: Power Cool
+      icon: mdi:snowflake
+    - entity: switch.fridge_power_freeze
+      name: Power Freeze
+      icon: mdi:snowflake-alert
+  - type: weather-forecast
+    entity: weather.forecast_home
+    show_forecast: true
+- title: Appliances & Safety
+  path: appliances
+  icon: mdi:washing-machine
+  cards:
+  - type: entities
+    title: Oven
+    show_header_toggle: false
+    entities:
+    - entity: switch.<device_id_here_1>
+      name: Oven Switch
+      icon: mdi:stove
+  - type: entities
+    title: Washing Machine
+    show_header_toggle: false
+    entities:
+    - entity: switch.<device_id_here_2>
+      name: Washing Machine Switch
+      icon: mdi:washing-machine
+  - type: entities
+    title: Dishwasher
+    show_header_toggle: false
+    entities:
+    - entity: binary_sensor.dish_washer_status
+      name: Running
+      icon: mdi:dishwasher
+    - entity: sensor.dish_washer_program_name
+      name: Program
+      icon: mdi:format-list-bulleted
+    - entity: sensor.dish_washer_program_phase
+      name: Phase
+      icon: mdi:progress-clock
+    - entity: sensor.dish_washer_remaining_time
+      name: Remaining Time
+      icon: mdi:timer-outline
+    - entity: binary_sensor.dish_washer_door_status
+      name: Door
+      icon: mdi:door
+    - entity: binary_sensor.dish_washer_salt
+      name: Salt Level
+      icon: mdi:shaker-outline
+    - entity: binary_sensor.dish_washer_rinse_aid
+      name: Rinse Aid
+      icon: mdi:bottle-tonic
+  - type: entities
+    title: Water Safety
+    show_header_toggle: false
+    entities:
+    - entity: switch.<device_id_here>
+      name: Water Valve
+      icon: mdi:water-pump
+    - type: divider
+    - entity: binary_sensor.water_leak_kitchen_water_leak
+      name: Leak - Kitchen
+      icon: mdi:water-alert
+    - entity: binary_sensor.water_leak_bathroom_water_leak
+      name: Leak - Bathroom
+      icon: mdi:water-alert
+    - entity: binary_sensor.water_leak_child_water_leak
+      name: Leak - Child Room
+      icon: mdi:water-alert
+  - type: entities
+    title: Gas Safety
+    show_header_toggle: false
+    entities:
+    - entity: binary_sensor.gas_sensor
+      name: Kitchen Gas Sensor
+      icon: mdi:gas-cylinder
+- title: Settings
+  path: settings
+  icon: mdi:cog
+  cards:
+  - type: entities
+    title: AI Settings
+    show_header_toggle: false
+    entities:
+    - entity: input_select.ai_provider_selector
+    - entity: input_text.ai_opencode_model
+    - entity: input_text.ai_ollama_model
+  - type: button
+    name: Run AI Health Check
+    icon: mdi:heart-pulse
+    icon_height: 40px
+    tap_action:
+      action: call-service
+      service: automation.trigger
+      target:
+        entity_id: automation.system_ai_provider_hourly_health_check
+  - type: entities
+    title: Notifications
+    show_header_toggle: false
+    entities:
+    - entity: input_boolean.quiet_tts_notifications
+      name: Quiet TTS Mode
+      icon: mdi:volume-off
+  - type: grid
+    title: Bedroom Automation
+    columns: 2
+    square: false
+    cards:
+    - type: button
+      name: Kill Motion & Quiet TTS (2h)
+      icon: mdi:motion-sensor-off
+      icon_height: 40px
+      tap_action:
+        action: call-service
+        service: automation.trigger
+        target:
+          entity_id: <your_bedroom_motion_kill_automation>
+  - type: entities
+    title: Thermostat Internals
+    show_header_toggle: false
+    entities:
+    - entity: input_boolean.thermostat_physical_override_fallback
+      name: Physical Override Auto-Return
+      icon: mdi:gesture-tap
+    - entity: input_boolean.thermostat_night_mode
+      name: Night/Away Mode (internal)
+      icon: mdi:weather-night
+  - type: entities
+    title: Night Automation Tracking
+    show_header_toggle: false
+    entities:
+    - entity: input_boolean.kitchen_dish_light_started_by_night_auto
+      name: Dish Light - Night Auto Ownership
+      icon: mdi:lightbulb-auto
+    - entity: input_boolean.kitchen_fan_started_by_oven
+      name: Fan - Oven Ventilation Cycle
+      icon: mdi:fan-auto
+  - type: entities
+    title: Bathroom Automation
+    show_header_toggle: false
+    entities:
+    - entity: input_boolean.bathroom_occupied
+      name: Bathroom Occupied
+      icon: mdi:account-check
+    - entity: input_boolean.bathroom_led_color_mode
+      name: LED Color Mode State
+      icon: mdi:palette
+  - type: entities
+    title: Kitchen Tablet
+    show_header_toggle: false
+    entities:
+    - entity: input_boolean.kitchen_tablet_screen_awake
+      name: Screen State
+      icon: mdi:tablet
+    - entity: sensor.<your_tablet_hostname>_battery_charge_remaining_percentage
+      name: Battery
+      icon: mdi:battery
+    - entity: sensor.<your_tablet_hostname>_activewindow
+      name: Active Window
+      icon: mdi:monitor
+  - type: button
+    name: Send Test Notification
+    icon: mdi:bell-ring
+    icon_height: 40px
+    tap_action:
+      action: call-service
+      service: notify.mobile_app_<your_phone>
+      data:
+        title: Home Assistant
+        message: Test notification from dashboard
+  - type: grid
+    title: System
+    columns: 2
+    square: false
+    cards:
+    - type: button
+      name: Clear Logs
+      icon: mdi:delete-sweep
+      icon_height: 40px
+      tap_action:
+        action: call-service
+        service: system_log.clear
+- title: Energy Infrastructure
+  path: energy_infrastructure
+  icon: mdi:lightning-bolt
+  cards:
+  - type: statistics-graph
+    title: Monthly Consumption (Last 12 Months)
+    chart_type: bar
+    period: month
+    days_to_show: 365
+    stat_types:
+    - change
+    entities:
+    - entity: sensor.total_house_energy_kwh
+      name: Total House (kWh)
+  - type: entities
+    title: Mains - Circuit Monitors
+    show_header_toggle: false
+    entities:
+    - entity: sensor.total_house_power
+      name: Total House Power
+      icon: mdi:home-lightning-bolt
+      secondary_info: last-updated
+    - type: divider
+    - type: section
+      label: DIN 10A - Lights & Light Loads
+    - entity: sensor.energy_monitoring_din_10a_power
+      name: Power
+      icon: mdi:flash
+    - entity: sensor.energy_monitoring_din_10a_current
+      name: Current
+      icon: mdi:current-ac
+    - entity: sensor.energy_monitoring_din_10a_voltage
+      name: Voltage
+      icon: mdi:sine-wave
+    - entity: sensor.energy_monitoring_din_10a_energy
+      name: Total Energy (kWh)
+      icon: mdi:counter
+    - type: section
+      label: DIN 16A - Heavy Kitchen Appliances
+    - entity: sensor.energy_monitoring_din_16a_power
+      name: Power
+      icon: mdi:flash
+    - entity: sensor.energy_monitoring_din_16a_current
+      name: Current
+      icon: mdi:current-ac
+    - entity: sensor.energy_monitoring_din_16a_voltage
+      name: Voltage
+      icon: mdi:sine-wave
+    - entity: sensor.energy_monitoring_din_16a_energy
+      name: Total Energy (kWh)
+      icon: mdi:counter
+  - type: gauge
+    entity: sensor.total_house_power
+    name: House Power
+    unit: W
+    severity:
+      green: 0
+      yellow: 2000
+      red: 2800
+    needle: true
+    min: 0
+    max: 5000
+  - type: entities
+    title: Solar & Battery
+    show_header_toggle: false
+    entities:
+    - entity: sensor.solar_power
+      name: Solar Power
+      icon: mdi:solar-power
+    - entity: sensor.battery_power
+      name: Battery Power
+      icon: mdi:car-battery
+    - entity: sensor.battery_level
+      name: Battery Level
+      icon: mdi:battery-charging
+  - type: history-graph
+    title: Mains Power History (24h)
+    hours_to_show: 24
+    entities:
+    - entity: sensor.total_house_power
+      name: Total House
+    - entity: sensor.energy_monitoring_din_10a_power
+      name: DIN 10A - Lights
+    - entity: sensor.energy_monitoring_din_16a_power
+      name: DIN 16A - Heavy
+  - type: history-graph
+    title: Heavy Consumers - Power History (24h)
+    hours_to_show: 24
+    entities:
+    - entity: sensor.<device_id_here_1>_power
+      name: Oven
+    - entity: sensor.<device_id_here_2>_power
+      name: Washing Machine
+    - entity: sensor.<device_id_here_3>_power
+      name: Dehumidifier
+  - type: history-graph
+    title: Light Consumers - Power History (24h)
+    hours_to_show: 24
+    entities:
+    - entity: sensor.<device_id_here_4>_power
+      name: Fan
+    - entity: sensor.<device_id_here_5>_power
+      name: Sun Lamp
+    - entity: sensor.<device_id_here_6>_power
+      name: Notebook Charger
+- title: Tablet
+  path: tablet
+  icon: mdi:tablet-dashboard
+  cards:
+  - type: grid
+    title: Screen Control
+    columns: 2
+    square: false
+    cards:
+    - type: button
+      entity: button.<your_tablet_hostname>_monitorwake
+      name: Wake Screen
+      icon: mdi:monitor-eye
+      icon_height: 40px
+      tap_action:
+        action: call-service
+        service: button.press
+        target:
+          entity_id: button.<your_tablet_hostname>_monitorwake
+    - type: button
+      entity: button.<your_tablet_hostname>_monitorsleep
+      name: Sleep Screen
+      icon: mdi:monitor-off
+      icon_height: 40px
+      tap_action:
+        action: call-service
+        service: button.press
+        target:
+          entity_id: button.<your_tablet_hostname>_monitorsleep
+  - type: grid
+    title: App Control
+    columns: 3
+    square: false
+    cards:
+    - type: button
+      entity: button.<your_tablet_hostname>_webview
+      name: Open Dashboard
+      icon: mdi:open-in-app
+      icon_height: 40px
+      tap_action:
+        action: call-service
+        service: button.press
+        target:
+          entity_id: button.<your_tablet_hostname>_webview
+    - type: button
+      entity: button.<your_tablet_hostname>_multiplekeys
+      name: Dismiss Lock
+      icon: mdi:lock-open-variant
+      icon_height: 40px
+      tap_action:
+        action: call-service
+        service: button.press
+        target:
+          entity_id: button.<your_tablet_hostname>_multiplekeys
+    - type: button
+      entity: button.<your_tablet_hostname>_restart
+      name: Restart Agent
+      icon: mdi:restart
+      icon_height: 40px
+      tap_action:
+        action: call-service
+        service: button.press
+        target:
+          entity_id: button.<your_tablet_hostname>_restart
+  - type: gauge
+    entity: sensor.<your_tablet_hostname>_battery_charge_remaining_percentage
+    name: Tablet Battery
+    unit: '%'
+    needle: true
+    min: 0
+    max: 100
+    severity:
+      green: 40
+      yellow: 20
+      red: 0
+  - type: glance
+    title: Tablet Status
+    show_state: true
+    entities:
+    - entity: sensor.<your_tablet_hostname>_battery_charge_status
+      name: Charge
+      icon: mdi:battery-charging
+    - entity: input_boolean.kitchen_tablet_screen_awake
+      name: Screen
+      icon: mdi:tablet
+    - entity: sensor.<your_tablet_hostname>_activewindow
+      name: Window
+      icon: mdi:monitor
+  - type: entities
+    title: Notebook Charger
+    show_header_toggle: false
+    entities:
+    - entity: switch.notebook_charger
+      name: Charger Switch
+      icon: mdi:laptop
+    - entity: number.notebook_charger_countdown
+      name: Auto-Off Countdown
+      icon: mdi:timer-outline
+- title: TV Remote
+  path: tv-remote
+  icon: mdi:remote-tv
+  cards:
+  - type: vertical-stack
+    cards:
+    - type: markdown
+      content: '<div style="text-align: center;"><h2>Kitchen TV Remote</h2></div>'
+    - type: grid
+      columns: 2
+      square: false
+      cards:
+      - type: vertical-stack
+        cards:
+        - type: grid
+          columns: 3
+          square: false
+          cards:
+          - type: button
+            entity: <your_tv_ir_power_on>
+            tap_action:
+              action: call-service
+              service: button.press
+              target:
+                entity_id: <your_tv_ir_power_on>
+            name: Power On
+            icon: mdi:power
+          - type: button
+            entity: <your_tv_ir_power_off>
+            tap_action:
+              action: call-service
+              service: button.press
+              target:
+                entity_id: <your_tv_ir_power_off>
+            name: Power Off
+            icon: mdi:power-off
+          - type: button
+            entity: <your_tv_ir_input>
+            tap_action:
+              action: call-service
+              service: button.press
+              target:
+                entity_id: <your_tv_ir_input>
+            name: Input
+            icon: mdi:video-input-hdmi
+        - type: grid
+          columns: 2
+          square: false
+          cards:
+          - type: grid
+            columns: 1
+            square: false
+            cards:
+            - type: button
+              entity: <your_tv_ir_volume_up>
+              tap_action:
+                action: call-service
+                service: button.press
+                target:
+                  entity_id: <your_tv_ir_volume_up>
+              name: Vol +
+              icon: mdi:plus
+            - type: button
+              entity: <your_tv_ir_volume_down>
+              tap_action:
+                action: call-service
+                service: button.press
+                target:
+                  entity_id: <your_tv_ir_volume_down>
+              name: Vol -
+              icon: mdi:minus
+          - type: grid
+            columns: 1
+            square: false
+            cards:
+            - type: button
+              entity: <your_tv_ir_channel_up>
+              tap_action:
+                action: call-service
+                service: button.press
+                target:
+                  entity_id: <your_tv_ir_channel_up>
+              name: Ch +
+              icon: mdi:chevron-up
+            - type: button
+              entity: <your_tv_ir_channel_down>
+              tap_action:
+                action: call-service
+                service: button.press
+                target:
+                  entity_id: <your_tv_ir_channel_down>
+              name: Ch -
+              icon: mdi:chevron-down
+        - type: grid
+          columns: 2
+          square: false
+          cards:
+          - type: button
+            entity: <your_tv_ir_mute_on>
+            tap_action:
+              action: call-service
+              service: button.press
+              target:
+                entity_id: <your_tv_ir_mute_on>
+            name: Mute
+            icon: mdi:volume-mute
+          - type: button
+            entity: <your_tv_ir_mute_off>
+            tap_action:
+              action: call-service
+              service: button.press
+              target:
+                entity_id: <your_tv_ir_mute_off>
+            name: Unmute
+            icon: mdi:volume-high
+      - type: vertical-stack
+        cards:
+        - type: markdown
+          content: '<div style="text-align: center;"><h3>TV Off Timer</h3></div>'
+        - type: entity
+          entity: input_number.tv_timer_minutes
+          name: Minutes until TV turns off
+          icon: mdi:timer-cog-outline
+        - type: grid
+          columns: 3
+          square: false
+          cards:
+          - type: button
+            tap_action:
+              action: call-service
+              service: input_button.press
+              target:
+                entity_id: input_button.tv_start_timer
+            name: Start
+            icon: mdi:play
+            icon_height: 30px
+          - type: button
+            tap_action:
+              action: call-service
+              service: timer.pause
+              target:
+                entity_id: timer.tv_off_timer
+            name: Pause
+            icon: mdi:pause
+            icon_height: 30px
+          - type: button
+            tap_action:
+              action: call-service
+              service: timer.resume
+              target:
+                entity_id: timer.tv_off_timer
+            name: Resume
+            icon: mdi:play-pause
+            icon_height: 30px
+        - type: grid
+          columns: 2
+          square: false
+          cards:
+          - type: button
+            tap_action:
+              action: call-service
+              service: script.kitchen_tv_extend_timer
+            name: Extend
+            icon: mdi:timer-plus
+            icon_height: 30px
+          - type: button
+            tap_action:
+              action: call-service
+              service: timer.cancel
+              target:
+                entity_id: timer.tv_off_timer
+            name: Cancel
+            icon: mdi:stop
+            icon_height: 30px
+        - type: entity
+          entity: sensor.tv_timer_remaining
+          name: Time remaining
+          icon: mdi:timer-sand
+        - type: markdown
+          content: '<div style="text-align: center;"><h3>TV Runtime</h3></div>'
+        - type: entity
+          entity: sensor.tv_runtime
+          name: TV has been on for
+          icon: mdi:clock-outline
+        - type: markdown
+          content: '<div style="text-align: center;"><h3>TV Daily Usage</h3></div>'
+        - type: entity
+          entity: sensor.tv_daily_usage
+          name: Minutes today
+          icon: mdi:calendar-clock
+- title: Car
+  path: car
+  icon: mdi:car
+  cards:
+  - type: vertical-stack
+    cards:
+    - type: map
+      title: Car - Live Location
+      entities:
+      - entity: device_tracker.generic_car
+      default_zoom: 14
+      hours_to_show: 24
+      aspect_ratio: '16:9'
+      tap_action:
+        action: more-info
+        entity: device_tracker.generic_car
+    - type: entities
+      show_header_toggle: false
+      entities:
+      - entity: sensor.generic_car_address
+        name: Current Address
+        icon: mdi:map-marker
+      - entity: sensor.generic_car_geofence
+        name: Geofence Zone
+        icon: mdi:fence
+      - entity: sensor.time_to_home_car
+        name: Travel Time to Home
+        icon: mdi:clock-fast
+    - type: markdown
+      content: '<div style="text-align: center; padding: 6px;"><a href="https://www.google.com/maps?q={{
+        state_attr(''device_tracker.generic_car'', ''latitude'') }},{{ state_attr(''device_tracker.generic_car'',
+        ''longitude'') }}" target="_blank" style="text-decoration: none; font-weight:
+        bold; font-size: 16px; color: #4caf50;">Open Location in Google Maps</a></div>'
+      card_mod:
+        style: 'ha-card { background: rgba(76, 175, 80, 0.1); border: 1px solid rgba(76,
+          175, 80, 0.4); }'
+  - type: grid
+    title: Distance Statistics
+    columns: 2
+    square: false
+    cards:
+    - type: custom:mushroom-entity-card
+      entity: sensor.generic_car_daily_distance
+      name: Daily Distance
+      icon: mdi:map-marker-distance
+      icon_color: green
+      secondary_info: last-changed
+    - type: custom:mushroom-entity-card
+      entity: sensor.generic_car_total_distance
+      name: Total Distance
+      icon: mdi:counter
+      icon_color: blue
+      secondary_info: last-changed
+    - type: custom:mushroom-entity-card
+      entity: sensor.generic_car_weekly_distance
+      name: Weekly Distance
+      icon: mdi:calendar-week
+      icon_color: orange
+      secondary_info: last-changed
+    - type: custom:mushroom-entity-card
+      entity: sensor.generic_car_monthly_distance
+      name: Monthly Distance
+      icon: mdi:calendar-month
+      icon_color: purple
+      secondary_info: last-changed
+  - type: grid
+    title: Speed & Driving History
+    columns: 2
+    square: false
+    cards:
+    - type: gauge
+      entity: sensor.generic_car_speed
+      name: Speed
+      unit: km/h
+      min: 0
+      max: 160
+      needle: true
+      severity:
+        green: 0
+        yellow: 50
+        red: 100
+    - type: entities
+      show_header_toggle: false
+      entities:
+      - entity: binary_sensor.generic_car_motion
+        name: Motion Status
+        icon: mdi:car-connected
+      - entity: binary_sensor.generic_car_status
+        name: Tracker Status
+        icon: mdi:signal-cellular-3
+  - type: custom:mini-graph-card
+    title: Speed History (24h)
+    entities:
+    - entity: sensor.generic_car_speed
+      name: Speed (km/h)
+    hours_to_show: 24
+    points_per_hour: 4
+    show:
+      fill: true
+      graph: line
+    line_color: '#2196f3'
+  - type: entities
+    title: Vehicle Health & Diagnostics
+    show_header_toggle: false
+    entities:
+    - entity: sensor.generic_car_supply_voltage
+      name: Car 12V Main Battery (Supply)
+      icon: mdi:car-battery
+    - entity: sensor.generic_car_battery
+      name: Tracker Internal Battery (%)
+      icon: mdi:battery
+    - entity: sensor.generic_car_battery_voltage
+      name: Tracker Internal Voltage
+      icon: mdi:sine-wave
+    - entity: sensor.generic_car_altitude
+      name: Elevation / Altitude
+      icon: mdi:elevation-rise
+  - type: conditional
+    conditions:
+    - condition: numeric_state
+      entity: sensor.generic_car_supply_voltage
+      below: 11.8
+    card:
+      type: markdown
+      content: '## LOW CAR BATTERY VOLTAGE
+
+        Car main battery supply voltage is below **11.8 V**! Check vehicle battery
+        to prevent failure to start.'
+      card_mod:
+        style: 'ha-card { background: #b71c1c !important; color: white; }'
+  - type: grid
+    title: Car Automations
+    columns: 2
+    square: false
+    cards:
+    - type: button
+      entity: automation.presence_generic_car_arrival_departure
+      name: Arrival/Departure Alerts
+      icon: mdi:bell-ring
+      icon_height: 40px
+      show_state: true
+    - type: button
+      entity: <your_car_gps_polling_automation>
+      name: 30s Fast GPS Polling
+      icon: mdi:timer-sync
+      icon_height: 40px
+      show_state: true

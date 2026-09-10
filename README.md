@@ -6,6 +6,8 @@ Many people use AI to generate simple Home Assistant YAML scripts, but they quic
 
 This repository solves that problem by providing a **strict context and tooling framework**.
 
+**Recommended workflow:** Use a **private Git repository** on GitHub/GitLab/Bitbucket to sync changes between your PC and Home Assistant. This gives you version control, rollback capability, and a safety net for all AI-generated changes. See [Quick Start Guide](QUICKSTART.md) or [Git Syncing](#6-git-syncing-recommended) below.
+
 ## What's Included
 
 ### 🛠️ Sync & Export Scripts (`tools/`)
@@ -16,8 +18,40 @@ Shell scripts to safely move files between your live Home Assistant and this rep
 | `tools/sync_from_homeassistant.sh` | Pull latest config from HA → repo (run *before* AI work) |
 | `tools/sync_to_homeassistant.sh` | Push AI-generated changes repo → HA (run *after* review) |
 | `tools/export_ha_inventory.sh` | Export all device/entity IDs so the AI never guesses |
+| `tools/check_docs.py` | Validates that every automation is documented in `HOUSE_CONTEXT.md` |
+| `tools/dashboard_audit.py` | Validates entity references in `dashboard.yaml` against the inventory |
+| `tools/pull_debug_files.sh` | Securely pulls logs and traces from a remote HA instance |
+| `tools/backup_automations.py` | Creates point-in-time YAML backups of specific automations |
 
-All scripts create automatic backups, support `--dry-run` and `--diff` flags, and require a clean Git tree for safety. See [Sync Your Configuration](#3-sync-your-configuration-tools-folder) below for details.
+The sync scripts create automatic backups (where applicable), support `--dry-run` and `--diff` flags, and require a clean Git tree for safety. See [Sync Your Configuration](#3-sync-your-configuration-tools-folder) below for details.
+
+- **`tools/test_all.py`** — Validates all templates, tools, and documentation in one run:
+  ```bash
+  python3 tools/test_all.py
+  ```
+
+### 🔍 Code Review (CodeRabbit)
+
+This repository includes a [CodeRabbit](https://coderabbit.ai) configuration for automated AI code reviews on pull requests. To enable it:
+
+1. Install the [CodeRabbit GitHub App](https://github.com/apps/coderabbit) on your repository
+2. The `.coderabbit.yaml` config is already set up with path-specific review rules for:
+   - Template files — checks for personal data and placeholder consistency
+   - Python tools — validates error handling and documentation
+   - Shell scripts — enforces safety patterns (`set -Eeuo pipefail`, backups)
+   - Tests — ensures proper temp directory cleanup
+
+#### Utility Scripts
+
+Helper scripts for less common tasks:
+
+| Script | Purpose |
+|--------|---------|
+| `tools/generate_automations_kb.py` | Regenerates `automations_kb.md` from `automations.yaml` |
+| `tools/export_ha_inventory.py` | Python implementation of inventory export |
+| `tools/sync_common.sh` | Shared library sourced by sync scripts (internal) |
+| `tools/generate_yaml_template.py` | Generates YAML templates from Python data structures |
+| `tools/write_yaml_template.py` | Writes large YAML files exceeding opencode's payload limit |
 
 ### 🤖 Ready-to-Use AI Prompts (`prompts/`)
 Drop-in prompt templates you paste into your AI IDE to perform specific tasks:
@@ -25,6 +59,7 @@ Drop-in prompt templates you paste into your AI IDE to perform specific tasks:
 | Prompt | What It Does |
 |--------|-------------|
 | `prompts/prompt.txt` | **Main session prompt** — the starting point for any AI task |
+| `prompts/dashboard--current.md` | **Dashboard edit prompt** — starting point for modifying Lovelace dashboards |
 | `prompts/HC-gen.md` | Auto-generate `HOUSE_CONTEXT.md` from your existing inventory |
 | `prompts/naming-fix.md` | Standardize all automation names to `Room: Action` format |
 | `prompts/energy-saving.md` | Audit for energy waste (vampire drain, missing timeouts) |
@@ -42,6 +77,32 @@ Drop-in prompt templates you paste into your AI IDE to perform specific tasks:
 |------|---------|
 | `INSTRUCTIONS.md` | Strict rules that prevent the AI from guessing or breaking things |
 | `HOUSE_CONTEXT.template.md` | Template to describe your physical house layout and devices |
+| `AUTOMATIONS_KB.template.md` | Template for the human-readable summary of all automations |
+| `automations-basic.template.yaml` | Simple automations: motion lighting, safety sensors, thermostat, A/C sync |
+| `automations-advanced.template.yaml` | AI-powered automations: Ollama/OpenCode weather, calendar, A/C advisor |
+| `dashboard-basic.template.yaml` | Basic Lovelace views: Overview, Kitchen, Bedroom, Bathroom, Child Room |
+| `dashboard-advanced.template.yaml` | Advanced views: Climate, Energy, Appliances, TV Remote, Tablet, Car |
+| `automations.template.yaml` | Legacy combined automations file (superseded by basic/advanced split) |
+| `dashboard.template.yaml` | Legacy combined dashboard file (superseded by basic/advanced split) |
+| `patterns/standardize.md` | Canonical library of safe, reusable automation logic patterns |
+| `readme-LLM-setup.md` | Guide on setting up local/cloud AI (Ollama/OpenCode) for TTS |
+| `to-implement-after.template.md`| Backlog template for future automation ideas |
+| `to-improve.template.md` | Backlog template for structural and architectural improvements |
+| `to-assign.template.md` | Backlog template for tracking unassigned/global entities |
+
+### 📚 Advanced & Optional Reference Docs
+Reference documents for more complex setups:
+
+| File | Purpose |
+|------|---------|
+| `configuration.template.yaml` | Common `configuration.yaml` patterns: helpers, recorder, templates, Ollama, Powercalc |
+| `scripts.template.yaml` | Example reusable scripts: all-lights-off, TV timer, media transfer, thermostat pull |
+| `scenes.template.yaml` | Example scenes: A/C cooling, evening relax, movie mode |
+| `FUTURE-automations.template.md` | Design-first template for planning complex automations before implementing them |
+| `heating.template.md` | Complete thermostat integration reference: schedule helpers, automations, interaction matrix |
+| `README-ollama.template.md` | Local AI integration guide: Ollama setup, custom model, HA `rest_command`, troubleshooting |
+| `sell-mode-plan.template.md` | Pattern for a runtime "sell mode" that disables personalized automations at the flip of a switch |
+| `remove-customization.template.md` | Checklist for preparing a smart home for handover or sale — what to remove and why |
 
 ## How It Works
 
@@ -56,8 +117,8 @@ Instead of just asking the AI to "write an automation," you provide it with this
 Clone or download this repository to your computer (preferably to a local workspace, not directly into your production `/homeassistant` folder).
 
 ### 2. Set Up Your Context
-1. Rename `HOUSE_CONTEXT.template.md` to `HOUSE_CONTEXT.md`.
-2. Open it and document your physical house layout, rooms, and devices. Be as descriptive as possible. *(Tip: If you already have a lot of devices and automations in Home Assistant, you can paste the contents of `prompts/HC-gen.md` into the AI IDE to have it automatically generate your `HOUSE_CONTEXT.md` for you!)*
+1. Rename all `.template.*` files by removing only the `.template` segment while preserving canonical casing, with one exception: `AUTOMATIONS_KB.template.md` → `automations_kb.md` (e.g., `HOUSE_CONTEXT.template.md` → `HOUSE_CONTEXT.md`, `dashboard.template.yaml` → `dashboard.yaml`, `automations-basic.template.yaml` → `automations-basic.yaml`).
+2. Open `HOUSE_CONTEXT.md` and document your physical house layout, rooms, and devices. Be as descriptive as possible. *(Tip: If you already have a lot of devices and automations in Home Assistant, you can paste the contents of `prompts/HC-gen.md` into the AI IDE to have it automatically generate your `HOUSE_CONTEXT.md` for you!)*
 3. Open `prompts/prompt.txt` and read the prompt structure. Update the `Repository root:` path to match your local setup.
 
 ### 3. Sync Your Configuration (`tools/` folder)
@@ -83,8 +144,42 @@ This repository includes several scripts in the `tools/` folder to safely move f
 **Safety Features:**
 Both sync scripts automatically create backups in a `.sync_backups/` folder before making any changes. If something goes wrong, you can easily run the `restore.sh` script found in the backup folder to revert the changes. They also require your Git working tree to be clean before running, ensuring you can undo any mistakes via Git.
 
-### 4. Setup AI IDE (Antigravity IDE, Cursor, VS Code)
-For the best experience, do not use simple web chats (like ChatGPT). Instead, use an agentic AI IDE (like Antigravity IDE, Cursor, or Visual Studio Code with an AI extension) installed on your personal PC:
+### 4. Setup AI IDE
+For the best experience, do not use simple web chats (like ChatGPT). Instead, use an agentic AI IDE or coding agent installed on your personal PC.
+
+#### Dedicated AI IDEs
+
+| IDE | Description | Link |
+|-----|-------------|------|
+| **Google Antigravity** | Google's agentic development platform with IDE, CLI, SDK, and multi-agent support | [antigravity.google/product/antigravity-ide](https://antigravity.google/product/antigravity-ide) |
+| **Cursor** | AI-powered code editor with agents, cloud automation, and multi-model support | [cursor.com](https://cursor.com) |
+| **Devin Desktop** | Multi-agent command center with built-in IDE (formerly Windsurf) | [devin.ai](https://devin.ai) |
+| **Zed** | Fast, collaborative code editor with built-in AI assistance | [zed.dev](https://zed.dev) |
+
+#### CLI Coding Agents
+
+| Tool | Description | Link |
+|------|-------------|------|
+| **OpenCode** | Open source AI coding agent for terminal, desktop, and IDE extensions | [opencode.ai](https://opencode.ai) |
+| **Claude Code** | Anthropic's agentic CLI — terminal, VS Code, JetBrains, desktop, web | [claude.ai/code](https://claude.ai/code) |
+| **Codex** | OpenAI's lightweight coding agent for terminal, with IDE extensions and desktop app | [github.com/openai/codex](https://github.com/openai/codex) |
+| **Aider** | AI pair programming in your terminal with git integration | [aider.chat](https://aider.chat) |
+
+#### VS Code / JetBrains Extensions
+
+| Extension | Description | Link |
+|-----------|-------------|------|
+| **GitHub Copilot** | AI pair programmer with chat, code completion, and agent mode | [github.com/features/copilot](https://github.com/features/copilot) |
+| **Cline** | Open source autonomous coding agent (VS Code, JetBrains, CLI, SDK) | [cline.bot](https://cline.bot) |
+
+#### Utilities
+
+| Tool | Description | Link |
+|------|-------------|------|
+| **OmniRoute** | Free AI gateway — hundreds of providers, auto-fallback, token compression. Point any coding agent at one endpoint | [omniroute.online](https://omniroute.online) |
+
+#### How to Use
+
 1. Open this repository folder in your AI IDE.
 2. The AI will automatically have access to all your files (`automations.yaml`, `HOUSE_CONTEXT.md`, etc.).
 3. When you are ready to build a complex automation, open the AI chat panel inside the IDE.
@@ -97,14 +192,25 @@ If your Home Assistant is running on a dedicated device like a Raspberry Pi or M
 2. Mount the Home Assistant `/config` folder to your PC, or configure the `tools/sync_from_homeassistant.sh` script to pull files via SSH/SCP.
 3. The AI IDE runs entirely on your PC, safely modifying the files in this local repository. Once the AI finishes writing an automation and you approve it, use the sync tools to push the updated `automations.yaml` back to HAOS.
 
-### 6. Git Syncing (Advanced)
-Alternatively, you can use a private Git repository to sync changes between your PC and HAOS.
+### 6. Git Syncing (Recommended)
+
+**This is the preferred way to manage your configuration.** A private Git repository gives you version control, rollback capability, and a safety net for all AI-generated changes.
 
 First, set up the base template on HAOS (via SSH/Terminal):
 ```bash
 cd /config
-git clone https://github.com/dominatos/ai-powered-home-assistant/
+git clone https://github.com/YOUR_USERNAME/ai-powered-home-assistant/
 cd ai-powered-home-assistant
+
+# Rename template files to working filenames
+for f in *.template.*; do
+  if [ "$f" = "AUTOMATIONS_KB.template.md" ]; then
+    mv "$f" "automations_kb.md"
+  else
+    mv "$f" "${f//.template./.}"
+  fi
+done
+
 rm -rf .git
 ```
 
@@ -121,6 +227,13 @@ Next, create a private repository to sync with your PC:
    ```
 3. **On your PC**, clone your new *private* repository and open it in your AI IDE.
 4. As the AI generates and modifies files on your PC, you can commit and push them. Then, simply run `git pull` on HAOS to deploy the updates and launch `tools/sync_to_homeassistant.sh` to push the changes.
+
+**Workflow:**
+```text
+PC (AI IDE) → git push → Private Repo → git pull → HAOS → sync_to_homeassistant.sh → Home Assistant
+```
+
+This gives you a clean, auditable history of every change and makes it easy to undo mistakes with `git revert`.
 
 ## Example Use Cases (What to ask the AI)
 
@@ -139,7 +252,7 @@ Once your context is set up and your files are synced, you can ask your AI IDE t
 > "I want to change the 'Goodnight' script to also lock the front door and arm the alarm. Before doing this, please analyze all other automations that call the 'Goodnight' script. Will this change cause issues if someone runs it while someone else is still in the backyard?"
 
 ### 5. Using Utility Prompts
-This repository ships with 11 ready-to-use prompt templates in the `prompts/` folder. See the full list in the [What's Included](#whats-included) section above. Simply copy the contents of any prompt file, paste it into your AI IDE chat, and fill in the placeholders.
+This repository ships with 13 ready-to-use prompt templates in the `prompts/` folder. See the full list in the [What's Included](#whats-included) section above. Simply copy the contents of any prompt file, paste it into your AI IDE chat, and fill in the placeholders.
 
 ## The Rules Engine (`INSTRUCTIONS.md`)
 The `INSTRUCTIONS.md` file is the secret sauce. It forces the AI to:
@@ -150,6 +263,8 @@ The `INSTRUCTIONS.md` file is the secret sauce. It forces the AI to:
 ## Security Warning
 > ⚠️ **DO NOT UPLOAD YOUR SECRETS!**
 > If you upload your version of this repository to GitHub, ensure that `.gitignore` is properly configured. **Never commit `secrets.yaml`, `.storage/`, or files containing MQTT passwords (like `zigbee2mqtt/configuration.yaml`) to a public repository.**
+
+This repository includes a **Gitleaks** CI workflow (`.github/workflows/gitleaks.yml`) that scans pushes to the main/master branch and pull requests targeting those branches for leaked secrets. If a secret is detected, the CI check will fail.
 
 ## Enjoy!
 Using this framework, you can build incredibly complex, intelligent automations that go far beyond the limitations of simple "If this, then that" apps like Tuya Smart, without breaking your live home environment.

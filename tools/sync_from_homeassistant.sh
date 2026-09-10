@@ -17,8 +17,10 @@ DRY_RUN=0
 SHOW_DIFF=0
 SHOW_STATUS=0
 WITH_INVENTORY=1
+WITH_ERRORS=1
 SKIP_CONFIRM=0
 
+# cleanup removes the temporary synchronization directory and its contents.
 cleanup() {
   rm -rf "${TMP_ROOT}"
 }
@@ -34,6 +36,7 @@ on_error() {
 trap cleanup EXIT
 trap on_error ERR
 
+# parse_args parses command-line options and updates the script configuration accordingly.
 parse_args() {
   while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -52,18 +55,25 @@ parse_args() {
       --no-inventory)
         WITH_INVENTORY=0
         ;;
+      --with-errors)
+        WITH_ERRORS=1
+        ;;
+      --no-errors)
+        WITH_ERRORS=0
+        ;;
       -y|--yes)
         SKIP_CONFIRM=1
         ;;
       -h|--help)
         cat <<'EOF'
-Usage: sync_from_homeassistant.sh [--dry-run] [--diff] [--status] [--no-inventory] [--yes]
+Usage: sync_from_homeassistant.sh [--dry-run] [--diff] [--status] [--no-inventory] [--no-errors] [--yes]
 
 Options:
   --dry-run         Preview what would change without writing files
   --diff            Show file diffs for changed files
   --status          Show per-file changed/unchanged status
   --no-inventory    Skip automatic inventory export after pull
+  --no-errors       Skip ERROR/WARNING log extraction from home-assistant.log
   --yes, -y         Skip confirmation prompt
 EOF
         exit 0
@@ -131,6 +141,7 @@ sync_files() {
   log "Changed files synced: ${synced_count}; unchanged skipped: ${skipped_count}"
 }
 
+# commit_synced_files commits synchronized repository changes and pushes them when Git is available.
 commit_synced_files() {
   # Commit any files that were synced so the repo is clean before
   # the inventory exporter runs its own require_git_clean check.
@@ -148,6 +159,7 @@ commit_synced_files() {
   fi
 }
 
+# maybe_export_inventory exports a Home Assistant inventory snapshot to the repository when inventory export is enabled and the exporter is executable.
 maybe_export_inventory() {
   [[ "${WITH_INVENTORY}" -eq 1 ]] || return 0
   if [[ -x "${SCRIPT_DIR}/export_ha_inventory.sh" ]]; then
@@ -158,6 +170,90 @@ maybe_export_inventory() {
   fi
 }
 
+# sync_error_log extracts ERROR and WARNING entries with traceback context from the Home Assistant log and writes them to ha_errors.log.
+sync_error_log() {
+  [[ "${WITH_ERRORS}" -eq 1 ]] || return 0
+  local log_dir="${HA_LOG_DIR:-${TARGET_ROOT}/scratch}"
+  mkdir -p "${log_dir}"
+  local log_target="${log_dir}/ha_errors.log"
+  # Request 10,000 lines to ensure older errors aren't pushed out by log spam
+  local api_url="http://supervisor/core/logs?lines=10000"
+  local token="${SUPERVISOR_TOKEN:-}"
+
+  if [[ -z "${token}" ]]; then
+    log "SUPERVISOR_TOKEN not set, skipping error log sync."
+    return 0
+  fi
+
+  if ! command -v curl > /dev/null 2>&1; then
+    log "curl not available, skipping error log sync."
+    return 0
+  fi
+
+  local http_code
+  local curl_status=0
+  http_code=$(curl --max-time 60 -s -o /dev/null -w "%{http_code}" -H "Authorization: Bearer ${token}" "${api_url}") || curl_status=$?
+
+  if [[ "${curl_status}" -ne 0 ]]; then
+    log "WARNING: Failed to connect to ${api_url} (curl exit ${curl_status}), skipping error log sync."
+    return 0
+  fi
+
+  if [[ "${http_code}" != "200" ]]; then
+    log "WARNING: Failed to fetch error log from ${api_url} (HTTP ${http_code}), skipping."
+    return 0
+  fi
+
+  local raw_response="${TMP_ROOT}/ha_log_raw.tmp"
+  local filtered
+  local curl_exit=0
+
+  curl --max-time 60 -s -H "Authorization: Bearer ${token}" "${api_url}" \
+    -o "${raw_response}" 2>/dev/null || curl_exit=$?
+
+  if [[ "${curl_exit}" -ne 0 ]]; then
+    rm -f "${raw_response}"
+    log "WARNING: Failed to fetch error log content from ${api_url}, skipping."
+    return 0
+  fi
+
+  # -A 15 captures the traceback after the error
+  filtered=$(grep -E -A 15 'ERROR|WARNING' "${raw_response}" || true)
+  rm -f "${raw_response}"
+
+  if [[ -z "${filtered}" ]]; then
+    log "No ERROR/WARNING lines found in error log."
+    : > "${log_target}"
+    return 0
+  fi
+
+  local line_count
+  line_count=$(printf '%s\n' "${filtered}" | grep -E -c 'ERROR|WARNING' || echo 0)
+  printf '%s\n' "${filtered}" > "${log_target}"
+  log "Synced ${line_count} errors/warnings (plus context) into ha_errors.log"
+}
+
+# load_blueprint_files discovers files under the source blueprints/ directory and adds their repository-relative paths to the managed FILES list.
+load_blueprint_files() {
+  local bp_root="${SOURCE_ROOT}/blueprints"
+  if [[ ! -d "${bp_root}" ]]; then
+    log "No blueprints/ directory found in ${SOURCE_ROOT} — skipping blueprint sync."
+    return 0
+  fi
+
+  local count=0
+  while IFS= read -r abs_path; do
+    local rel="${abs_path#"${SOURCE_ROOT}/"}"
+    FILES+=("${rel}")
+    ((count+=1))
+  done < <(find "${bp_root}" -type f | sort)
+
+  if [[ "${count}" -gt 0 ]]; then
+    log "Discovered ${count} blueprint file(s) under blueprints/"
+  fi
+}
+
+# commit_inventory_files commits inventory-related changes to the repository and attempts to push them to its configured remote.
 commit_inventory_files() {
   if ! command -v git > /dev/null 2>&1 || \
      ! git -C "${REPO_ROOT}" rev-parse --is-inside-work-tree > /dev/null 2>&1; then
@@ -175,6 +271,7 @@ commit_inventory_files() {
 parse_args "$@"
 export SKIP_CONFIRM
 load_managed_files
+load_blueprint_files
 log "Syncing automation files from ${SOURCE_ROOT} into ${TARGET_ROOT}"
 require_git_clean "${REPO_ROOT}"
 ensure_requirements "${SOURCE_ROOT}"
@@ -192,6 +289,7 @@ confirm_proceed "Pull configs from Home Assistant (${SOURCE_ROOT}) into repo? Th
 backup_targets "${TARGET_ROOT}" "${BACKUP_DIR}"
 write_restore_script "${TARGET_ROOT}" "${BACKUP_DIR}"
 sync_files
+sync_error_log
 commit_synced_files
 maybe_export_inventory
 commit_inventory_files

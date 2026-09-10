@@ -24,7 +24,8 @@ Look specifically for the following opportunities:
 
 # Output Expectations
 - Do NOT modify `automations.yaml` immediately.
-- Present a detailed report of optimization opportunities. 
+- Present a detailed report of optimization opportunities.
 - Show a clear "Before" and "After" YAML snippet for each major proposed change.
 - Explain *why* the new version is more robust or efficient.
+- Create a separate markdown file for each proposed optimization in an `optimizations/` folder (e.g., `optimizations/01_merge_door_light.md`) so the user can review and approve them one at a time.
 - Wait for my approval before applying the changes.
