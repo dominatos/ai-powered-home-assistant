@@ -50,6 +50,14 @@ This repository includes several scripts in the `tools/` folder to safely move f
   Reads the hidden `.storage` folder in Home Assistant and exports a clean, sanitized list of all your devices and entities into `ha_device_inventory.json` and `inventory.txt`. This gives the AI exact entity IDs so it never has to guess. (The `sync_from_homeassistant.sh` script usually runs this automatically).
   *Usage:* `./tools/export_ha_inventory.sh` (Uses `STORAGE_DIR` environment variable)
 
+**Which files get synced:**
+The list lives in `tools/managed_files.txt`, one repo-relative path per line.
+Prefix a path with `?` to mark it **optional** — if it is absent from the sync
+source it is skipped with a log line instead of aborting the run.
+`zigbee2mqtt/configuration.yaml` ships as optional: it only exists when the
+zigbee2mqtt add-on is in use, and because it holds MQTT credentials it is
+gitignored, so a fresh clone on the Home Assistant host will never contain it.
+
 **Safety Features:**
 Both sync scripts automatically create backups in a `.sync_backups/` folder before making any changes. If something goes wrong, you can easily run the `restore.sh` script found in the backup folder to revert the changes. They also require your Git working tree to be clean before running, ensuring you can undo any mistakes via Git.
 
