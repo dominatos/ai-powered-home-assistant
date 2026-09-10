@@ -70,7 +70,11 @@ This creates your working copies:
 
 **Important:** Replace the `<your-name>` placeholder in the `LICENSE` file with your actual name before publishing.
 
-> **You need the same repo on two machines:** your personal PC (where you use the AI) and your Home Assistant server (where the config lives). After pushing from your PC, clone the same repo on HAOS — see [Step 6: Deploy Changes](#step-6-deploy-changes) for the HAOS setup.
+> **Next: clone your private repo on your personal PC.** If you used the curl command above, it already cloned and pushed for you. If you set up the repo manually on another machine, clone it on your PC now:
+> ```bash
+> git clone git@github.com:<your-username>/<your-private-repo>.git
+> ```
+> You'll work from this clone on your PC. The same repo also needs to live on your HAOS server — see [Step 6: Deploy Changes](#step-6-deploy-changes).
 
 ## Step 2: Document Your House
 
