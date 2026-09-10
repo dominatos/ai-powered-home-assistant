@@ -29,7 +29,8 @@ Get up and running in 5 minutes using a **private Git repository** — the recom
 git clone https://github.com/<TEMPLATE_ORG>/ai-powered-home-assistant.git
 cd ai-powered-home-assistant
 
-# Remove the original remote and add yours
+# Replace the template remote with your own repo
+# (two separate commands — remove the old, then add yours)
 git remote remove origin
 git remote add origin https://github.com/<your-username>/<your-private-repo>.git
 
@@ -84,6 +85,8 @@ Repository root: /path/to/your/ai-powered-home-assistant
 
 ## Step 4: Pull Your HA Config
 
+> **Requires a running Home Assistant instance** with the SSH/Samba add-on or API access. If you're just testing locally without HA, skip this step — your templates will still work, just without real device data.
+
 These scripts connect to your running Home Assistant instance and pull its config into the repo:
 
 ```bash
@@ -100,6 +103,11 @@ git push
 ```
 
 This pulls your actual `automations.yaml`, `scripts.yaml`, etc. into the repo so the AI has real context.
+
+> **Not on HAOS?** The scripts default to `/homeassistant`. If your HA config is elsewhere, set `SOURCE_ROOT`:
+> ```bash
+> SOURCE_ROOT=/path/to/your/ha/config ./tools/sync_from_homeassistant.sh
+> ```
 
 ## Step 5: Start Using AI
 
