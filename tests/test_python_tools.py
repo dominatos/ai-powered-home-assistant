@@ -36,7 +36,7 @@ def write_file(path: Path, content: str) -> None:
     	content (str): Text to write to the file.
     """
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(content)
+    path.write_text(content, encoding="utf-8", newline="\n")
 
 
 def run_tool(*args, cwd: Path = None) -> subprocess.CompletedProcess:
@@ -55,6 +55,10 @@ def run_tool(*args, cwd: Path = None) -> subprocess.CompletedProcess:
         capture_output=True, text=True,
         cwd=str(cwd) if cwd else None,
         timeout=10,
+        # The tools print emoji. Without an explicit encoding this decodes
+        # with the legacy Windows codepage and raises UnicodeDecodeError in
+        # subprocess' reader thread, leaving stdout empty.
+        encoding="utf-8", errors="replace",
     )
 
 
@@ -314,7 +318,7 @@ class TestExportHaInventory(unittest.TestCase):
     def test_inventory_counts(self):
         self._write_storage_files()
         self._export()
-        inv = json.loads((self.test_dir / "inventory.json").read_text())
+        inv = json.loads((self.test_dir / "inventory.json").read_text(encoding="utf-8"))
         self.assertEqual(inv["counts"]["entities"], 1)
         self.assertEqual(inv["counts"]["areas"], 1)
         self.assertEqual(inv["counts"]["devices"], 1)
@@ -322,20 +326,20 @@ class TestExportHaInventory(unittest.TestCase):
     def test_text_inventory(self):
         self._write_storage_files()
         self._export()
-        txt = (self.test_dir / "inventory.txt").read_text()
+        txt = (self.test_dir / "inventory.txt").read_text(encoding="utf-8")
         self.assertIn("Temp Sensor", txt)
 
     def test_number_map_persists(self):
         self._write_storage_files()
         self._export()
-        nums = json.loads((self.test_dir / "numbers.json").read_text())
+        nums = json.loads((self.test_dir / "numbers.json").read_text(encoding="utf-8"))
         self.assertEqual(nums["version"], 1)
         self.assertIn("dev_1", nums["devices"])
 
     def test_virtual_inventory_zones(self):
         self._write_storage_files()
         self._export()
-        virt = json.loads((self.test_dir / "virtual.json").read_text())
+        virt = json.loads((self.test_dir / "virtual.json").read_text(encoding="utf-8"))
         self.assertGreaterEqual(virt["counts"]["virtual_entities"], 1)
 
     def test_missing_storage_exits(self):
@@ -375,7 +379,7 @@ class TestGenerateAutomationsKB(unittest.TestCase):
         write_file(self.test_dir / "automations.yaml", make_automations_yaml("Kitchen: Light On", "Bedroom: Fan Off"))
         r = run_tool(sys.executable, str(TOOLS / "generate_automations_kb.py"), cwd=self.test_dir)
         self.assertEqual(r.returncode, 0)
-        kb = (self.test_dir / "automations_kb.md").read_text()
+        kb = (self.test_dir / "automations_kb.md").read_text(encoding="utf-8")
         self.assertIn("Kitchen: Light On", kb)
         self.assertIn("Bedroom: Fan Off", kb)
 
@@ -383,13 +387,13 @@ class TestGenerateAutomationsKB(unittest.TestCase):
         write_file(self.test_dir / "automations.yaml", "[]")
         r = run_tool(sys.executable, str(TOOLS / "generate_automations_kb.py"), cwd=self.test_dir)
         self.assertEqual(r.returncode, 0)
-        kb = (self.test_dir / "automations_kb.md").read_text()
+        kb = (self.test_dir / "automations_kb.md").read_text(encoding="utf-8")
         self.assertIn("Home Assistant Automations Knowledge Base", kb)
 
     def test_triggers_and_actions(self):
         write_file(self.test_dir / "automations.yaml", make_automations_yaml("Kitchen: Test"))
         r = run_tool(sys.executable, str(TOOLS / "generate_automations_kb.py"), cwd=self.test_dir)
-        kb = (self.test_dir / "automations_kb.md").read_text()
+        kb = (self.test_dir / "automations_kb.md").read_text(encoding="utf-8")
         self.assertIn("### Triggers", kb)
         self.assertIn("### Actions", kb)
 
@@ -442,7 +446,7 @@ class TestWriteYamlTemplate(unittest.TestCase):
         write_file(src, "test: value\n")
         r = run_tool(sys.executable, str(TOOLS / "write_yaml_template.py"), str(dst), str(src))
         self.assertIn("Written", r.stdout)
-        self.assertEqual(dst.read_text(), "test: value\n")
+        self.assertEqual(dst.read_text(encoding="utf-8"), "test: value\n")
 
     def test_missing_source(self):
         dst = self.test_dir / "output.yaml"
@@ -459,7 +463,7 @@ class TestWriteYamlTemplate(unittest.TestCase):
         content = "key:\n  - item1\n  - item2\n"
         write_file(src, content)
         run_tool(sys.executable, str(TOOLS / "write_yaml_template.py"), str(dst), str(src))
-        self.assertEqual(dst.read_text(), content)
+        self.assertEqual(dst.read_text(encoding="utf-8"), content)
 
     def test_overwrites_existing(self):
         src = self.test_dir / "source.yaml"
@@ -468,7 +472,7 @@ class TestWriteYamlTemplate(unittest.TestCase):
         write_file(src, "new content\n")
         r = run_tool(sys.executable, str(TOOLS / "write_yaml_template.py"), str(dst), str(src))
         self.assertEqual(r.returncode, 0)
-        self.assertEqual(dst.read_text(), "new content\n")
+        self.assertEqual(dst.read_text(encoding="utf-8"), "new content\n")
 
 
 if __name__ == "__main__":
