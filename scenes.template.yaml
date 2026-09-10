@@ -1,0 +1,51 @@
+# ============================================================
+# scenes.template.yaml
+# ============================================================
+# Example HA scenes. Copy into your scenes.yaml and adapt.
+# Create scenes in the HA UI (Settings → Scenes) for easier
+# entity picker, then export them here.
+# ============================================================
+
+# ── Bedroom A/C: Max Ceiling Mode ────────────────────────────────────────────
+# Sets the bedroom A/C to blow cold air upward at low fan speed.
+# Useful for rapid cooling while sleeping. Adapt to your climate entity.
+- id: 'bedroom_ac_max_ceiling'
+  name: Bedroom AC Max Ceiling
+  entities:
+    climate.bedroom_air_conditioner:  # replace with your climate entity
+      state: cool
+      temperature: 26
+      fan_mode: low
+      swing_mode: 'off'
+    switch.bedroom_ac_silent_mode:    # optional — remove if not applicable
+      state: 'on'
+
+# ── Evening Relax ─────────────────────────────────────────────────────────────
+# Dim all living room lights to a warm, low-brightness setting.
+- id: 'evening_relax'
+  name: Evening Relax
+  entities:
+    light.living_room_main:
+      state: 'on'
+      brightness_pct: 30
+      color_temp_kelvin: 2700
+    light.living_room_led_strip:
+      state: 'on'
+      brightness_pct: 20
+      color_temp_kelvin: 2200
+    light.kitchen_main:
+      state: 'off'
+
+# ── Movie Mode ────────────────────────────────────────────────────────────────
+# Turn off overhead lights and set LED strips to a dark ambient glow.
+- id: 'movie_mode'
+  name: Movie Mode
+  entities:
+    light.living_room_main:
+      state: 'off'
+    light.living_room_led_strip:
+      state: 'on'
+      brightness_pct: 15
+      rgb_color: [0, 0, 60]
+    light.kitchen_main:
+      state: 'off'

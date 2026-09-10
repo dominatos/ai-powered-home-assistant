@@ -1,0 +1,1549 @@
+# ==========================================
+# === BASIC AUTOMATIONS ===
+# ==========================================
+# Simple, foundational smart home automations.
+# These require no AI integration and work with standard HA components.
+#
+# Usage: Rename to automations.yaml and replace all <device_id_here>,
+#        <tablet_hostname>, <Your City>, notify.mobile_app_<your_phone>,
+#        and other placeholders with your actual values.
+
+# ---- SECTION 1: SAFETY & SENSORS ----
+
+- id: '1778264755475'
+  alias: 'Kitchen: Main Light on Door Open'
+  description: Triggered when the kitchen door opens from 17:00 to 07:00; turns on
+    the kitchen light at full brightness if it is currently off.
+  triggers:
+  - type: opened
+    device_id: <device_id_here>
+    entity_id: binary_sensor.kitchen_door_contact
+    domain: binary_sensor
+    trigger: device
+  conditions:
+  - type: is_illuminance
+    condition: device
+    device_id: <device_id_here>
+    entity_id: sensor.kitchen_luminance
+    domain: sensor
+    below: 200
+    enabled: false
+  - condition: device
+    type: is_off
+    device_id: <device_id_here>
+    entity_id: light.kitchen_main
+    domain: light
+  - condition: time
+    after: '17:00:00'
+    before: 07:00:00
+  actions:
+  - type: turn_on
+    device_id: <device_id_here>
+    entity_id: light.kitchen_main
+    domain: light
+    brightness_pct: 100
+  - device_id: <device_id_here>
+    domain: button
+    entity_id: button.kitchen_tablet_wake
+    type: press
+  - device_id: <device_id_here>
+    domain: button
+    entity_id: button.kitchen_tablet_dismiss_lock
+    type: press
+  - device_id: <device_id_here>
+    domain: button
+    entity_id: button.kitchen_tablet_open_dashboard
+    type: press
+  - alias: Mark tablet screen as awake
+    action: input_boolean.turn_on
+    target:
+      entity_id: input_boolean.kitchen_tablet_screen_awake
+    data: {}
+  mode: single
+
+- id: water_leak_close_valve_notify
+  alias: 'Water Safety: Close Valve on Leak'
+  description: Closes the water valve when any known leak sensor detects moisture,
+    sends push notifications, and announces the alert on the kitchen speaker only
+    when Quiet TTS Notifications is off.
+  triggers:
+  - trigger: state
+    entity_id:
+    - binary_sensor.water_leak_kitchen_water_leak
+    - binary_sensor.water_leak_bathroom_water_leak
+    - binary_sensor.water_leak_child_water_leak
+    to: 'on'
+  - trigger: homeassistant
+    event: start
+  variables:
+    leak_sensors:
+    - binary_sensor.water_leak_kitchen_water_leak
+    - binary_sensor.water_leak_bathroom_water_leak
+    - binary_sensor.water_leak_child_water_leak
+    active_leaks: '{{ expand(leak_sensors) | selectattr(''state'', ''eq'', ''on'')
+      | map(attribute=''name'') | list | join('', '') }}'
+    alert_message: 'WATER LEAK DETECTED! Closing the water valve now. Active sensor(s):
+      {{ active_leaks }}.'
+  conditions:
+  - condition: template
+    value_template: '{{ active_leaks | length > 0 }}'
+  actions:
+  - action: switch.turn_off
+    metadata: {}
+    target:
+      entity_id: switch.water_valve
+  - choose:
+    - conditions:
+      - condition: state
+        entity_id: input_boolean.quiet_tts_notifications
+        state: 'off'
+      sequence:
+      - action: tts.speak
+        metadata: {}
+        target:
+          entity_id: tts.google_translate_en_com
+        data:
+          cache: false
+          media_player_entity_id: media_player.<your_kitchen_speaker>
+          message: '{{ alert_message }}'
+          language: en
+  - action: notify.mobile_app_<your_phone>
+    metadata: {}
+    data:
+      title: 'Water Leak Alert'
+      message: '{{ alert_message }}'
+  mode: single
+
+- id: '1778447197587'
+  alias: 'Bathroom: Turn Off Idle Washing Machine'
+  description: Turns off washing machine when its smart plug is on and power has stayed
+    below 50 W for 60 minutes.
+  triggers:
+  - type: power
+    device_id: <device_id_here>
+    entity_id: sensor.washing_machine_power
+    domain: sensor
+    trigger: device
+    below: 50
+    for:
+      hours: 1
+      minutes: 0
+      seconds: 0
+  conditions:
+  - condition: device
+    type: is_on
+    device_id: <device_id_here>
+    entity_id: switch.washing_machine
+    domain: switch
+  actions:
+  - type: turn_off
+    device_id: <device_id_here>
+    entity_id: switch.washing_machine
+    domain: switch
+  mode: single
+
+- id: kitchen_turn_off_oven_at_night
+  alias: 'Kitchen: Turn Off Oven at Night'
+  description: Turns off the oven at 02:30 if it is still on and power is below 50W
+    (indicating it is idle).
+  triggers:
+  - trigger: time
+    at: '02:30:00'
+  conditions:
+  - condition: state
+    entity_id: switch.oven
+    state: 'on'
+  - condition: numeric_state
+    entity_id: sensor.oven_power
+    below: 50
+  actions:
+  - action: switch.turn_off
+    target:
+      entity_id: switch.oven
+  mode: single
+
+- id: kitchen_turn_off_idle_oven
+  alias: 'Kitchen: Turn Off Idle Oven'
+  description: Turns off the oven if power has been below 50W for 2 hours while the
+    oven switch is on.
+  triggers:
+  - trigger: numeric_state
+    entity_id: sensor.oven_power
+    below: 50
+    for:
+      hours: 2
+      minutes: 0
+      seconds: 0
+  conditions:
+  - condition: state
+    entity_id: switch.oven
+    state: 'on'
+  actions:
+  - action: switch.turn_off
+    target:
+      entity_id: switch.oven
+  mode: single
+
+- id: fridge_turn_off_power_modes_after_2h
+  alias: 'Fridge: Turn off Power Modes after 2h'
+  description: Turns off fridge power-cool and power-freeze modes if either has been
+    on for 2 hours.
+  triggers:
+  - trigger: state
+    entity_id:
+    - switch.fridge_power_cool
+    - switch.fridge_power_freeze
+    to: 'on'
+    for:
+      hours: 2
+      minutes: 0
+      seconds: 0
+  conditions: []
+  actions:
+  - action: switch.turn_off
+    target:
+      entity_id:
+      - switch.fridge_power_cool
+      - switch.fridge_power_freeze
+  mode: single
+
+- id: bedroom_bed_light_protection
+  alias: 'Bedroom: Bed Light Protection Logic'
+  description: Pressing the bed button between 22:00-06:00 flashes the light to warn;
+    if pressed again within 5 seconds, the light turns on; otherwise it turns off.
+  triggers:
+  - trigger: mqtt
+    topic: <mqtt_topic_here>
+  conditions:
+  - condition: time
+    after: '22:00:00'
+    before: '06:00:00'
+  actions:
+  - action: light.turn_on
+    target:
+      entity_id: light.bedroom_light
+    data:
+      flash: short
+  - wait_for_trigger:
+    - trigger: mqtt
+      topic: <mqtt_topic_here>
+    timeout: 5
+    continue_on_timeout: true
+  - choose:
+    - conditions:
+      - condition: template
+        value_template: '{{ wait.trigger is not none }}'
+      sequence:
+      - action: light.turn_on
+        target:
+          entity_id: light.bedroom_light
+        data:
+          brightness_pct: 100
+    default:
+    - action: light.turn_off
+      target:
+        entity_id: light.bedroom_light
+  mode: single
+
+- id: '1778572239645'
+  alias: 'Power: High Usage Warning (Generic Focus)'
+  description: Repeat alerts every minute and flash lights every 5s while power is
+    high. Sends actionable push notification once offering to turn off A/C.
+  triggers:
+  - trigger: numeric_state
+    entity_id:
+    - sensor.total_house_power
+    above: 3000
+    for:
+      hours: 0
+      minutes: 0
+      seconds: 10
+  actions:
+  # If the kitchen speaker is playing, turn off a high-power switch
+  # Replace <device_id_here> and <entity_id_here> with your switch
+  - if:
+    - condition: state
+      entity_id: media_player.<your_kitchen_speaker>
+      state: playing
+    then:
+    - type: turn_off
+      device_id: <device_id_here>
+      entity_id: <entity_id_here>
+      domain: switch
+  - if:
+    - condition: or
+      conditions:
+      - condition: zone
+        entity_id: person.person_1
+        zone: zone.home
+      - condition: zone
+        entity_id: person.person_2
+        zone: zone.home
+    then:
+    - if:
+      - condition: state
+        entity_id: input_boolean.bedroom_ac
+        state: 'on'
+      - condition: state
+        entity_id: input_boolean.kitchen_ac
+        state: 'on'
+      then:
+      - action: notify.mobile_app_<your_phone>
+        data:
+          title: 'High Power Usage: {{ states(''sensor.total_house_power'') }}W'
+          message: Turn off A/C to reduce load
+          data:
+            tag: power_warning_ac
+            actions:
+            - action: POWER_AC_OFF_BEDROOM
+              title: Bedroom
+            - action: POWER_AC_OFF_KITCHEN
+              title: Kitchen
+            - action: POWER_AC_OFF_BOTH
+              title: Both
+            - action: POWER_AC_OFF_NONE
+              title: None
+    - if:
+      - condition: state
+        entity_id: input_boolean.bedroom_ac
+        state: 'on'
+      - condition: state
+        entity_id: input_boolean.kitchen_ac
+        state: 'off'
+      then:
+      - action: notify.mobile_app_<your_phone>
+        data:
+          title: 'High Power Usage: {{ states(''sensor.total_house_power'') }}W'
+          message: Turn off bedroom A/C to reduce load
+          data:
+            tag: power_warning_ac
+            actions:
+            - action: POWER_AC_OFF_BEDROOM
+              title: Turn Off
+            - action: POWER_AC_OFF_NONE
+              title: None
+    - if:
+      - condition: state
+        entity_id: input_boolean.bedroom_ac
+        state: 'off'
+      - condition: state
+        entity_id: input_boolean.kitchen_ac
+        state: 'on'
+      then:
+      - action: notify.mobile_app_<your_phone>
+        data:
+          title: 'High Power Usage: {{ states(''sensor.total_house_power'') }}W'
+          message: Turn off kitchen A/C to reduce load
+          data:
+            tag: power_warning_ac
+            actions:
+            - action: POWER_AC_OFF_KITCHEN
+              title: Turn Off
+            - action: POWER_AC_OFF_NONE
+              title: None
+    - wait_for_trigger:
+      - platform: event
+        event_type: mobile_app_notification_action
+        event_data:
+          action: POWER_AC_OFF_BEDROOM
+      - platform: event
+        event_type: mobile_app_notification_action
+        event_data:
+          action: POWER_AC_OFF_KITCHEN
+      - platform: event
+        event_type: mobile_app_notification_action
+        event_data:
+          action: POWER_AC_OFF_BOTH
+      - platform: event
+        event_type: mobile_app_notification_action
+        event_data:
+          action: POWER_AC_OFF_NONE
+      timeout: 00:05:00
+      continue_on_timeout: true
+    - action: notify.mobile_app_<your_phone>
+      data:
+        message: clear_notification
+        data:
+          tag: power_warning_ac
+    - if:
+      - condition: template
+        value_template: '{{ wait.trigger is not none and wait.trigger.event.data.action
+          in [''POWER_AC_OFF_BEDROOM'', ''POWER_AC_OFF_KITCHEN'', ''POWER_AC_OFF_BOTH'']
+          }}'
+      then:
+      - if:
+        - condition: template
+          value_template: '{{ wait.trigger.event.data.action in [''POWER_AC_OFF_BEDROOM'',
+            ''POWER_AC_OFF_BOTH''] }}'
+        then:
+        - action: input_boolean.turn_off
+          target:
+            entity_id: input_boolean.bedroom_ac
+      - if:
+        - condition: template
+          value_template: '{{ wait.trigger.event.data.action in [''POWER_AC_OFF_KITCHEN'',
+            ''POWER_AC_OFF_BOTH''] }}'
+        then:
+        - action: input_boolean.turn_off
+          target:
+            entity_id: input_boolean.kitchen_ac
+  - repeat:
+      while:
+      - condition: numeric_state
+        entity_id: sensor.total_house_power
+        above: 3000
+      sequence:
+      - action: notify.mobile_app_<your_phone>
+        data:
+          title: 'Power Alert'
+          message: 'WARNING: House power is {{ states(''sensor.total_house_power'')
+            }}W! Turn off appliances to avoid blackout.'
+      - if:
+        - condition: state
+          entity_id: input_boolean.quiet_tts_notifications
+          state: 'off'
+        then:
+        - action: media_player.volume_set
+          metadata: {}
+          target:
+            entity_id: media_player.<your_kitchen_speaker>
+          data:
+            volume_level: 0.5
+        - action: tts.speak
+          target:
+            entity_id: tts.google_translate_en_com
+          data:
+            cache: true
+            media_player_entity_id: media_player.<your_kitchen_speaker>
+            message: Warning! High power usage detected. Please turn off some appliances!
+            language: en
+        - action: media_player.volume_set
+          metadata: {}
+          target:
+            entity_id: media_player.<your_kitchen_speaker>
+          data:
+            volume_level: 0.2
+      - repeat:
+          count: 12
+          sequence:
+          - if:
+            - condition: numeric_state
+              entity_id: sensor.total_house_power
+              above: 3000
+            then:
+            - device_id: <device_id_here>
+              domain: light
+              entity_id: <entity_id_here>
+              type: flash
+            - delay:
+                seconds: 5
+  mode: single
+  max_exceeded: silent
+
+# ---- SECTION 2: MOTION LIGHTING ----
+
+- id: bedroom_bed_light_on_day_motion
+  alias: 'Bedroom: Bed Light on Day Motion'
+  description: Turns on the bedroom light when motion is detected between 12:00 and
+    20:00 while the light is off. Turns off 20 minutes after the last motion.
+  mode: restart
+  triggers:
+  - trigger: state
+    entity_id: binary_sensor.bedroom_motion_occupancy
+    to: 'on'
+  conditions:
+  - condition: time
+    after: '12:00:00'
+    before: '20:00:00'
+  - condition: state
+    entity_id: light.bedroom_light
+    state: 'off'
+  actions:
+  - action: light.turn_on
+    target:
+      entity_id: light.bedroom_light
+    data:
+      brightness_pct: 100
+  - wait_for_trigger:
+    - trigger: state
+      entity_id: binary_sensor.bedroom_motion_occupancy
+      to: 'off'
+  - delay:
+      minutes: 20
+  - action: light.turn_off
+    target:
+      entity_id: light.bedroom_light
+
+- id: kitchen_dish_light_on_night_motion
+  alias: 'Kitchen: Dish Light on Night Motion'
+  description: Turns on the dish area light at 30% brightness when motion is detected
+    between 23:30 and 07:00 while the kitchen main and dish lights are off. Turns
+    off 2 minutes after motion clears.
+  mode: restart
+  triggers:
+  - trigger: state
+    entity_id: binary_sensor.kitchen_motion_occupancy
+    to: 'on'
+  conditions:
+  - condition: time
+    after: '23:30:00'
+    before: '07:00:00'
+  - condition: state
+    entity_id: light.kitchen_main
+    state: 'off'
+  - condition: state
+    entity_id: light.dish_area_light
+    state: 'off'
+  actions:
+  - action: light.turn_on
+    target:
+      entity_id: light.dish_area_light
+    data:
+      brightness_pct: 30
+  - variables:
+      dish_light_owner: motion
+  - wait_for_trigger:
+    - trigger: state
+      entity_id: binary_sensor.kitchen_motion_occupancy
+      to: 'off'
+  - delay:
+      minutes: 2
+  - action: light.turn_off
+    target:
+      entity_id: light.dish_area_light
+
+- id: child_room_turn_on_light_on_motion
+  alias: 'Child Room: Turn On Light on Motion'
+  description: Turns on the child room light when presence is detected between 15:00
+    and 20:00 while the light is off.
+  triggers:
+  - trigger: state
+    entity_id: binary_sensor.child_room_presence
+    to: 'on'
+  conditions:
+  - condition: time
+    after: '15:00:00'
+    before: '20:00:00'
+  - condition: state
+    entity_id: light.child_room_light
+    state: 'off'
+  actions:
+  - action: light.turn_on
+    target:
+      entity_id: light.child_room_light
+    data:
+      brightness_pct: 100
+  mode: single
+
+- id: child_room_turn_off_light_on_no_motion
+  alias: 'Child Room: Turn Off Light on No Motion'
+  description: Turns off the child room light if no presence is detected for 5 minutes
+    while the light is on.
+  triggers:
+  - trigger: state
+    entity_id: binary_sensor.child_room_presence
+    to: 'off'
+    for:
+      hours: 0
+      minutes: 5
+      seconds: 0
+  conditions:
+  - condition: state
+    entity_id: light.child_room_light
+    state: 'on'
+  actions:
+  - action: light.turn_off
+    target:
+      entity_id: light.child_room_light
+  mode: single
+
+- id: kitchen_turn_off_led_on_no_motion
+  alias: 'Kitchen: Turn Off LED on No Motion'
+  description: Turns off the kitchen main light if no motion is detected for 30 minutes
+    while the light is on.
+  triggers:
+  - trigger: state
+    entity_id: binary_sensor.kitchen_motion_occupancy
+    to: 'off'
+    for:
+      hours: 0
+      minutes: 30
+      seconds: 0
+  conditions:
+  - condition: state
+    entity_id: light.kitchen_main
+    state: 'on'
+  actions:
+  - action: light.turn_off
+    target:
+      entity_id: light.kitchen_main
+  mode: single
+
+- id: kitchen_dish_light_follows_hood
+  alias: 'Kitchen: Dish Light follows Hood'
+  description: Turns on the dish area light when the kitchen hood is on; turns it off
+    when the hood is turned off.
+  triggers:
+  - trigger: state
+    entity_id: binary_sensor.kitchen_hood_contact
+    to: 'on'
+    id: hood_on
+  - trigger: state
+    entity_id: binary_sensor.kitchen_hood_contact
+    to: 'off'
+    id: hood_off
+  conditions: []
+  actions:
+  - choose:
+    - conditions:
+      - condition: trigger
+        id: hood_on
+      sequence:
+      - action: light.turn_on
+        target:
+          entity_id: light.dish_area_light
+        data:
+          brightness_pct: 100
+    - conditions:
+      - condition: trigger
+        id: hood_off
+      sequence:
+      - action: light.turn_off
+        target:
+          entity_id: light.dish_area_light
+  mode: single
+
+- id: kitchen_dish_light_on_low_luminance
+  alias: 'Kitchen: Dish Light on Low Luminance'
+  description: Turns on the dish area light when motion is detected and luminance is
+    below 100 between 07:00 and 20:00. Turns off after 5 minutes of no motion or
+    if luminance exceeds 200.
+  mode: restart
+  triggers:
+  - trigger: state
+    entity_id: binary_sensor.kitchen_motion_occupancy
+    to: 'on'
+  conditions:
+  - condition: time
+    after: '07:00:00'
+    before: '20:00:00'
+  - condition: numeric_state
+    entity_id: sensor.kitchen_luminance
+    below: 100
+  actions:
+  - action: light.turn_on
+    target:
+      entity_id: light.dish_area_light
+    data:
+      brightness_pct: 100
+  - wait_for_trigger:
+    - trigger: state
+      entity_id: binary_sensor.kitchen_motion_occupancy
+      to: 'off'
+  - delay:
+      minutes: 5
+  - choose:
+    - conditions:
+      - condition: numeric_state
+        entity_id: sensor.kitchen_luminance
+        above: 200
+      sequence: []
+    default:
+    - action: light.turn_off
+      target:
+        entity_id: light.dish_area_light
+
+- id: bathroom_max_brightness_on_shower
+  alias: 'Bathroom: Max Brightness on Shower'
+  description: Sets bathroom light to 100% brightness when humidity exceeds 70% while
+    the light is on but brightness is below 100%.
+  triggers:
+  - trigger: numeric_state
+    entity_id: sensor.bathroom_humidity
+    above: 70
+  conditions:
+  - condition: state
+    entity_id: light.bathroom_light
+    state: 'on'
+  - condition: template
+    value_template: '{{ state_attr(''light.bathroom_light'', ''brightness'') | int(0)
+      < 255 }}'
+  actions:
+  - action: light.turn_on
+    target:
+      entity_id: light.bathroom_light
+    data:
+      brightness_pct: 100
+  mode: single
+
+- id: bathroom_presence_detection_v3
+  alias: 'Bathroom: Presence Detection v3'
+  description: Turns on bathroom light with adaptive brightness when motion or door
+    contact is detected between 17:00 and 06:00. Waits for door close or motion clear,
+    then turns off the light.
+  mode: restart
+  triggers:
+  - trigger: state
+    entity_id:
+    - binary_sensor.bathroom_motion_occupancy
+    - binary_sensor.bathroom_door_contact
+    to: 'on'
+  conditions:
+  - condition: or
+    conditions:
+    - condition: time
+      after: '17:00:00'
+    - condition: time
+      before: '06:00:00'
+  actions:
+  - action: light.turn_on
+    target:
+      entity_id: light.bathroom_light
+    data:
+      brightness_pct: 100
+  - wait_for_trigger:
+    - trigger: state
+      entity_id: binary_sensor.bathroom_door_contact
+      to: 'off'
+    - trigger: state
+      entity_id: binary_sensor.bathroom_motion_occupancy
+      to: 'off'
+  - delay:
+      seconds: 2
+  - action: light.turn_off
+    target:
+      entity_id: light.bathroom_light
+
+- id: child_room_toggle_main_light
+  alias: 'Child Room: Toggle Kitchen Light'
+  description: Toggles the kitchen main light on a single-click of the MQTT button
+    in the child room.
+  triggers:
+  - trigger: mqtt
+    topic: <mqtt_topic_here>
+    payload: '2_single'
+  conditions: []
+  actions:
+  - action: light.toggle
+    target:
+      entity_id: light.kitchen_main
+  mode: single
+
+# ---- SECTION 3: A/C & CLIMATE ----
+
+- id: bedroom_clima_toggle
+  alias: 'Bedroom: Clima Toggle'
+  description: Toggles bedroom A/C based on a button press or boolean change. When turning
+    on, sets cool mode at 25C. When turning off, turns off the climate device. Syncs
+    the input boolean.
+  mode: restart
+  triggers:
+  - trigger: mqtt
+    topic: <mqtt_topic_here>
+    id: button
+  - trigger: state
+    entity_id: input_boolean.bedroom_ac
+    id: boolean
+  conditions: []
+  actions:
+  - choose:
+    - conditions:
+      - condition: trigger
+        id: button
+      sequence:
+      - if:
+        - condition: state
+          entity_id: input_boolean.bedroom_ac
+          state: 'off'
+        then:
+        - action: input_boolean.turn_on
+          target:
+            entity_id: input_boolean.bedroom_ac
+        else:
+        - action: input_boolean.turn_off
+          target:
+            entity_id: input_boolean.bedroom_ac
+    - conditions:
+      - condition: trigger
+        id: boolean
+      sequence:
+      - choose:
+        - conditions:
+          - condition: template
+            value_template: '{{ trigger.to_state.state == ''on'' and trigger.from_state.state
+              == ''off'' }}'
+          sequence:
+          - action: climate.set_hvac_mode
+            target:
+              entity_id: climate.bedroom_ac
+            data:
+              hvac_mode: cool
+          - action: climate.set_temperature
+            target:
+              entity_id: climate.bedroom_ac
+            data:
+              temperature: 25
+          - action: climate.turn_on
+            target:
+              entity_id: climate.bedroom_ac
+        - conditions:
+          - condition: template
+            value_template: '{{ trigger.to_state.state == ''off'' and trigger.from_state.state
+              == ''on'' }}'
+          sequence:
+          - action: climate.turn_off
+            target:
+              entity_id: climate.bedroom_ac
+  enabled: false
+
+- id: bedroom_sync_bedroom_ac_boolean
+  alias: 'Bedroom: Sync Bedroom AC Boolean'
+  description: Synchronizes the bedroom AC input boolean to reflect the actual climate
+    device state.
+  mode: restart
+  triggers:
+  - trigger: state
+    entity_id: climate.bedroom_ac
+  conditions: []
+  actions:
+  - choose:
+    - conditions:
+      - condition: template
+        value_template: '{{ trigger.to_state.state in [''cool'', ''heat'', ''auto'',
+          ''dry'', ''fan_only''] }}'
+      sequence:
+      - action: input_boolean.turn_on
+        target:
+          entity_id: input_boolean.bedroom_ac
+    - conditions:
+      - condition: template
+        value_template: '{{ trigger.to_state.state in [''off'', ''unavailable''] }}'
+      sequence:
+      - action: input_boolean.turn_off
+        target:
+          entity_id: input_boolean.bedroom_ac
+
+- id: bedroom_clima_off_on_no_motion_20min
+  alias: 'Bedroom: Clima Off on No Motion 20min'
+  description: Turns off bedroom A/C and syncs the boolean if no motion is detected
+    for 20 minutes between 08:00 and 20:00 while A/C is running.
+  triggers:
+  - trigger: state
+    entity_id: binary_sensor.bedroom_motion_occupancy
+    to: 'off'
+    for:
+      hours: 0
+      minutes: 20
+      seconds: 0
+  conditions:
+  - condition: time
+    after: '08:00:00'
+    before: '20:00:00'
+  - condition: state
+    entity_id: input_boolean.bedroom_ac
+    state: 'on'
+  actions:
+  - action: climate.turn_off
+    target:
+      entity_id: climate.bedroom_ac
+  - action: input_boolean.turn_off
+    target:
+      entity_id: input_boolean.bedroom_ac
+  mode: single
+
+- id: kitchen_sync_ac_boolean_to_ir
+  alias: 'Kitchen: Sync A/C Boolean to IR'
+  description: Synchronizes the kitchen IR A/C to the input boolean state. When the
+    boolean turns on, sends IR on command with cool mode and temperature. When off,
+    sends IR off command.
+  mode: restart
+  triggers:
+  - trigger: state
+    entity_id: input_boolean.kitchen_ac
+  conditions: []
+  actions:
+  - choose:
+    - conditions:
+      - condition: template
+        value_template: '{{ trigger.to_state.state == ''on'' }}'
+      sequence:
+      - action: remote.send_command
+        target:
+          device_id: <device_id_here>
+        data:
+          command:
+          - '<ir_command_on_here>'
+    - conditions:
+      - condition: template
+        value_template: '{{ trigger.to_state.state == ''off'' }}'
+      sequence:
+      - action: remote.send_command
+        target:
+          device_id: <device_id_here>
+        data:
+          command:
+          - '<ir_command_off_here>'
+
+- id: kitchen_toggle_ac_on_3rd_key
+  alias: 'Kitchen: Toggle A/C on 3rd Key'
+  description: Toggles the kitchen AC input boolean when the third button on the remote
+    is pressed.
+  triggers:
+  - trigger: mqtt
+    topic: <mqtt_topic_here>
+    payload: '3_single'
+  conditions: []
+  actions:
+  - action: input_boolean.toggle
+    target:
+      entity_id: input_boolean.kitchen_ac
+  mode: single
+
+- id: kitchen_turn_off_ac_after_30m_no_motion
+  alias: 'Kitchen: Turn Off A/C After 30m No Motion'
+  description: Turns off kitchen A/C if no motion is detected in the kitchen or child
+    room for 30 minutes between 08:00 and 19:00 while A/C is on.
+  triggers:
+  - trigger: state
+    entity_id:
+    - binary_sensor.kitchen_motion_occupancy
+    - binary_sensor.child_room_presence
+    to: 'off'
+    for:
+      hours: 0
+      minutes: 30
+      seconds: 0
+  conditions:
+  - condition: time
+    after: '08:00:00'
+    before: '19:00:00'
+  - condition: state
+    entity_id: input_boolean.kitchen_ac
+    state: 'on'
+  actions:
+  - action: input_boolean.turn_off
+    target:
+      entity_id: input_boolean.kitchen_ac
+  mode: single
+
+- id: kitchen_detect_manual_ac_activation
+  alias: 'Kitchen: Detect Manual A/C Activation'
+  description: Detects when the A/C is manually activated by checking if temperature
+    is falling, the boolean is off, and power is above 250W. Sends an actionable
+    notification and waits 1 hour.
+  triggers:
+  - trigger: state
+    entity_id: sensor.kitchen_temperature
+  conditions:
+  - condition: template
+    value_template: '{{ trigger.to_state.state | float(0) < trigger.from_state.state
+      | float(0) }}'
+  - condition: state
+    entity_id: input_boolean.kitchen_ac
+    state: 'off'
+  - condition: numeric_state
+    entity_id: sensor.total_house_power
+    above: 250
+  actions:
+  - action: notify.mobile_app_<your_phone>
+    data:
+      title: 'A/C Detected'
+      message: Kitchen A/C appears to be running manually. Sync with the system?
+      data:
+        tag: manual_ac_detected
+        actions:
+        - action: MANUAL_AC_SYNC_ON
+          title: Sync On
+        - action: MANUAL_AC_DISMISS
+          title: Dismiss
+  - wait_for_trigger:
+    - platform: event
+      event_type: mobile_app_notification_action
+      event_data:
+        action: MANUAL_AC_SYNC_ON
+    - platform: event
+      event_type: mobile_app_notification_action
+      event_data:
+        action: MANUAL_AC_DISMISS
+    timeout: 01:00:00
+    continue_on_timeout: true
+  - action: notify.mobile_app_<your_phone>
+    data:
+      message: clear_notification
+      data:
+        tag: manual_ac_detected
+  - if:
+    - condition: template
+      value_template: '{{ wait.trigger is not none and wait.trigger.event.data.action
+        == ''MANUAL_AC_SYNC_ON'' }}'
+    then:
+    - action: input_boolean.turn_on
+      target:
+        entity_id: input_boolean.kitchen_ac
+  mode: single
+
+- id: kitchen_nfc_toggle_ac
+  alias: 'Kitchen: NFC Toggle A/C'
+  description: Toggles the kitchen AC input boolean when an NFC tag is scanned.
+  triggers:
+  - trigger: tag
+    tag_id: <nfc_tag_id_here>
+  conditions: []
+  actions:
+  - action: input_boolean.toggle
+    target:
+      entity_id: input_boolean.kitchen_ac
+  mode: single
+
+# ---- SECTION 4: THERMOSTAT ----
+
+- id: thermostat_schedule_sync_to_device
+  alias: 'Thermostat: Schedule Sync to Device'
+  description: Publishes the weekly thermostat schedule via MQTT when schedule helpers
+    change.
+  triggers:
+  - trigger: state
+    entity_id:
+    - input_datetime.thermostat_monday_schedule
+    - input_datetime.thermostat_tuesday_schedule
+    - input_datetime.thermostat_wednesday_schedule
+    - input_datetime.thermostat_thursday_schedule
+    - input_datetime.thermostat_friday_schedule
+    - input_datetime.thermostat_saturday_schedule
+    - input_datetime.thermostat_sunday_schedule
+  conditions: []
+  actions:
+  - variables:
+      schedule_data: >-
+        {% set days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday',
+        'saturday', 'sunday'] %}
+        {% set ns = namespace(schedule={}) %}
+        {% for day in days %}
+          {% set entity = 'input_datetime.thermostat_' ~ day ~ '_schedule' %}
+          {% if states(entity) != 'unknown' %}
+            {% set ns.schedule = ns.schedule | combine({day: states(entity)}) %}
+          {% endif %}
+        {% endfor %}
+        {{ ns.schedule | to_json }}
+  - action: mqtt.publish
+    data:
+      topic: thermostat/weekly_schedule
+      payload: '{{ schedule_data }}'
+  mode: single
+
+- id: thermostat_away_mode
+  alias: 'Thermostat: Away Mode'
+  description: Sets the thermostat to away setpoint when all household members leave
+    the home zone. Restores to normal mode when someone arrives.
+  triggers:
+  - trigger: state
+    entity_id:
+    - person.person_1
+    - person.person_2
+    to: 'not_home'
+    for:
+      hours: 0
+      minutes: 5
+      seconds: 0
+    id: away
+  - trigger: zone
+    entity_id:
+    - person.person_1
+    - person.person_2
+    zone: zone.home
+    event: enter
+    id: home
+  conditions:
+  - condition: template
+    value_template: >-
+      {% if trigger.id == 'away' %}
+        {% set person_1_home = is_state('person.person_1', 'home') %}
+        {% set person_2_home = is_state('person.person_2', 'home') %}
+        {{ not person_1_home and not person_2_home }}
+      {% else %}
+        true
+      {% endif %}
+  actions:
+  - choose:
+    - conditions:
+      - condition: trigger
+        id: away
+      sequence:
+      - action: climate.set_temperature
+        target:
+          entity_id: climate.thermostat
+        data:
+          temperature: 18
+          hvac_mode: heat
+    - conditions:
+      - condition: trigger
+        id: home
+      sequence:
+      - action: input_boolean.turn_off
+        target:
+          entity_id: input_boolean.thermostat_night_mode
+      - action: script.thermostat_re_sync
+  mode: single
+
+- id: thermostat_night_away_recovery
+  alias: 'Thermostat: Night/Away Recovery'
+  description: When night mode is activated, waits up to 4 hours for someone to arrive
+    home. If no one arrives, clears night mode and re-syncs the thermostat schedule.
+  triggers:
+  - trigger: state
+    entity_id: input_boolean.thermostat_night_mode
+    to: 'on'
+  conditions: []
+  actions:
+  - wait_for_trigger:
+    - trigger: zone
+      entity_id: person.person_1
+      zone: zone.home
+      event: enter
+    - trigger: zone
+      entity_id: person.person_2
+      zone: zone.home
+      event: enter
+    - trigger: time
+      at: '12:00:00'
+    timeout:
+      hours: 4
+    continue_on_timeout: true
+  - action: input_boolean.turn_off
+    target:
+      entity_id: input_boolean.thermostat_night_mode
+  - action: script.thermostat_re_sync
+  mode: single
+
+- id: thermostat_1_hour_boost
+  alias: 'Thermostat: 1-Hour Boost'
+  description: When the boost boolean is turned on, sets the thermostat to 22C for 1
+    hour. On timeout or manual off, clears the boost and re-syncs the schedule.
+  triggers:
+  - trigger: state
+    entity_id: input_boolean.thermostat_boost_1h
+    to: 'on'
+    id: boost_on
+  - trigger: state
+    entity_id: input_boolean.thermostat_boost_1h
+    to: 'off'
+    id: boost_off
+  conditions: []
+  actions:
+  - choose:
+    - conditions:
+      - condition: trigger
+        id: boost_on
+      sequence:
+      - action: climate.set_temperature
+        target:
+          entity_id: climate.thermostat
+        data:
+          temperature: 22
+          hvac_mode: heat
+      - delay:
+          hours: 1
+      - action: input_boolean.turn_off
+        target:
+          entity_id: input_boolean.thermostat_boost_1h
+      - action: script.thermostat_re_sync
+    - conditions:
+      - condition: trigger
+        id: boost_off
+      sequence:
+      - action: script.thermostat_re_sync
+  mode: single
+
+- id: thermostat_physical_override_fallback
+  alias: 'Thermostat: Physical Override Fallback'
+  description: Detects a temperature attribute change on the thermostat and re-syncs
+    the schedule after 1 hour to handle physical overrides gracefully.
+  triggers:
+  - trigger: state
+    entity_id: climate.thermostat
+    attribute: temperature
+  conditions: []
+  actions:
+  - delay:
+      hours: 1
+  - action: script.thermostat_re_sync
+  mode: single
+
+- id: thermostat_auto_child_lock
+  alias: 'Thermostat: Auto Child Lock'
+  description: Re-enables the child lock on the thermostat if it is accidentally turned
+    off, waiting 5 minutes before re-enabling.
+  triggers:
+  - trigger: state
+    entity_id: switch.thermostat_child_lock
+    to: 'off'
+  conditions: []
+  actions:
+  - delay:
+      minutes: 5
+  - action: switch.turn_on
+    target:
+      entity_id: switch.thermostat_child_lock
+  mode: single
+
+- id: climate_sync_thermostat_demand_with_relay
+  alias: 'Climate: Sync Thermostat demand with relay'
+  description: Turns on the heating relay when the thermostat is actively heating;
+    turns it off otherwise.
+  triggers:
+  - trigger: state
+    entity_id: climate.thermostat
+    attribute: hvac_action
+  conditions: []
+  actions:
+  - choose:
+    - conditions:
+      - condition: state
+        entity_id: climate.thermostat
+        attribute: hvac_action
+        state: heating
+      sequence:
+      - action: switch.turn_on
+        target:
+          entity_id: switch.heating_relay
+    default:
+    - action: switch.turn_off
+      target:
+        entity_id: switch.heating_relay
+  mode: single
+
+# ---- SECTION 5: TABLET & SYSTEM ----
+
+- id: kitchen_tablet_charging_management
+  alias: 'Kitchen: Tablet Charging Management'
+  description: Turns off the tablet charger when battery is above 40% and turns it
+    on when battery drops below 21%.
+  triggers:
+  - trigger: numeric_state
+    entity_id: sensor.kitchen_tablet_battery
+    above: 40
+    id: battery_high
+  - trigger: numeric_state
+    entity_id: sensor.kitchen_tablet_battery
+    below: 21
+    id: battery_low
+  conditions: []
+  actions:
+  - choose:
+    - conditions:
+      - condition: trigger
+        id: battery_high
+      sequence:
+      - action: switch.turn_off
+        target:
+          entity_id: switch.kitchen_tablet_charger
+    - conditions:
+      - condition: trigger
+        id: battery_low
+      sequence:
+      - action: switch.turn_on
+        target:
+          entity_id: switch.kitchen_tablet_charger
+  mode: single
+
+- id: kitchen_tablet_screen_control_via_motion
+  alias: 'Kitchen Tablet: Screen Control via Motion'
+  description: Wakes the kitchen tablet when motion is detected. Puts the tablet to
+    sleep after 2 hours of no motion and the kitchen light is off.
+  triggers:
+  - trigger: state
+    entity_id: binary_sensor.kitchen_motion_occupancy
+    to: 'on'
+    id: motion_on
+  - trigger: state
+    entity_id: binary_sensor.kitchen_motion_occupancy
+    to: 'off'
+    for:
+      hours: 2
+      minutes: 0
+      seconds: 0
+    id: motion_off
+  conditions: []
+  actions:
+  - choose:
+    - conditions:
+      - condition: trigger
+        id: motion_on
+      sequence:
+      - device_id: <device_id_here>
+        domain: button
+        entity_id: button.kitchen_tablet_wake
+        type: press
+    - conditions:
+      - condition: trigger
+        id: motion_off
+      - condition: state
+        entity_id: light.kitchen_main
+        state: 'off'
+      sequence:
+      - device_id: <device_id_here>
+        domain: button
+        entity_id: button.kitchen_tablet_sleep
+        type: press
+  mode: single
+
+- id: system_reload_tuya_local_after_boot
+  alias: 'System: Reload Tuya Local After Boot'
+  description: Reloads Tuya Local config entries 5 minutes after Home Assistant starts
+    to ensure device connectivity.
+  triggers:
+  - trigger: homeassistant
+    event: start
+  conditions: []
+  actions:
+  - delay:
+      minutes: 5
+  - action: config.reload
+    data:
+      component: tuya_local
+  mode: single
+
+- id: system_sync_family_calendar_hourly
+  alias: 'System: Sync Family Calendar Hourly'
+  description: Updates the family calendar entity every hour to keep events current.
+  triggers:
+  - trigger: time_pattern
+    hours: '/1'
+  conditions: []
+  actions:
+  - action: calendar.update
+    target:
+      entity_id: calendar.family
+  mode: single
+
+- id: system_quiet_tts_daily_reset
+  alias: 'System: Quiet TTS Daily Reset'
+  description: Turns off the Quiet TTS Notifications boolean every day at 07:00.
+  triggers:
+  - trigger: time
+    at: '07:00:00'
+  conditions: []
+  actions:
+  - action: input_boolean.turn_off
+    target:
+      entity_id: input_boolean.quiet_tts_notifications
+  mode: single
+
+- id: bedroom_reset_day_motion_daily
+  alias: 'Bedroom: Reset Day Motion Daily'
+  description: Re-enables the bedroom day motion automation daily at 04:00.
+  triggers:
+  - trigger: time
+    at: '04:00:00'
+  conditions: []
+  actions:
+  - action: automation.turn_on
+    target:
+      entity_id: automation.bedroom_bed_light_on_day_motion
+  mode: single
+
+- id: kitchen_daily_reset_for_dish_light
+  alias: 'Kitchen: Daily Reset for Dish Light'
+  description: Re-enables the dish light automations daily at 07:00.
+  triggers:
+  - trigger: time
+    at: '07:00:00'
+  conditions: []
+  actions:
+  - action: automation.turn_on
+    target:
+      entity_id:
+      - automation.kitchen_dish_light_on_night_motion
+      - automation.kitchen_dish_light_on_low_luminance
+  mode: single
+
+- id: fix_bluetooth_adapter_reset_on_startup
+  alias: 'Fix: Bluetooth adapter reset on startup'
+  description: Resets the Bluetooth adapter 30 seconds after Home Assistant starts
+    to fix connectivity issues.
+  triggers:
+  - trigger: homeassistant
+    event: start
+  conditions: []
+  actions:
+  - delay:
+      seconds: 30
+  - action: shell_command.reset_bluetooth
+  mode: single
+
+# ---- SECTION 6: UTILITY ----
+
+- id: kitchen_tv_off_after_timer
+  alias: 'Kitchen: TV Off After Timer'
+  description: Turns off the TV via IR when a timer finishes and resets the active boolean.
+  triggers:
+  - trigger: event
+    event_type: timer.finished
+    event_data:
+      entity_id: timer.kitchen_tv_off
+  conditions: []
+  actions:
+  - action: remote.send_command
+    target:
+      device_id: <device_id_here>
+    data:
+      command:
+      - '<ir_tv_power_command_here>'
+  - action: input_boolean.turn_off
+    target:
+      entity_id: input_boolean.kitchen_tv_timer_active
+  mode: single
+
+- id: kitchen_tv_start_timer
+  alias: 'Kitchen: TV Start Timer'
+  description: Starts the TV off timer with a specified duration when the start timer finishes.
+  triggers:
+  - trigger: event
+    event_type: timer.finished
+    event_data:
+      entity_id: timer.kitchen_tv_start
+  conditions: []
+  actions:
+  - action: timer.start
+    target:
+      entity_id: timer.kitchen_tv_off
+    data:
+      duration: '{{ states(''input_datetime.kitchen_tv_timer_duration'') }}'
+  - action: input_boolean.turn_on
+    target:
+      entity_id: input_boolean.kitchen_tv_timer_active
+  mode: single
+
+- id: kitchen_reset_tv_timer_active_on_cancel
+  alias: 'Kitchen: Reset TV Timer Active on Cancel'
+  description: Resets the TV timer active boolean when the timer is cancelled.
+  triggers:
+  - trigger: event
+    event_type: timer.cancelled
+    event_data:
+      entity_id: timer.kitchen_tv_off
+  conditions: []
+  actions:
+  - action: input_boolean.turn_off
+    target:
+      entity_id: input_boolean.kitchen_tv_timer_active
+  mode: single
+
+- id: kitchen_tv_timer_push_notification
+  alias: 'Kitchen: TV Timer Push Notification'
+  description: Sends an actionable notification with timer options when the TV is turned
+    on.
+  triggers:
+  - trigger: state
+    entity_id: media_player.<your_kitchen_tv>
+    to: 'on'
+  conditions: []
+  actions:
+  - action: notify.mobile_app_<your_phone>
+    data:
+      title: 'Kitchen TV On'
+      message: Set a timer to turn off the TV?
+      data:
+        tag: kitchen_tv_timer
+        actions:
+        - action: TV_TIMER_30M
+          title: 30 min
+        - action: TV_TIMER_1H
+          title: 1 hour
+        - action: TV_TIMER_CANCEL
+          title: Cancel
+  - wait_for_trigger:
+    - platform: event
+      event_type: mobile_app_notification_action
+      event_data:
+        action: TV_TIMER_30M
+    - platform: event
+      event_type: mobile_app_notification_action
+      event_data:
+        action: TV_TIMER_1H
+    - platform: event
+      event_type: mobile_app_notification_action
+      event_data:
+        action: TV_TIMER_CANCEL
+    timeout: 00:05:00
+    continue_on_timeout: true
+  - action: notify.mobile_app_<your_phone>
+    data:
+      message: clear_notification
+      data:
+        tag: kitchen_tv_timer
+  - choose:
+    - conditions:
+      - condition: template
+        value_template: '{{ wait.trigger is not none and wait.trigger.event.data.action
+          == ''TV_TIMER_30M'' }}'
+      sequence:
+      - action: timer.start
+        target:
+          entity_id: timer.kitchen_tv_off
+        data:
+          duration: '00:30:00'
+      - action: input_boolean.turn_on
+        target:
+          entity_id: input_boolean.kitchen_tv_timer_active
+    - conditions:
+      - condition: template
+        value_template: '{{ wait.trigger is not none and wait.trigger.event.data.action
+          == ''TV_TIMER_1H'' }}'
+      sequence:
+      - action: timer.start
+        target:
+          entity_id: timer.kitchen_tv_off
+        data:
+          duration: '01:00:00'
+      - action: input_boolean.turn_on
+        target:
+          entity_id: input_boolean.kitchen_tv_timer_active
+  mode: single
+
+- id: tv_track_daily_usage
+  alias: 'TV: Track Daily Usage'
+  description: Increments the daily TV usage counter every minute while the TV is on.
+  triggers:
+  - trigger: time_pattern
+    minutes: /1
+  conditions:
+  - condition: state
+    entity_id: media_player.<your_kitchen_tv>
+    state: 'on'
+  actions:
+  - action: counter.increment
+    target:
+      entity_id: counter.tv_daily_usage
+  mode: single
+
+- id: tv_reset_daily_usage
+  alias: 'TV: Reset Daily Usage'
+  description: Resets the daily TV usage counter at midnight.
+  triggers:
+  - trigger: time
+    at: '00:00:00'
+  conditions: []
+  actions:
+  - action: counter.reset
+    target:
+      entity_id: counter.tv_daily_usage
+  mode: single
+
+- id: kitchen_fairy_lights_auto_off
+  alias: 'Kitchen: Fairy Lights Auto-Off'
+  description: Turns off the fairy lights after they have been on for 1 hour.
+  triggers:
+  - trigger: state
+    entity_id: light.fairy_lights
+    to: 'on'
+    for:
+      hours: 1
+      minutes: 0
+      seconds: 0
+  conditions: []
+  actions:
+  - action: light.turn_off
+    target:
+      entity_id: light.fairy_lights
+  mode: single

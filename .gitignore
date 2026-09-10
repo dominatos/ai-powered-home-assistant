@@ -1,29 +1,81 @@
-# Home Assistant secrets and hidden directories
+# Secrets and personal keys
 secrets.yaml
-.storage/
-.cloud/
-.google.token
 google_key.json
+*.mp3
 *.pem
 *.key
+*.crt
 *.p12
 
-# Sync Tool Backups
+# SSH and keys
+id_rsa_git*
+.ssh/
+
+# Databases (sqlite and others)
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+
+# Logs and temporary system files
+*.log
+*.log.*
+home-assistant.log.fault
+.ha_run.lock
+
+# Cache and dependency folders
+__pycache__/
+*.pyc
+.storage/
+.cache/
+deps/
 .sync_backups/
-.sync-tmp.*/
+.sync-tmp.*
+temp/
+
+# Add-on files and external utilities
+tts/
+*.tar.gz
+*.tar
+
+# Local configuration overrides (if any)
+local.yaml
+zigbee2mqtt/configuration.yaml
+zigbee2mqtt/configuration.yaml.backup
+zigbee2mqtt/secret.yaml
+zigbee2mqtt/state.json
+zigbee2mqtt/database.db
+zigbee2mqtt/coordinator_backup.json
+zigbee2mqtt/log/
+zigbee2mqtt/ota/
+
+# Cloud and token files
+.cloud/
+.google.token
+
+# go2rtc
+go2rtc-1.9.9/go2rtc.yaml
+go2rtc-1.9.9/
+
+# Home Assistant backups and archives
+backups/
+
+# Editor / OS files
+.DS_Store
+Thumbs.db
+.codex/
+.mimocode/
 
 # Generated inventory and maps (unless you want to track them, but usually they are volatile)
 # ha_device_inventory.json
 # inventory.txt
 # inventory_numbers.json
-
-# Add-on and third party sensitive configurations
-zigbee2mqtt/secret.yaml
-zigbee2mqtt/configuration.yaml.backup
-go2rtc-1.9.9/go2rtc.yaml
-
-# OS and environment
-.DS_Store
-Thumbs.db
-__pycache__/
-*.pyc
+promptproject.txt
+haos/
+haos/*review.md
+review.md
+tofix.md
+autofixprompt.md
+scratch/*
+scratch
+tools/tofix-helper.py

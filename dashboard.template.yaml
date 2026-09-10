@@ -1,0 +1,2286 @@
+# dashboard.template.yaml
+# =======================
+# Legacy combined Lovelace dashboard template (superseded by basic/advanced split).
+# Contains all views in a single file for reference.
+# Rename to dashboard.yaml and fill in <device_id_here>, <tablet_hostname>, <zigbee_mac_address>, etc.
+views:
+
+  # ════════════════════════════════════════════════════════════════
+  # VIEW 1: OVERVIEW
+  # Main glanceable dashboard for the kitchen tablet.
+  # Shows clock, calendar alerts, presence, weather, lights, A/C,
+  # media, active appliances, power gauge, and safety alerts.
+  # ════════════════════════════════════════════════════════════════
+  - title: Overview
+    path: overview
+    icon: mdi:home
+    cards:
+
+      # ── CLOCK ──
+      # Custom digital clock card — displayed at the top of Overview.
+      # Scaled up via card_mod for wall-display readability.
+      - type: custom:foundry-digital-clock-card
+        size: large
+        show_seconds: true
+        theme: none
+        themeentity: ""
+        ring_style: silver
+        font_bg_color: "#050510"
+        font_color: "#00ff00"
+        title_color: "#ffffff"
+        rivet_color: "#2a2a35"
+        plate_color: "#1c1c24"
+        plate_transparent: true
+        glass_effect_enabled: true
+        aged_texture: none
+        aged_texture_intensity: 0
+        title_font_size: 14
+        use_24h_format: true
+        colors_typography:
+          show_seconds: false
+          use_24h_format: false
+        wear_level: 5010
+        card_mod:
+          style: |
+            ha-card {
+              transform: scale(1.3);
+              margin-top: 20px !important;
+              margin-bottom: 20px !important;
+            }
+
+      # ── CALENDAR ALERTS ──
+      # Shows colored alert banners when events exist today or tomorrow.
+      # Each card is conditional — hidden if the binary sensor is off.
+      # Driven by binary_sensor.events_today and binary_sensor.events_tomorrow.
+      # events_this_week was disabled — sensor not yet configured.
+      - type: horizontal-stack
+        cards:
+          - type: conditional
+            conditions:
+              - condition: state
+                entity: binary_sensor.events_today
+                state: "on"
+            card:
+              type: markdown
+              content: |
+                <div style="text-align: center; padding: 10px;">
+                  <span style="font-size: 60px;">🔴📅</span><br>
+                  <b style="font-size: 25px;">Events Today!</b>
+                </div>
+              card_mod:
+                style: >
+                  ha-card { background: rgba(255, 0, 0, 0.1); border: 2px solid
+                  red; }
+          - type: conditional
+            conditions:
+              - condition: state
+                entity: binary_sensor.events_tomorrow
+                state: "on"
+            card:
+              type: markdown
+              content: |
+                <div style="text-align: center; padding: 10px;">
+                  <span style="font-size: 60px;">🟠📅</span><br>
+                  <b style="font-size: 25px;">Events Tomorrow!</b>
+                </div>
+              card_mod:
+                style: >
+                  ha-card { background: rgba(255, 165, 0, 0.1); border: 2px
+                  solid orange; }
+          # Disabled: binary_sensor.events_this_week not yet created.
+          # Uncomment when the sensor is configured.
+          #- type: conditional
+          #  conditions:
+          #    - condition: state
+          #      entity: binary_sensor.events_this_week
+          #      state: "on"
+          #  card:
+          #    type: markdown
+          #    content: |
+          #      <div style="text-align: center; padding: 10px;">
+          #        <span style="font-size: 60px;">🟡🗓️</span><br>
+          #        <b style="font-size: 25px;">Events This Week</b>
+          #      </div>
+          #    card_mod:
+          #      style: |
+          #        ha-card { background: rgba(255, 255, 0, 0.1); border: 2px solid yellow; }
+
+      # ── PEOPLE & PRESENCE ──
+      # Person entity cards: hidden when home, clickable to open map (more-info).
+      # ETA shown below via compact markdown when away.
+      - type: horizontal-stack
+        cards:
+          - type: conditional
+            conditions:
+              - condition: state
+                entity: person.person_1
+                state_not: home
+            card:
+              type: vertical-stack
+              cards:
+                - type: entity
+                  entity: person.person_1
+                  name: Person 1
+                  icon: mdi:account
+                - type: markdown
+                  content: >
+                    <div style="text-align: center;">
+                    <ha-icon icon="mdi:car"></ha-icon> ETA: {{ states('sensor.time_to_home_person_1') | float(0) | round(0) | int }}m
+                    </div>
+          - type: conditional
+            conditions:
+              - condition: state
+                entity: person.person_2
+                state_not: home
+            card:
+              type: vertical-stack
+              cards:
+                - type: entity
+                  entity: person.person_2
+                  name: Person 2
+                  icon: mdi:account
+                - type: markdown
+                  content: >
+                    <div style="text-align: center;">
+                    <ha-icon icon="mdi:car"></ha-icon> ETA: {{ states('sensor.time_to_home_person_2') | float(0) | round(0) | int }}m
+                    </div>
+
+      # ── PERSON 2 LEFT WORK BANNER ──
+      - type: conditional
+        conditions:
+          - condition: state
+            entity: input_boolean.person_2_left_work
+            state: "on"
+          - condition: state
+            entity: input_boolean.quiet_tts_notifications
+            state: "on"
+        card:
+          type: markdown
+          content: |
+            <div style="text-align: center; padding: 20px;">
+              <span style="font-size: 80px;">🚗👩</span><br>
+              <b style="font-size: 32px;">Person 2 left work!</b><br>
+              <span style="font-size: 26px;">
+                <ha-icon icon="mdi:clock-outline"></ha-icon>
+                ETA: {{ states('sensor.time_to_home_person_2') | float(0) | round(0) | int }}m
+              </span>
+            </div>
+          card_mod:
+            style: >
+              ha-card { background: rgba(76, 175, 80, 0.2); border: 3px solid
+              #4caf50; min-height: 120px; }
+
+      # ── VEHICLE ──
+      - type: conditional
+        conditions:
+          - condition: state
+            entity: device_tracker.car_1
+            state_not: home
+        card:
+          type: vertical-stack
+          cards:
+            - type: map
+              title: 🚗 Vehicle
+              entities:
+                - entity: device_tracker.car_1
+              default_zoom: 14
+              hours_to_show: 24
+              aspect_ratio: '16:9'
+              tap_action:
+                action: more-info
+                entity: device_tracker.car_1
+            # Speed row — only shown while the car is in motion
+            - type: conditional
+              conditions:
+                - condition: state
+                  entity: binary_sensor.car_1_motion
+                  state: "on"
+              card:
+                type: markdown
+                content: >
+                  <div style="text-align: center;">
+                  🚗 <b>{{ states('sensor.car_1_speed') | float(0) | round(0) | int }} km/h</b>
+                  </div>
+            - type: markdown
+              content: >
+                <div style="text-align: center;">
+                <ha-icon icon="mdi:car"></ha-icon>
+                ETA: {{ states('sensor.time_to_home_car') | float(0) | round(0) | int }}m
+                </div>
+            # Google Maps deep link — opens current car position in Google Maps
+            - type: markdown
+              content: >
+                <div style="text-align: center;">
+                <a href="https://www.google.com/maps?q={{ state_attr('device_tracker.car_1', 'latitude') }},{{ state_attr('device_tracker.car_1', 'longitude') }}">🗺️ Open in Google Maps</a>
+                </div>
+
+      # ── WEATHER ──
+      - type: weather-forecast
+        entity: weather.forecast_home
+        show_forecast: true
+
+      # ── OUTDOOR TEMPERATURE ──
+      # Real-time outdoor reading from the A/C unit's external sensor.
+      - type: entities
+        show_header_toggle: false
+        entities:
+          - entity: sensor.air_conditioner_outdoor_temperature
+            name: 🌡️ Outdoor Temperature (A/C sensor)
+            icon: mdi:thermometer
+
+      # ── THERMOSTAT QUICK CONTROL ──
+      - type: conditional
+        conditions:
+          - condition: numeric_state
+            entity: sensor.<device_id_here>_local_temperature
+            below: 24
+        card:
+          type: entities
+          show_header_toggle: false
+          entities:
+            - entity: climate.<device_id_here>
+              name: Main Thermostat
+            # - entity: input_boolean.thermostat_night_mode
+            #   name: Night Mode Active
+
+      # ── ROOMS AT A GLANCE ──
+      # One-tap light toggle for all main rooms.
+      - type: entities
+        title: 💡 Rooms at a Glance
+        show_header_toggle: false
+        entities:
+          - entity: light.<device_id_here_1>
+            name: Kitchen
+            icon: mdi:silverware-fork-knife
+          - entity: light.<device_id_here_2>
+            name: Bedroom
+            icon: mdi:bed
+          - entity: light.<device_id_here_3>
+            name: Bathroom
+            icon: mdi:shower
+          - entity: light.<device_id_here_4>
+            name: Child Room
+            icon: mdi:teddy-bear
+
+      # ── MAIN CONTROLS ──
+      - type: grid
+        title: 🎛️ Main Controls
+        columns: 2
+        square: false
+        cards:
+          - type: button
+            entity: switch.<zigbee_mac_address>
+            name: Oven (Forno)
+            icon: mdi:stove
+            icon_height: 40px
+          - type: button
+            entity: switch.<zigbee_mac_address>
+            name: Fan (Ventilatore)
+            icon: mdi:fan
+            icon_height: 40px
+          - type: conditional
+            conditions:
+              - condition: numeric_state
+                entity: sensor.<zigbee_mac_address>_local_temperature
+                below: 22
+              - condition: state
+                entity: input_boolean.thermostat_boost_1h
+                state: "off"
+            card:
+              type: button
+              name: Thermostat Boost 22°C
+              icon: mdi:thermometer-chevron-up
+              tap_action:
+                action: call-service
+                service: input_boolean.turn_on
+                target:
+                  entity_id: input_boolean.thermostat_boost_1h
+              icon_height: 40px
+          - type: conditional
+            conditions:
+              - condition: numeric_state
+                entity: sensor.<zigbee_mac_address>_local_temperature
+                above: 26
+            card:
+              type: button
+              entity: input_boolean.bedroom_ac
+              name: Bedroom A/C
+              icon: mdi:air-conditioner
+              icon_height: 40px
+          - type: conditional
+            conditions:
+              - condition: numeric_state
+                entity: sensor.<zigbee_mac_address>_local_temperature
+                above: 26
+            card:
+              type: button
+              entity: input_boolean.kitchen_ac
+              name: Kitchen A/C
+              icon: mdi:air-conditioner
+              icon_height: 40px
+          - type: button
+            entity: light.<your_kitchen_led_strip>
+            name: LED Strip + Music
+            icon: mdi:led-strip-variant
+            icon_height: 40px
+          - type: button
+            name: All Lights Off
+            icon: mdi:lightbulb-group-off
+            tap_action:
+              action: call-service
+              service: script.turn_on
+              target:
+                entity_id: script.dashboard_all_lights_off
+            icon_height: 40px
+          - type: button
+            entity: input_boolean.quiet_tts_notifications
+            name: Quiet TTS
+            icon: mdi:volume-off
+            icon_height: 40px
+            show_state: true
+
+      # ── MEDIA ──
+      # Dynamically discovers active media players.
+      - type: custom:auto-entities
+        card:
+          type: entities
+          title: 🎵 Media
+          show_header_toggle: false
+        filter:
+          include:
+            # 1. Any device actively playing, paused, or buffering
+            - domain: media_player
+              state: "playing"
+            - domain: media_player
+              state: "paused"
+            - domain: media_player
+              state: "buffering"
+            # 2. Specific TVs that only report 'on' when active
+            - entity_id: media_player.<your_tv>
+              state: "on"
+            - entity_id: media_player.<your_tv_2>
+              state: "on"
+          exclude:
+            # Exclude known system/background media players
+            - entity_id: "media_player.<your_jellyfin_user>"
+            - entity_id: "media_player.<your_jellyfin_library_browser>"
+        show_empty: false
+
+      # ── ACTIVE APPLIANCES (conditional) ──
+      # These cards are hidden when the appliances are idle.
+      - type: conditional
+        conditions:
+          - condition: state
+            entity: sensor.home_printer
+            state_not: "unavailable"
+          - condition: state
+            entity: sensor.home_printer
+            state_not: "unknown"
+        card:
+          type: entities
+          title: 🖨️ Printer is Online
+          entities:
+            - entity: sensor.home_printer
+              name: Home Printer
+              icon: mdi:printer
+
+      - type: conditional
+        conditions:
+          - condition: numeric_state
+            entity: sensor.<zigbee_mac_address>_power
+            above: 5
+        card:
+          type: entities
+          title: 👕 Washing Machine is Running
+          entities:
+            - entity: sensor.<zigbee_mac_address>_power
+              name: Power Draw
+              icon: mdi:flash
+
+      - type: conditional
+        conditions:
+          - condition: numeric_state
+            entity: sensor.dish_washer_remaining_time
+            above: 0
+        card:
+          type: entities
+          title: 🍽️ Dishwasher is Running
+          entities:
+            - entity: sensor.dish_washer_remaining_time
+              name: Remaining Time
+              icon: mdi:timer-outline
+            - entity: sensor.dish_washer_program_phase
+              name: Phase
+              icon: mdi:progress-clock
+
+      # ── HOUSE POWER ──
+      # Gauge: green 0–2000W, yellow 2000–2800W, red 2800W+.
+      - type: gauge
+        entity: sensor.total_house_power
+        name: House Power
+        unit: W
+        severity:
+          green: 0
+          yellow: 2000
+          red: 2800
+        needle: true
+        min: 0
+        max: 5000
+
+      # ── ACTIVE ALERTS (conditional) ──
+      # Critical safety banners — only shown when a leak or gas alert is active.
+      # Do NOT remove or disable these without adding an equivalent notification path.
+      - type: conditional
+        conditions:
+          - condition: state
+            entity: binary_sensor.gas_sensor
+            state: "on"
+        card:
+          type: markdown
+          content: |-
+            ## 🚨 GAS LEAK DETECTED
+            The kitchen gas sensor has triggered!
+          card_mod:
+            style: |
+              ha-card { background: #b71c1c !important; color: white; }
+
+      - type: conditional
+        conditions:
+          - condition: numeric_state
+            entity: sensor.total_house_power
+            above: 3000
+        card:
+          type: markdown
+          content: |-
+            ## ⚡ HIGH POWER USAGE
+            House power is above 3000W! Turn off some appliances to avoid a blackout.
+          card_mod:
+            style: |
+              ha-card { background: #b71c1c !important; color: white; }
+
+      - type: conditional
+        conditions:
+          - condition: or
+            conditions:
+              - condition: state
+                entity: binary_sensor.<zigbee_mac_address_kitchen>_water_leak
+                state: "on"
+              - condition: state
+                entity: binary_sensor.<zigbee_mac_address_bathroom_1>_water_leak
+                state: "on"
+              - condition: state
+                entity: binary_sensor.<zigbee_mac_address_bathroom_2>_water_leak
+                state: "on"
+              - condition: state
+                entity: binary_sensor.water_leak_bathroom_water_leak
+                state: "on"
+              - condition: state
+                entity: binary_sensor.water_leak_child_water_leak
+                state: "on"
+        card:
+          type: markdown
+          content: |-
+            ## 💧 WATER LEAK DETECTED
+            Check leak sensors immediately!
+          card_mod:
+            style: |
+              ha-card { background: #1565c0 !important; color: white; }
+
+      # ── KITCHEN A/C DETECTION ALERT (conditional) ──
+      # Mirrors the phone actionable notification from
+      # "Kitchen: Detect manual A/C activation".
+      # Appears when kitchen_temp_falling is on AND kitchen_ac is off AND
+      # DIN 16A power is above 250 W (same three conditions as the automation).
+      # Tapping the button marks input_boolean.kitchen_ac as on, which is the
+      # same outcome as pressing "Yes, it is on" on the phone notification.
+      # The card disappears automatically once kitchen_ac goes on.
+      - type: conditional
+        conditions:
+          - condition: state
+            entity: binary_sensor.kitchen_temp_falling
+            state: "on"
+          - condition: state
+            entity: input_boolean.kitchen_ac
+            state: "off"
+          - condition: numeric_state
+            entity: sensor.energy_monitoring_din_16a_power
+            above: 250
+        card:
+          type: vertical-stack
+          cards:
+            - type: markdown
+              content: |-
+                ## ❄️ Is the Kitchen A/C on?
+                Temperature is dropping and power draw is up.
+                Tap below to mark it as running.
+              card_mod:
+                style: |
+                  ha-card { background: rgba(33, 150, 243, 0.15); border: 2px solid #2196f3; }
+            - type: button
+              entity: input_boolean.kitchen_ac
+              name: Yes — Mark Kitchen A/C as ON
+              icon: mdi:air-conditioner
+              icon_height: 40px
+              tap_action:
+                action: call-service
+                service: input_boolean.turn_on
+                target:
+                  entity_id: input_boolean.kitchen_ac
+
+  # ════════════════════════════════════════════════════════════════
+  # VIEW 2: KITCHEN
+  # Dedicated kitchen controls: lights, media, climate, sensors,
+  # and appliances (oven + fan).
+  # ════════════════════════════════════════════════════════════════
+  - title: Kitchen
+    path: kitchen
+    icon: mdi:silverware-fork-knife
+    cards:
+
+      # ── LIGHTS ──
+      - type: grid
+        title: 💡 Lights
+        columns: 2
+        square: false
+        cards:
+          - type: custom:mushroom-light-card
+            entity: light.<zigbee_mac_address>
+            name: Main Light
+            icon: mdi:ceiling-light
+            show_brightness_control: true
+            show_color_temp_control: true
+            use_light_color: true
+          - type: custom:mushroom-light-card
+            entity: light.<your_kitchen_dish_light>
+            name: Dish Light
+            icon: mdi:wall-sconce-flat
+            show_brightness_control: true
+          - type: custom:mushroom-light-card
+            entity: light.<your_kitchen_led_strip>
+            name: LED Strip + Music
+            icon: mdi:led-strip-variant
+            show_brightness_control: true
+            show_color_temp_control: true
+            use_light_color: true
+          - type: custom:mushroom-light-card
+            entity: light.fairy_lights
+            name: Fairy Lights
+            icon: mdi:string-lights
+            show_brightness_control: true
+            show_color_control: true
+            use_light_color: true
+
+      # ── FAIRY LIGHTS CONTROLS ──
+      # Tuya Local text entities for scene/music/painting modes and timer.
+      # These accept hex-encoded data strings via the Tuya Local integration.
+      - type: entities
+        title: ✨ Fairy Lights Controls
+        show_header_toggle: false
+        entities:
+          - entity: input_select.fairy_lights_scene_selector
+            name: Scene
+          - type: button
+            name: Next Scene
+            icon: mdi:step-forward
+            action_name: NEXT
+            tap_action:
+              action: call-service
+              service: input_select.select_next
+              target:
+                entity_id: input_select.fairy_lights_scene_selector
+            # - entity: text.fairy_lights_music
+            #   name: Music Mode (Needs Hex Mapping)
+            #   icon: mdi:music
+            # - entity: text.fairy_lights_painting_control
+            #   name: Painting Control (Needs Hex Mapping)
+            #   icon: mdi:palette
+          - entity: time.fairy_lights_timer
+            name: Timer
+            icon: mdi:timer-outline
+
+      # ── MEDIA ──
+      - type: conditional
+        conditions:
+          - condition: or
+            conditions:
+              - condition: state
+                entity: media_player.<your_kitchen_speaker>
+                state: "playing"
+              - condition: state
+                entity: media_player.<your_kitchen_speaker>
+                state: "paused"
+              - condition: state
+                entity: media_player.<your_tv>
+                state: "playing"
+              - condition: state
+                entity: media_player.<your_tv>
+                state: "on"
+        card:
+          type: grid
+          title: 🎵 Media
+          columns: 2
+          square: false
+          cards:
+            - type: conditional
+              conditions:
+                - condition: or
+                  conditions:
+                    - condition: state
+                      entity: media_player.<your_kitchen_speaker>
+                      state: "playing"
+                    - condition: state
+                      entity: media_player.<your_kitchen_speaker>
+                      state: "paused"
+              card:
+                type: custom:mushroom-media-player-card
+                entity: media_player.<your_kitchen_speaker>
+                name: Kitchen Speaker
+                icon: mdi:speaker
+                use_media_info: true
+                show_volume_level: true
+                media_controls:
+                  - play_pause_stop
+                volume_controls:
+                  - volume_buttons
+            - type: conditional
+              conditions:
+                - condition: or
+                  conditions:
+                    - condition: state
+                      entity: media_player.<your_tv>
+                      state: "playing"
+                    - condition: state
+                      entity: media_player.<your_tv>
+                      state: "on"
+              card:
+                type: custom:mushroom-media-player-card
+                entity: media_player.<your_tv>
+                name: Kitchen TV
+                icon: mdi:television
+                use_media_info: true
+                show_volume_level: true
+                media_controls:
+                  - play_pause_stop
+                volume_controls:
+                  - volume_buttons
+
+      # ── TV IR CONTROLS ──
+      - type: grid
+        title: 📺 TV IR Controls
+        columns: 4
+        square: true
+        cards:
+          - type: button
+            entity: button.<your_tv_ir_remote>_turn_on
+            tap_action:
+              action: call-service
+              service: button.press
+              target:
+                entity_id: button.<your_tv_ir_remote>_turn_on
+            name: TV On
+            icon: mdi:power
+            icon_height: 30px
+          - type: button
+            entity: button.<your_tv_ir_remote>_turn_off
+            tap_action:
+              action: call-service
+              service: button.press
+              target:
+                entity_id: button.<your_tv_ir_remote>_turn_off
+            name: TV Off
+            icon: mdi:power-off
+            icon_height: 30px
+          - type: button
+            entity: button.<your_tv_ir_remote>_volume_down
+            tap_action:
+              action: call-service
+              service: button.press
+              target:
+                entity_id: button.<your_tv_ir_remote>_volume_down
+            name: Vol -
+            icon: mdi:volume-minus
+            icon_height: 30px
+          - type: button
+            entity: button.<your_tv_ir_remote>_volume_up
+            tap_action:
+              action: call-service
+              service: button.press
+              target:
+                entity_id: button.<your_tv_ir_remote>_volume_up
+            name: Vol +
+            icon: mdi:volume-plus
+            icon_height: 30px
+
+      # ── CLIMATE ──
+      # Temperature and humidity from kitchen Zigbee sensor.
+      - type: grid
+        title: ❄️ Climate
+        columns: 2
+        square: false
+        cards:
+          - type: button
+            entity: input_boolean.kitchen_ac
+            name: Kitchen A/C
+            icon: mdi:air-conditioner
+            icon_height: 40px
+          - type: entities
+            show_header_toggle: false
+            entities:
+              - entity: sensor.<zigbee_mac_address>_temperature
+                name: Temp
+                icon: mdi:thermometer
+              - entity: sensor.<zigbee_mac_address>_humidity
+                name: Humidity
+                icon: mdi:water-percent
+
+      # ── SENSORS ──
+      # Motion, Door, Hood, Gas sensor glance view.
+      - type: glance
+        title: 📡 Sensors
+        show_state: true
+        entities:
+          - entity: binary_sensor.<zigbee_mac_address_1>_occupancy
+            name: Motion
+          - entity: binary_sensor.<zigbee_mac_address_2>_contact
+            name: Door
+          - entity: binary_sensor.<zigbee_mac_address_3>_contact
+            name: Hood
+          - entity: binary_sensor.gas_sensor
+            name: Gas
+
+      # ── APPLIANCES ──
+      # Forno and Ventilatore — linked by the fan-follows-oven automation.
+      - type: grid
+        title: 🔌 Appliances
+        columns: 3
+        square: false
+        cards:
+          - type: button
+            entity: switch.<zigbee_mac_address>
+            name: Oven (Forno)
+            icon: mdi:stove
+            icon_height: 40px
+#          - type: button
+#            entity: sensor.<zigbee_mac_address>_power
+#            name: Oven Power
+#            icon: mdi:flash
+#            icon_height: 40px
+#            show_state: true
+          - type: button
+            entity: switch.<zigbee_mac_address>
+            name: Fan (Ventilatore)
+            icon: mdi:fan
+            icon_height: 40px
+
+      # ── AUTOMATIONS ──
+      - type: grid
+        title: 🤖 Automations
+        columns: 2
+        square: false
+        cards:
+          - type: button
+            name: Play Weather
+            icon: mdi:weather-partly-cloudy
+            icon_height: 40px
+            tap_action:
+              action: call-service
+              service: automation.trigger
+              target:
+                entity_id: automation.weather_morning_alert
+          - type: button
+            name: Play Calendar
+            icon: mdi:calendar-clock
+            icon_height: 40px
+            tap_action:
+              action: call-service
+              service: automation.trigger
+              target:
+                entity_id: automation.calendar_events_announcement
+          - type: conditional
+            conditions:
+              - condition: time
+                after: '07:00:00'
+                before: '20:00:00'
+            card:
+              type: button
+              entity: automation.kitchen_dish_light_on_low_luminance
+              name: Dish Light Auto (Luminance)
+              icon: mdi:brightness-6
+              icon_height: 40px
+              show_state: true
+
+  # ════════════════════════════════════════════════════════════════
+  # VIEW 3: BEDROOM
+  # Bedroom lights, media, A/C control, and sensors.
+  # Includes the Kill Motion Logic button for manual override.
+  # ════════════════════════════════════════════════════════════════
+  - title: Bedroom
+    path: bedroom
+    icon: mdi:bed
+    cards:
+
+      # ── LIGHTS ──
+      - type: entities
+        title: 🛏️ Bedroom — Lights
+        show_header_toggle: false
+        entities:
+          - entity: light.<device_id_here_2>
+            name: Bed Light
+            icon: mdi:led-strip
+          - entity: light.<device_id_here_5>
+            name: Sun Lamp
+            icon: mdi:lamp
+          - entity: light.<device_id_here>
+            name: Lumus
+            icon: mdi:desk-lamp
+
+      # ── CONTROLS ──
+      # Kill Motion Logic triggers automation.button_kill_bedroom_motion_logic_for_2_hours (Bedroom: Kill Motion Logic for 2 Hours).
+      - type: grid
+        title: 🎛️ Controls
+        columns: 2
+        square: false
+        cards:
+          - type: button
+            name: Kill Motion & Quiet TTS (2h)
+            icon: mdi:motion-sensor-off
+            icon_height: 40px
+            tap_action:
+              action: call-service
+              service: automation.trigger
+              target:
+                entity_id: automation.button_kill_bedroom_motion_logic_for_2_hours
+          - type: button
+            entity: input_boolean.bedroom_kill_motion_logic
+            name: Kill Motion (Persistent)
+            icon: mdi:motion-sensor-off
+            icon_height: 40px
+            show_state: true
+            tap_action:
+              action: toggle
+          - type: button
+            name: Random Color
+            icon: mdi:palette
+            icon_height: 40px
+            tap_action:
+              action: call-service
+              service: automation.trigger
+              target:
+                entity_id: automation.bedroom_random_color_toggle
+
+      # ── MEDIA ──
+      - type: conditional
+        conditions:
+          - condition: or
+            conditions:
+              - condition: state
+                entity: media_player.<your_bedroom_speaker>
+                state: "playing"
+              - condition: state
+                entity: media_player.<your_bedroom_speaker>
+                state: "paused"
+        card:
+          type: entities
+          title: 🛏️ Bedroom — Media
+          show_header_toggle: false
+          entities:
+            - type: conditional
+              conditions:
+                - condition: or
+                  conditions:
+                    - condition: state
+                      entity: media_player.<your_bedroom_speaker>
+                      state: "playing"
+                    - condition: state
+                      entity: media_player.<your_bedroom_speaker>
+                      state: "paused"
+              row:
+                entity: media_player.<your_bedroom_speaker>
+                name: Bedroom Speaker
+
+      # ── A/C ──
+      # Full thermostat card for climate.air_conditioner + boolean sync toggle.
+      # The boolean (input_boolean.bedroom_ac) is kept in sync by Bedroom: Sync Bedroom AC Boolean.
+      - type: thermostat
+        entity: climate.air_conditioner
+        name: Bedroom A/C
+
+      - type: entities
+        show_header_toggle: false
+        entities:
+          - entity: input_boolean.bedroom_ac
+            name: A/C Toggle (Dashboard)
+            icon: mdi:air-conditioner
+
+      # ── A/C READINGS ──
+      - type: glance
+        title: 🌡️ A/C Readings
+        show_state: true
+        entities:
+          - entity: sensor.air_conditioner_indoor_temperature
+            name: Indoor
+          - entity: sensor.air_conditioner_outdoor_temperature
+            name: Outdoor
+
+      # ── SENSORS ──
+      - type: glance
+        title: 🛏️ Bedroom — Sensors
+        show_state: true
+        entities:
+          - entity: binary_sensor.<zigbee_mac_address>_occupancy
+            name: Motion
+          - entity: sensor.<zigbee_mac_address>_temperature
+            name: Temp
+          - entity: sensor.<zigbee_mac_address>_humidity
+            name: Humidity
+
+  # ════════════════════════════════════════════════════════════════
+  # VIEW: BATHROOM
+  # ════════════════════════════════════════════════════════════════
+  - title: Bathroom
+    path: bathroom
+    icon: mdi:shower
+    cards:
+
+      # ── LIGHTS ──
+      - type: entities
+        title: 🚿 Bathroom — Lights
+        show_header_toggle: false
+        entities:
+          - entity: light.<device_id_here_3>
+            name: Bathroom LED
+            icon: mdi:lightbulb
+
+      # ── SENSORS ──
+      # Contact sensor tracks door open/close for Bathroom: Presence Detection.
+      - type: glance
+        title: 🚿 Bathroom — Sensors
+        show_state: true
+        entities:
+          - entity: binary_sensor.<zigbee_mac_address>_occupancy
+            name: Motion
+          - entity: binary_sensor.<zigbee_mac_address>_contact
+            name: Door
+          - entity: sensor.<zigbee_mac_address>_temperature
+            name: Temp
+          - entity: sensor.<zigbee_mac_address>_humidity
+            name: Humidity
+
+      # ── CONTROLS ──
+      - type: grid
+        title: 🎨 Controls
+        columns: 2
+        square: false
+        cards:
+          - type: button
+            name: Random Color
+            icon: mdi:palette
+            icon_height: 40px
+            tap_action:
+              action: call-service
+              service: automation.trigger
+              target:
+                entity_id: automation.bathroom_random_color_toggle_button_2
+
+      # ── STATUS ──
+      - type: entities
+        title: 📊 Status
+        show_header_toggle: false
+        entities:
+          - entity: input_boolean.bathroom_occupied
+            name: Occupied
+            icon: mdi:account-check
+
+  # ════════════════════════════════════════════════════════════════
+  # VIEW: CHILD ROOM
+  # ════════════════════════════════════════════════════════════════
+  - title: Child Room
+    path: child-room
+    icon: mdi:teddy-bear
+    cards:
+
+      # ── LIGHTS ──
+      - type: entities
+        title: 🧒 Child Room — Lights
+        show_header_toggle: false
+        entities:
+          - entity: light.<device_id_here_4>
+            name: Child Room LED
+            icon: mdi:lightbulb
+
+      # ── CONTROLS ──
+      - type: grid
+        title: 🎛️ Controls
+        columns: 2
+        square: false
+        cards:
+          - type: button
+            entity: automation.child_room_turn_on_light_on_motion
+            name: Auto-On Motion
+            icon: mdi:motion-sensor
+            icon_height: 40px
+            show_state: true
+          - type: button
+            entity: automation.child_room_turn_off_light_on_no_motion
+            name: Auto-Off Light
+            icon: mdi:motion-sensor-off
+            icon_height: 40px
+            show_state: true
+
+      # ── SENSORS ──
+      # Uses presence (not occupancy) sensor for child room.
+      - type: glance
+        title: 🧒 Child Room — Sensors
+        show_state: true
+        entities:
+          - entity: binary_sensor.<zigbee_mac_address>_presence
+            name: Motion
+          - entity: binary_sensor.<zigbee_mac_address>_contact
+            name: Door
+          - entity: sensor.<zigbee_mac_address>_temperature
+            name: Temp
+          - entity: sensor.<zigbee_mac_address>_humidity
+            name: Humidity
+
+  # ════════════════════════════════════════════════════════════════
+  # VIEW 4: CLIMATE
+  # Thermostat schedule management, A/C booleans, dehumidifier,
+  # temperature/humidity history graphs, and fridge status.
+  # ════════════════════════════════════════════════════════════════
+  - title: Climate
+    path: climate
+    icon: mdi:thermometer
+    cards:
+
+      # ── THERMOSTAT (status + schedule + controls) ──
+      # Grouped in a vertical-stack so they render as one cohesive block.
+      - type: vertical-stack
+        cards:
+
+          # ── STATUS ──
+          # Zigbee2MQTT thermostat — custom firmware.
+          # Mode select: schedule vs setpoint.
+          - type: entities
+            title: 🌡️ Thermostat Status
+            show_header_toggle: false
+            entities:
+              - entity: climate.<zigbee_mac_address>
+                name: Thermostat
+              - entity: sensor.<zigbee_mac_address>_local_temperature
+                name: Current Temperature
+                icon: mdi:thermometer
+              - entity: select.<zigbee_mac_address>_programming_operation_mode
+                name: Mode
+                icon: mdi:cog
+              - entity: switch.<zigbee_mac_address>_child_lock
+                name: Child Lock
+                icon: mdi:lock
+
+          # ── WEEKDAY SCHEDULE ──
+          # 4 time+temp slots: morning, day, evening, night.
+          - type: entities
+            title: 📅 Weekday Schedule (Mon–Fri)
+            show_header_toggle: false
+            entities:
+              - entity: input_datetime.thermostat_schedule_time_1
+                name: 🌅 Morning Time
+              - entity: input_number.thermostat_schedule_temp_1
+                name: 🌅 Morning Temp
+              - entity: input_datetime.thermostat_schedule_time_2
+                name: ☀️ Day Time
+              - entity: input_number.thermostat_schedule_temp_2
+                name: ☀️ Day Temp
+              - entity: input_datetime.thermostat_schedule_time_3
+                name: 🌇 Evening Time
+              - entity: input_number.thermostat_schedule_temp_3
+                name: 🌇 Evening Temp
+              - entity: input_datetime.thermostat_schedule_time_4
+                name: 🌙 Night Time
+              - entity: input_number.thermostat_schedule_temp_4
+                name: 🌙 Night Temp
+
+          # ── SATURDAY SCHEDULE ──
+          # Set all values before enabling Weekend Schedules Ready below.
+          - type: entities
+            title: 📅 Saturday Schedule
+            show_header_toggle: false
+            entities:
+              - entity: input_datetime.thermostat_schedule_saturday_time_1
+                name: 🌅 Morning Time
+              - entity: input_number.thermostat_schedule_saturday_temp_1
+                name: 🌅 Morning Temp
+              - entity: input_datetime.thermostat_schedule_saturday_time_2
+                name: ☀️ Day Time
+              - entity: input_number.thermostat_schedule_saturday_temp_2
+                name: ☀️ Day Temp
+              - entity: input_datetime.thermostat_schedule_saturday_time_3
+                name: 🌇 Evening Time
+              - entity: input_number.thermostat_schedule_saturday_temp_3
+                name: 🌇 Evening Temp
+              - entity: input_datetime.thermostat_schedule_saturday_time_4
+                name: 🌙 Night Time
+              - entity: input_number.thermostat_schedule_saturday_temp_4
+                name: 🌙 Night Temp
+
+          # ── SUNDAY SCHEDULE ──
+          # Set all values before enabling Weekend Schedules Ready below.
+          - type: entities
+            title: 📅 Sunday Schedule
+            show_header_toggle: false
+            entities:
+              - entity: input_datetime.thermostat_schedule_sunday_time_1
+                name: 🌅 Morning Time
+              - entity: input_number.thermostat_schedule_sunday_temp_1
+                name: 🌅 Morning Temp
+              - entity: input_datetime.thermostat_schedule_sunday_time_2
+                name: ☀️ Day Time
+              - entity: input_number.thermostat_schedule_sunday_temp_2
+                name: ☀️ Day Temp
+              - entity: input_datetime.thermostat_schedule_sunday_time_3
+                name: 🌇 Evening Time
+              - entity: input_number.thermostat_schedule_sunday_temp_3
+                name: 🌇 Evening Temp
+              - entity: input_datetime.thermostat_schedule_sunday_time_4
+                name: 🌙 Night Time
+              - entity: input_number.thermostat_schedule_sunday_temp_4
+                name: 🌙 Night Temp
+
+          # ── CONTROLS ──
+          # Boost overrides temperature to 22°C for 1 hour then returns to schedule.
+          # Physical Override Auto-Return re-locks schedule after manual screen interaction.
+          - type: entities
+            title: ⚙️ Thermostat Controls
+            show_header_toggle: false
+            entities:
+              - entity: input_number.thermostat_night_away_temp
+                name: Night/Away Temperature
+                icon: mdi:home-export-outline
+              - entity: input_boolean.thermostat_boost_1h
+                name: 🔥 Boost 1 Hour (22°C)
+              - entity: input_boolean.thermostat_night_mode
+                name: 🌃 Night/Away Mode Active
+                icon: mdi:weather-night
+              - entity: input_boolean.thermostat_weekend_schedule_ready
+                name: Weekend Schedules Ready
+                icon: mdi:calendar-check
+              - entity: input_boolean.thermostat_physical_override_fallback
+                name: Physical Override Auto-Return
+
+          - type: button
+            name: Pull Schedule From Device
+            icon: mdi:cloud-download
+            icon_height: 40px
+            tap_action:
+              action: call-service
+              service: script.thermostat_pull_schedule_from_device
+
+      # ── A/C ──
+      - type: horizontal-stack
+        cards:
+          - type: button
+            entity: input_boolean.bedroom_ac
+            name: Bedroom A/C
+            icon: mdi:air-conditioner
+            icon_height: 40px
+          - type: button
+            entity: input_boolean.kitchen_ac
+            name: Kitchen A/C
+            icon: mdi:air-conditioner
+            icon_height: 40px
+
+      # ── BEDROOM A/C READINGS ──
+      - type: glance
+        title: ❄️ Bedroom A/C Readings
+        show_state: true
+        entities:
+          - entity: sensor.air_conditioner_indoor_temperature
+            name: Indoor
+          - entity: sensor.air_conditioner_outdoor_temperature
+            name: Outdoor
+          - entity: sensor.air_conditioner_selected_temperature
+            name: Set Point
+
+      # ── DEHUMIDIFIER ──
+      - type: entities
+        title: 💨 Dehumidifier
+        show_header_toggle: false
+        entities:
+          - entity: switch.<zigbee_mac_address>
+            name: Deumidificatore
+            icon: mdi:air-humidifier
+
+      # ── TEMPERATURE HISTORY ──
+      # All rooms + outdoor A/C sensor — last 24 hours.
+      - type: history-graph
+        title: 🌡️ Temperature — All Rooms (24h)
+        hours_to_show: 24
+        entities:
+          - entity: sensor.<zigbee_mac_address_1>_temperature
+            name: Kitchen
+          - entity: sensor.<zigbee_mac_address_2>_temperature
+            name: Bedroom
+          - entity: sensor.<zigbee_mac_address_3>_temperature
+            name: Bathroom
+          - entity: sensor.<zigbee_mac_address_4>_temperature
+            name: Child Room
+          - entity: sensor.<zigbee_mac_address_5>_local_temperature
+            name: Thermostat
+          - entity: sensor.air_conditioner_outdoor_temperature
+            name: Outdoor (A/C)
+
+      # ── HUMIDITY HISTORY ──
+      - type: history-graph
+        title: 💧 Humidity — All Rooms (24h)
+        hours_to_show: 24
+        entities:
+          - entity: sensor.<zigbee_mac_address_1>_humidity
+            name: Kitchen
+          - entity: sensor.<zigbee_mac_address_2>_humidity
+            name: Bedroom
+          - entity: sensor.<zigbee_mac_address_3>_humidity
+            name: Bathroom
+          - entity: sensor.<zigbee_mac_address_4>_humidity
+            name: Child Room
+
+      # ── FRIDGE ──
+      # Samsung SmartThings integration.
+      # Power Cool/Freeze managed by Fridge: Preparation after the supermarket automation.
+      - type: entities
+        title: 🧊 Fridge
+        show_header_toggle: false
+        entities:
+          - entity: sensor.fridge_temperature
+            name: Fridge Temperature
+            icon: mdi:fridge
+          - entity: sensor.freezer_temperature
+            name: Freezer Temperature
+            icon: mdi:fridge-bottom
+          - entity: binary_sensor.fridge_door
+            name: Fridge Door
+            icon: mdi:fridge-alert
+          - entity: switch.fridge_power_cool
+            name: Power Cool
+            icon: mdi:snowflake
+          - entity: switch.fridge_power_freeze
+            name: Power Freeze
+            icon: mdi:snowflake-alert
+
+  # ════════════════════════════════════════════════════════════════
+  # VIEW 5: APPLIANCES & SAFETY
+  # Full appliance monitoring: oven, washing machine, dishwasher,
+  # DIN rail energy meters, water safety, and gas safety.
+  # ════════════════════════════════════════════════════════════════
+  - title: Appliances
+    path: appliances
+    icon: mdi:washing-machine
+    cards:
+
+      # ── OVEN ──
+      # Forno smart plug — power monitoring drives Ventilatore auto-on.
+      - type: entities
+        title: 🍕 Oven (Forno)
+        show_header_toggle: false
+        entities:
+          - entity: switch.<zigbee_mac_address>
+            name: Oven Switch
+            icon: mdi:stove
+
+      # ── WASHING MACHINE ──
+      - type: entities
+        title: 👕 Washing Machine
+        show_header_toggle: false
+        entities:
+          - entity: switch.<zigbee_mac_address>
+            name: Lavatrice Switch
+            icon: mdi:washing-machine
+
+      # ── DISHWASHER ──
+      # Haier hOn integration — tracks program, phase, remaining time,
+      # door status, salt level, and rinse aid.
+      - type: entities
+        title: 🍽️ Dishwasher
+        show_header_toggle: false
+        entities:
+          - entity: binary_sensor.dish_washer_status
+            name: Running
+            icon: mdi:dishwasher
+          - entity: sensor.dish_washer_program_name
+            name: Program
+            icon: mdi:format-list-bulleted
+          - entity: sensor.dish_washer_program_phase
+            name: Phase
+            icon: mdi:progress-clock
+          - entity: sensor.dish_washer_remaining_time
+            name: Remaining Time
+            icon: mdi:timer-outline
+          - entity: binary_sensor.dish_washer_door_status
+            name: Door
+            icon: mdi:door
+          - entity: binary_sensor.dish_washer_salt
+            name: Salt Level
+            icon: mdi:shaker-outline
+          - entity: binary_sensor.dish_washer_rinse_aid
+            name: Rinse Aid
+            icon: mdi:bottle-tonic
+
+      # ── WATER SAFETY ──
+      # Water valve (water-valve) is auto-closed by Water Safety: Close Valve on Leak.
+      # CRITICAL: do not remove or disable these entities without a replacement alert path.
+      - type: entities
+        title: 💧 Water Safety
+        show_header_toggle: false
+        entities:
+          - entity: switch.<zigbee_mac_address>
+            name: Water Valve
+            icon: mdi:water-pump
+          - type: divider
+          - entity: binary_sensor.<zigbee_mac_address_kitchen>_water_leak
+            name: Leak — Kitchen
+            icon: mdi:water-alert
+          - entity: binary_sensor.<zigbee_mac_address_bathroom_1>_water_leak
+            name: Leak — Bathroom 1
+            icon: mdi:water-alert
+          - entity: binary_sensor.<zigbee_mac_address_bathroom_2>_water_leak
+            name: Leak — Bathroom 2
+            icon: mdi:water-alert
+          - entity: binary_sensor.water_leak_bathroom_water_leak
+            name: Leak — Bedroom
+            icon: mdi:water-alert
+          - entity: binary_sensor.water_leak_child_water_leak
+            name: Leak — Child Room
+            icon: mdi:water-alert
+
+      # ── GAS SAFETY ──
+      - type: entities
+        title: 🔥 Gas Safety
+        show_header_toggle: false
+        entities:
+          - entity: binary_sensor.gas_sensor
+            name: Kitchen Gas Sensor
+            icon: mdi:gas-cylinder
+
+  # ════════════════════════════════════════════════════════════════
+  # VIEW 6: SETTINGS & AUTOMATION CONTROLS
+  # Internal toggles, night automation tracking, Zigbee network,
+  # and add-on switches. Not for daily use.
+  # ════════════════════════════════════════════════════════════════
+  - title: Settings
+    path: settings
+    icon: mdi:cog
+    cards:
+
+      # ── AI SETTINGS ──
+      - type: entities
+        title: 🤖 AI Settings
+        show_header_toggle: false
+        entities:
+          - entity: input_select.ai_provider_selector
+          - entity: input_text.ai_opencode_model
+          - entity: input_text.ai_ollama_model
+      - type: button
+        name: Run AI Health Check
+        icon: mdi:heart-pulse
+        icon_height: 40px
+        tap_action:
+          action: call-service
+          service: automation.trigger
+          target:
+            entity_id: automation.system_ai_provider_hourly_health_check
+
+      # ── TTS & NOTIFICATIONS ──
+      # Quiet TTS Mode suppresses voice announcements but leaves push notifications active.
+      - type: entities
+        title: 🔔 Notifications
+        show_header_toggle: false
+        entities:
+          - entity: input_boolean.quiet_tts_notifications
+            name: Quiet TTS Mode
+            icon: mdi:volume-off
+
+      # ── BEDROOM CONTROLS ──
+      # Kill Motion Logic triggers automation.button_kill_bedroom_motion_logic_for_2_hours (Bedroom: Kill Motion Logic for 2 Hours).
+      - type: grid
+        title: 🛏️ Bedroom Automation
+        columns: 2
+        square: false
+        cards:
+          - type: button
+            name: Kill Motion & Quiet TTS (2h)
+            icon: mdi:motion-sensor-off
+            icon_height: 40px
+            tap_action:
+              action: call-service
+              service: automation.trigger
+              target:
+                entity_id: automation.button_kill_bedroom_motion_logic_for_2_hours
+
+      # ── THERMOSTAT INTERNALS ──
+      # Physical Override Auto-Return: re-locks schedule 1h after manual screen touch.
+      - type: entities
+        title: 🌡️ Thermostat Internals
+        show_header_toggle: false
+        entities:
+          - entity: input_boolean.thermostat_physical_override_fallback
+            name: Physical Override Auto-Return
+            icon: mdi:gesture-tap
+          - entity: input_boolean.thermostat_night_mode
+            name: Night/Away Mode (internal)
+            icon: mdi:weather-night
+
+      # ── NIGHT AUTOMATION TRACKING ──
+      # Boolean ownership markers used by cross-room night automations.
+      # kitchen_dish_light_started_by_night_auto: set by Bedroom: Dish Light on Night Motion.
+      # kitchen_fan_started_by_oven: set by Kitchen: Fan follows Oven Power.
+      - type: entities
+        title: 🌙 Night Automation Tracking
+        show_header_toggle: false
+        entities:
+          - entity: input_boolean.kitchen_dish_light_started_by_night_auto
+            name: Dish Light — Night Auto Ownership
+            icon: mdi:lightbulb-auto
+          - entity: input_boolean.kitchen_fan_started_by_oven
+            name: Fan — Oven Ventilation Cycle
+            icon: mdi:fan-auto
+
+      # ── BATHROOM INTERNALS ──
+      - type: entities
+        title: 🚿 Bathroom Automation
+        show_header_toggle: false
+        entities:
+          - entity: input_boolean.bathroom_occupied
+            name: Bathroom Occupied
+            icon: mdi:account-check
+          - entity: input_boolean.bathroom_led_color_mode
+            name: LED Color Mode State
+            icon: mdi:palette
+
+      # ── KITCHEN TABLET ──
+      - type: entities
+        title: 📱 Kitchen Tablet
+        show_header_toggle: false
+        entities:
+          - entity: input_boolean.kitchen_tablet_screen_awake
+            name: Screen State
+            icon: mdi:tablet
+          - entity: sensor.<tablet_hostname>_battery_charge_remaining_percentage
+            name: Battery
+            icon: mdi:battery
+          - entity: sensor.<tablet_hostname>_activewindow
+            name: Active Window
+            icon: mdi:monitor
+
+      # ── SYSTEM ──
+      - type: grid
+        title: ⚙️ System
+        columns: 2
+        square: false
+        cards:
+          - type: button
+            name: Clear Logs
+            icon: mdi:delete-sweep
+            icon_height: 40px
+            tap_action:
+              action: call-service
+              service: system_log.clear
+
+  # ════════════════════════════════════════════════════════════════
+  # VIEW 7: CALENDAR
+  # Full-panel family calendar view rendered via Jinja2 template.
+  # Groups events into: Today, Tomorrow, This Week, Remaining Days.
+  # Driven by sensor.google_calendar_agenda + System: Sync Family Calendar Hourly.
+  # ════════════════════════════════════════════════════════════════
+  - title: Calendar
+    path: calendar
+    icon: mdi:calendar-month
+    panel: true
+    cards:
+      # ── FAMILY CALENDAR TEMPLATE ──
+      # Parses event.start as datetime (timed) or date (all-day).
+      # Sections: Today / Tomorrow / This Week (Mon–Sun) / Remaining 30 days.
+      - type: markdown
+        title: 📅 Family Calendar
+        content: >
+          {% set events = state_attr('sensor.google_calendar_agenda', 'events')
+          %} {% if events == none %}
+            No upcoming events or sensor is loading.
+          {% else %}
+            {% set today = now().date() %}
+            {% set tomorrow = today + timedelta(days=1) %}
+            {% set end_of_week = today + timedelta(days=6 - today.weekday()) %}
+            {% set next_month = today + timedelta(days=30) %}
+            
+            {% set ns = namespace(today=[], tomorrow=[], week=[], month=[]) %}
+            
+            {% for event in events %}
+              {% set start_str = event.start %}
+              {% if 'T' in start_str %}
+                {% set dt = as_datetime(start_str) | as_local %}
+                {% set event_date = dt.date() %}
+                {% set display = dt.strftime('%H:%M') ~ ' - ' ~ event.summary %}
+              {% else %}
+                {% set dt = (start_str ~ 'T00:00:00Z') | as_datetime | as_local %}
+                {% set event_date = dt.date() %}
+                {% set display = 'All Day - ' ~ event.summary %}
+              {% endif %}
+              
+              {% if event_date == today %}
+                {% set ns.today = ns.today + [display] %}
+              {% elif event_date == tomorrow %}
+                {% set ns.tomorrow = ns.tomorrow + [display] %}
+              {% elif event_date > tomorrow and event_date <= end_of_week %}
+                {% set ns.week = ns.week + [event_date.strftime('%a, %d %b') ~ ': ' ~ display] %}
+              {% elif event_date > end_of_week and event_date <= next_month %}
+                {% set ns.month = ns.month + [event_date.strftime('%d %b') ~ ': ' ~ display] %}
+              {% endif %}
+            {% endfor %}
+            
+            {% if ns.today | length > 0 %}
+            <strong>Today</strong>
+            {% for e in ns.today %}
+            <p>• {{ e }}</p>
+            {% endfor %}
+            {% endif %}
+            
+            {% if ns.tomorrow | length > 0 %}
+            <strong>Tomorrow</strong>
+            {% for e in ns.tomorrow %}
+            <p>• {{ e }}</p>
+            {% endfor %}
+            {% endif %}
+            
+            {% if ns.week | length > 0 %}
+            <strong>This Week</strong>
+            {% for e in ns.week %}
+            <p>• {{ e }}</p>
+            {% endfor %}
+            {% endif %}
+            
+            {% if ns.month | length > 0 %}
+            <strong>Remaining Days</strong>
+            {% for e in ns.month %}
+            <p>• {{ e }}</p>
+            {% endfor %}
+            {% endif %}
+            
+            {% if ns.today|length == 0 and ns.tomorrow|length == 0 and ns.week|length == 0 and ns.month|length == 0 %}
+            <p>No upcoming events in the next 30 days!</p>
+            {% endif %}
+          {% endif %}
+        card_mod:
+          style:
+            ha-markdown $: |
+              p {
+                font-size: 24px !important;
+                line-height: 1.4 !important;
+                margin-bottom: 5px !important;
+                margin-top: 5px !important;
+              }
+              strong {
+                font-size: 32px !important;
+                color: #ffb74d !important;
+                display: block !important;
+                margin-top: 20px !important;
+                margin-bottom: 10px !important;
+                border-bottom: 2px solid #ffb74d !important;
+                padding-bottom: 5px !important;
+              }
+
+  # ════════════════════════════════════════════════════════════════
+  # VIEW 8: ENERGY INFRASTRUCTURE
+  # Historical energy consumption data for all monitored circuits
+  # and smart plugs.
+  # DIN 10A = lights & light-load circuit
+  # DIN 16A = heavy kitchen appliances circuit
+  # Energy entities (kWh) were enabled 2026-07-03; history starts
+  # from that date. Power sensors were always active.
+  # ════════════════════════════════════════════════════════════════
+  - title: Energy
+    path: energy_infrastructure
+    icon: mdi:lightning-bolt
+    cards:
+
+      # ── MONTHLY CONSUMPTION (COMBINED) ──
+      - type: statistics-graph
+        title: 📅 Monthly Consumption (Last 12 Months)
+        chart_type: bar
+        period: month
+        days_to_show: 365
+        stat_types:
+          - change
+        entities:
+          - entity: sensor.total_house_energy_kwh
+            name: Total House (kWh)
+
+      # ── MAINS: DIN RAIL CIRCUIT MONITORS ──
+      # Two Tongou TO-Q-SY1-JWT DIN rail breakers on the main panel.
+      # DIN 10A: lights and light-load circuits.
+      # DIN 16A: heavy kitchen appliances (oven, washing machine, etc.).
+      # Total House Power is a min_max helper summing both circuits.
+      - type: entities
+        title: ⚡ Mains — Circuit Monitors
+        show_header_toggle: false
+        entities:
+          - entity: sensor.total_house_power
+            name: Total House Power
+            icon: mdi:home-lightning-bolt
+            secondary_info: last-updated
+          - type: divider
+          - type: section
+            label: "💡 DIN 10A — Lights & Light Loads"
+          - entity: sensor.energy_monitoring_din_10a_power
+            name: Power
+            icon: mdi:flash
+          - entity: sensor.energy_monitoring_din_10a_current
+            name: Current
+            icon: mdi:current-ac
+          - entity: sensor.energy_monitoring_din_10a_voltage
+            name: Voltage
+            icon: mdi:sine-wave
+          - entity: sensor.energy_monitoring_din_10a_energy
+            name: Total Energy (kWh)
+            icon: mdi:counter
+          - type: section
+            label: "🔥 DIN 16A — Heavy Kitchen Appliances"
+          - entity: sensor.energy_monitoring_din_16a_power
+            name: Power
+            icon: mdi:flash
+          - entity: sensor.energy_monitoring_din_16a_current
+            name: Current
+            icon: mdi:current-ac
+          - entity: sensor.energy_monitoring_din_16a_voltage
+            name: Voltage
+            icon: mdi:sine-wave
+          - entity: sensor.energy_monitoring_din_16a_energy
+            name: Total Energy (kWh)
+            icon: mdi:counter
+
+      # ── MAINS: POWER HISTORY (24h) ──
+      - type: history-graph
+        title: ⚡ Mains Power History (24h)
+        hours_to_show: 24
+        entities:
+          - entity: sensor.total_house_power
+            name: Total House
+          - entity: sensor.energy_monitoring_din_10a_power
+            name: DIN 10A — Lights
+          - entity: sensor.energy_monitoring_din_16a_power
+            name: DIN 16A — Heavy
+
+      # ── SMART PLUGS: LIVE POWER DRAW ──
+      # All 6 Zigbee smart plugs with power monitoring (always active).
+      # - type: entities
+      #   title: 🔌 Smart Plugs — Live Power
+      #   show_header_toggle: false
+      #   entities:
+      #     - entity: sensor.<zigbee_mac_address>_power
+      #       name: Oven (Forno)
+      #       icon: mdi:stove
+      #     - entity: sensor.<zigbee_mac_address>_power
+      #       name: Washing Machine
+      #       icon: mdi:washing-machine
+      #     - entity: sensor.<zigbee_mac_address>_power
+      #       name: Dehumidifier
+      #       icon: mdi:air-humidifier
+      #     - entity: sensor.<zigbee_mac_address>_power
+      #       name: Fan (Ventilatore)
+      #       icon: mdi:fan
+      #     - entity: sensor.<zigbee_mac_address>_power
+      #       name: Sun Lamp
+      #       icon: mdi:lamp
+      #     - entity: sensor.<zigbee_mac_address>_power
+      #       name: Notebook Charger
+      #       icon: mdi:laptop
+
+      # ── SMART PLUGS: CUMULATIVE ENERGY ──
+      # kWh counters — lifetime totals since the plug was paired.
+      # - type: entities
+      #   title: 📊 Smart Plugs — Cumulative Energy (kWh)
+      #   show_header_toggle: false
+      #   entities:
+      #     - entity: sensor.<zigbee_mac_address>_energy
+      #       name: Oven (Forno)
+      #       icon: mdi:stove
+      #     - entity: sensor.<zigbee_mac_address>_energy
+      #       name: Washing Machine
+      #       icon: mdi:washing-machine
+      #     - entity: sensor.<zigbee_mac_address>_energy
+      #       name: Dehumidifier
+      #       icon: mdi:air-humidifier
+      #     - entity: sensor.<zigbee_mac_address>_energy
+      #       name: Fan (Ventilatore)
+      #       icon: mdi:fan
+      #     - entity: sensor.<zigbee_mac_address>_energy
+      #       name: Sun Lamp
+      #       icon: mdi:lamp
+      #     - entity: sensor.<zigbee_mac_address>_energy
+      #       name: Notebook Charger
+      #       icon: mdi:laptop
+
+      # ── HEAVY CONSUMERS: POWER HISTORY (24h) ──
+      - type: history-graph
+        title: 🏋️ Heavy Consumers — Power History (24h)
+        hours_to_show: 24
+        entities:
+          - entity: sensor.<zigbee_mac_address_6>_power
+            name: Oven
+          - entity: sensor.<zigbee_mac_address_7>_power
+            name: Washing Machine
+          - entity: sensor.<zigbee_mac_address_8>_power
+            name: Dehumidifier
+
+      # ── LIGHT CONSUMERS: POWER HISTORY (24h) ──
+      - type: history-graph
+        title: 💡 Light Consumers — Power History (24h)
+        hours_to_show: 24
+        entities:
+          - entity: sensor.<zigbee_mac_address_9>_power
+            name: Fan
+          - entity: sensor.<zigbee_mac_address_10>_power
+            name: Sun Lamp
+          - entity: sensor.<zigbee_mac_address_11>_power
+            name: Notebook Charger
+
+      # ── OTHER MONITORED DEVICES ──
+      # Samsung Fridge (SmartThings) — power and energy are hidden
+      # in the registry but functional; included here for completeness.
+      # A/C (hOn) — power only, no energy accumulator available.
+      # - type: entities
+      #   title: 🧊 Other Monitored Devices
+      #   show_header_toggle: false
+      #   entities:
+      #     - entity: sensor.fridge_power
+      #       name: Fridge — Power
+      #       icon: mdi:fridge
+      #     - entity: sensor.fridge_energy
+      #       name: Fridge — Energy
+      #       icon: mdi:counter
+      #     - entity: sensor.air_conditioner_power
+      #       name: A/C — Power
+      #       icon: mdi:air-conditioner
+
+  # ════════════════════════════════════════════════════════════════
+  # VIEW 9: TABLET
+  # Kitchen wall-mounted tablet (<tablet_hostname>) management.
+  # Screen wake/sleep, app control, battery monitoring,
+  # and notebook charger smart plug.
+  # Entities controlled here are also referenced by:
+  #   - Kitchen: Kitchen Tablet: Screen Control via Motion
+  #   - Kitchen: Main Light on Door Open (tablet wake sequence)
+  #   - House: All Lights Off (tablet sleep + boolean reset)
+  # ════════════════════════════════════════════════════════════════
+  - title: Tablet
+    path: tablet
+    icon: mdi:tablet-dashboard
+    cards:
+
+      # ── SCREEN CONTROL ──
+      # Quick wake/sleep buttons side by side.
+      # These mirror the button presses sent by the motion automation.
+      - type: grid
+        title: 🖥️ Screen Control
+        columns: 2
+        square: false
+        cards:
+          - type: button
+            entity: button.<tablet_hostname>_monitorwake
+            name: Wake Screen
+            icon: mdi:monitor-eye
+            icon_height: 40px
+            tap_action:
+              action: call-service
+              service: button.press
+              target:
+                entity_id: button.<tablet_hostname>_monitorwake
+          - type: button
+            entity: button.<tablet_hostname>_monitorsleep
+            name: Sleep Screen
+            icon: mdi:monitor-off
+            icon_height: 40px
+            tap_action:
+              action: call-service
+              service: button.press
+              target:
+                entity_id: button.<tablet_hostname>_monitorsleep
+
+      # ── APP CONTROL ──
+      # Dashboard webview focus, lock-screen dismiss, and HASS.Agent restart.
+      # multiplekeys sends the "Up" key to dismiss the Windows lock screen
+      # after a wake so the HA dashboard is immediately visible.
+      - type: grid
+        title: 📲 App Control
+        columns: 3
+        square: false
+        cards:
+          - type: button
+            entity: button.<tablet_hostname>_webview
+            name: Open Dashboard
+            icon: mdi:open-in-app
+            icon_height: 40px
+            tap_action:
+              action: call-service
+              service: button.press
+              target:
+                entity_id: button.<tablet_hostname>_webview
+          - type: button
+            entity: button.<tablet_hostname>_multiplekeys
+            name: Dismiss Lock
+            icon: mdi:lock-open-variant
+            icon_height: 40px
+            tap_action:
+              action: call-service
+              service: button.press
+              target:
+                entity_id: button.<tablet_hostname>_multiplekeys
+          - type: button
+            entity: button.<tablet_hostname>_restart
+            name: Restart Agent
+            icon: mdi:restart
+            icon_height: 40px
+            tap_action:
+              action: call-service
+              service: button.press
+              target:
+                entity_id: button.<tablet_hostname>_restart
+
+      # ── BATTERY & STATUS ──
+      # Gauge shows battery level prominently (green 40–100 %, yellow 20–40 %, red 0–20 %).
+      # Glance shows charge status, screen-state boolean, and active window at a glance.
+      - type: gauge
+        entity: sensor.<tablet_hostname>_battery_charge_remaining_percentage
+        name: 🔋 Tablet Battery
+        unit: "%"
+        needle: true
+        min: 0
+        max: 100
+        severity:
+          green: 40
+          yellow: 20
+          red: 0
+
+      - type: glance
+        title: 📊 Tablet Status
+        show_state: true
+        entities:
+          - entity: sensor.<tablet_hostname>_battery_charge_status
+            name: Charge
+            icon: mdi:battery-charging
+          - entity: input_boolean.kitchen_tablet_screen_awake
+            name: Screen
+            icon: mdi:tablet
+          - entity: sensor.<tablet_hostname>_activewindow
+            name: Window
+            icon: mdi:monitor
+
+      # ── NOTEBOOK CHARGER ──
+      # Zigbee smart plug (switch.notebook_charger) for the laptop charger.
+      # Separate device from the tablet hardware — managed by charging automations.
+      - type: entities
+        title: 💻 Notebook Charger
+        show_header_toggle: false
+        entities:
+          - entity: switch.notebook_charger
+            name: Charger Switch
+            icon: mdi:laptop
+          - entity: number.notebook_charger_countdown
+            name: Auto-Off Countdown
+            icon: mdi:timer-outline
+
+  # ════════════════════════════════════════════════════════════════
+  # VIEW 7: TV REMOTE
+  # Dedicated physical-style remote for the Kitchen IR TV.
+  # ════════════════════════════════════════════════════════════════
+  - title: TV Remote
+    path: tv-remote
+    icon: mdi:remote-tv
+    cards:
+      - type: vertical-stack
+        cards:
+          - type: markdown
+            content: >
+              <div style="text-align: center;">
+              <h2>Kitchen TV Remote</h2>
+              </div>
+
+          # ── Two-column layout: Remote (left) + Timer (right) ──
+          - type: grid
+            columns: 2
+            square: false
+            cards:
+              # ══════════════════════════════════════════════════════════
+              # LEFT: Remote buttons
+              # ══════════════════════════════════════════════════════════
+              - type: vertical-stack
+                cards:
+                  # Power and Input
+                  - type: grid
+                    columns: 3
+                    square: false
+                    cards:
+                      - type: button
+                        entity: button.<your_tv_ir_remote>_turn_on
+                        tap_action:
+                          action: call-service
+                          service: button.press
+                          target:
+                            entity_id: button.<your_tv_ir_remote>_turn_on
+                        name: Power On
+                        icon: mdi:power
+                      - type: button
+                        entity: button.<your_tv_ir_remote>_turn_off
+                        tap_action:
+                          action: call-service
+                          service: button.press
+                          target:
+                            entity_id: button.<your_tv_ir_remote>_turn_off
+                        name: Power Off
+                        icon: mdi:power-off
+                      - type: button
+                        entity: button.<your_tv_ir_remote>_input_source_switch
+                        tap_action:
+                          action: call-service
+                          service: button.press
+                          target:
+                            entity_id: button.<your_tv_ir_remote>_input_source_switch
+                        name: Input
+                        icon: mdi:video-input-hdmi
+
+                  # Volume and Channel Controls
+                  - type: grid
+                    columns: 2
+                    square: false
+                    cards:
+                      - type: grid
+                        columns: 1
+                        square: false
+                        cards:
+                          - type: button
+                            entity: button.<your_tv_ir_remote>_volume_up
+                            tap_action:
+                              action: call-service
+                              service: button.press
+                              target:
+                                entity_id: button.<your_tv_ir_remote>_volume_up
+                            name: Vol +
+                            icon: mdi:plus
+                          - type: button
+                            entity: button.<your_tv_ir_remote>_volume_down
+                            tap_action:
+                              action: call-service
+                              service: button.press
+                              target:
+                                entity_id: button.<your_tv_ir_remote>_volume_down
+                            name: Vol -
+                            icon: mdi:minus
+
+                      - type: grid
+                        columns: 1
+                        square: false
+                        cards:
+                          - type: button
+                            entity: button.<your_tv_ir_remote>_channel_up
+                            tap_action:
+                              action: call-service
+                              service: button.press
+                              target:
+                                entity_id: button.<your_tv_ir_remote>_channel_up
+                            name: Ch +
+                            icon: mdi:chevron-up
+                          - type: button
+                            entity: button.<your_tv_ir_remote>_channel_down
+                            tap_action:
+                              action: call-service
+                              service: button.press
+                              target:
+                                entity_id: button.<your_tv_ir_remote>_channel_down
+                            name: Ch -
+                            icon: mdi:chevron-down
+
+                  # Mute controls
+                  - type: grid
+                    columns: 2
+                    square: false
+                    cards:
+                      - type: button
+                        entity: button.<your_tv_ir_remote>_mute_on
+                        tap_action:
+                          action: call-service
+                          service: button.press
+                          target:
+                            entity_id: button.<your_tv_ir_remote>_mute_on
+                        name: Mute
+                        icon: mdi:volume-mute
+                      - type: button
+                        entity: button.<your_tv_ir_remote>_mute_off
+                        tap_action:
+                          action: call-service
+                          service: button.press
+                          target:
+                            entity_id: button.<your_tv_ir_remote>_mute_off
+                        name: Unmute
+                        icon: mdi:volume-high
+
+              # ══════════════════════════════════════════════════════════
+              # RIGHT: Timer + Runtime counter
+              # ══════════════════════════════════════════════════════════
+              - type: vertical-stack
+                cards:
+                  # TV Off Timer
+                  - type: markdown
+                    content: >
+                      <div style="text-align: center;">
+                      <h3>TV Off Timer</h3>
+                      </div>
+                  - type: entity
+                    entity: input_number.tv_timer_minutes
+                    name: Minutes until TV turns off
+                    icon: mdi:timer-cog-outline
+                  - type: grid
+                    columns: 3
+                    square: false
+                    cards:
+                      - type: button
+                        tap_action:
+                          action: call-service
+                          service: input_button.press
+                          target:
+                            entity_id: input_button.tv_start_timer
+                        name: Start
+                        icon: mdi:play
+                        icon_height: 30px
+                      - type: button
+                        tap_action:
+                          action: call-service
+                          service: timer.pause
+                          target:
+                            entity_id: timer.tv_off_timer
+                        name: Pause
+                        icon: mdi:pause
+                        icon_height: 30px
+                      - type: button
+                        tap_action:
+                          action: call-service
+                          service: timer.resume
+                          target:
+                            entity_id: timer.tv_off_timer
+                        name: Resume
+                        icon: mdi:play-pause
+                        icon_height: 30px
+                  - type: grid
+                    columns: 2
+                    square: false
+                    cards:
+                      - type: button
+                        tap_action:
+                          action: call-service
+                          service: script.kitchen_tv_extend_timer
+                        name: Extend
+                        icon: mdi:timer-plus
+                        icon_height: 30px
+                      - type: button
+                        tap_action:
+                          action: call-service
+                          service: timer.cancel
+                          target:
+                            entity_id: timer.tv_off_timer
+                        name: Cancel
+                        icon: mdi:stop
+                        icon_height: 30px
+                  - type: entity
+                    entity: sensor.tv_timer_remaining
+                    name: Time remaining
+                    icon: mdi:timer-sand
+
+                  # TV Runtime counter
+                  - type: markdown
+                    content: >
+                      <div style="text-align: center;">
+                      <h3>TV Runtime</h3>
+                      </div>
+                  - type: entity
+                    entity: sensor.tv_runtime
+                    name: TV has been on for
+                    icon: mdi:clock-outline
+
+                  # TV Daily Usage
+                  - type: markdown
+                    content: >
+                      <div style="text-align: center;">
+                      <h3>TV Daily Usage</h3>
+                      </div>
+                  - type: entity
+                    entity: sensor.tv_daily_usage
+                    name: Minutes today
+                    icon: mdi:calendar-clock
+
+  # ════════════════════════════════════════════════════════════════
+  # VIEW 13: CAR
+  # Dedicated vehicle view: location map, travel time, Google Maps link,
+  # daily/total/weekly/monthly distance statistics, speed gauge & 24h graph,
+  # Traccar diagnostics (car 12V supply voltage, tracker battery & status),
+  # and vehicle automation toggles.
+  # ════════════════════════════════════════════════════════════════
+  - title: Car
+    path: car
+    icon: mdi:car
+    cards:
+
+      # ── LIVE MAP & LOCATION ──
+      - type: vertical-stack
+        cards:
+          - type: map
+            title: 🚗 Car 1 — Live Location
+            entities:
+              - entity: device_tracker.car_1
+            default_zoom: 14
+            hours_to_show: 24
+            aspect_ratio: 16:9
+            tap_action:
+              action: more-info
+              entity: device_tracker.car_1
+
+          # Address & Location Banner
+          - type: entities
+            show_header_toggle: false
+            entities:
+              - entity: sensor.car_1_address
+                name: Current Address
+                icon: mdi:map-marker
+              - entity: sensor.car_1_geofence
+                name: Geofence Zone
+                icon: mdi:fence
+              - entity: sensor.time_to_home_car
+                name: Travel Time to Home
+                icon: mdi:clock-fast
+
+          # Google Maps Link
+          - type: markdown
+            content: >
+              <div style="text-align: center; padding: 6px;">
+              <a href="https://www.google.com/maps?q={{ state_attr('device_tracker.car_1', 'latitude') }},{{ state_attr('device_tracker.car_1', 'longitude') }}" target="_blank" style="text-decoration: none; font-weight: bold; font-size: 16px; color: #4caf50;">🗺️ Open Location in Google Maps</a>
+              </div>
+            card_mod:
+              style: |
+                ha-card { background: rgba(76, 175, 80, 0.1); border: 1px solid rgba(76, 175, 80, 0.4); }
+
+      # ── DISTANCE STATISTICS ──
+      - type: grid
+        title: 📈 Distance Statistics
+        columns: 2
+        square: false
+        cards:
+          - type: custom:mushroom-entity-card
+            entity: sensor.car_1_daily_distance
+            name: Daily Distance
+            icon: mdi:map-marker-distance
+            icon_color: green
+            secondary_info: last-changed
+          - type: custom:mushroom-entity-card
+            entity: sensor.car_1_total_distance
+            name: Total Distance
+            icon: mdi:counter
+            icon_color: blue
+            secondary_info: last-changed
+          - type: custom:mushroom-entity-card
+            entity: sensor.car_1_weekly_distance
+            name: Weekly Distance
+            icon: mdi:calendar-week
+            icon_color: orange
+            secondary_info: last-changed
+          - type: custom:mushroom-entity-card
+            entity: sensor.car_1_monthly_distance
+            name: Monthly Distance
+            icon: mdi:calendar-month
+            icon_color: purple
+            secondary_info: last-changed
+
+      # ── SPEED & MOTION ──
+      - type: grid
+        title: 🏎️ Speed & Driving History
+        columns: 2
+        square: false
+        cards:
+          - type: gauge
+            entity: sensor.car_1_speed
+            name: Speed
+            unit: km/h
+            min: 0
+            max: 160
+            needle: true
+            severity:
+              green: 0
+              yellow: 50
+              red: 100
+          - type: entities
+            show_header_toggle: false
+            entities:
+              - entity: binary_sensor.car_1_motion
+                name: Motion Status
+                icon: mdi:car-connected
+              - entity: binary_sensor.car_1_status
+                name: Tracker Status
+                icon: mdi:signal-cellular-3
+
+      # Speed 24h History Graph
+      - type: custom:mini-graph-card
+        title: 📊 Speed History (24h)
+        entities:
+          - entity: sensor.car_1_speed
+            name: Speed (km/h)
+        hours_to_show: 24
+        points_per_hour: 4
+        show:
+          fill: true
+          graph: line
+        line_color: '#2196f3'
+
+      # ── VEHICLE HEALTH & TELEMETRY (TRACCAR) ──
+      - type: entities
+        title: 🔋 Vehicle Health & Diagnostics
+        show_header_toggle: false
+        entities:
+          - entity: sensor.car_1_supply_voltage
+            name: Car 12V Main Battery (Supply)
+            icon: mdi:car-battery
+          - entity: sensor.car_1_battery
+            name: Tracker Internal Battery (%)
+            icon: mdi:battery
+          - entity: sensor.car_1_battery_voltage
+            name: Tracker Internal Voltage
+            icon: mdi:sine-wave
+          - entity: sensor.car_1_altitude
+            name: Elevation / Altitude
+            icon: mdi:elevation-rise
+
+      # Low Car Battery Alert (Conditional)
+      - type: conditional
+        conditions:
+          - condition: numeric_state
+            entity: sensor.car_1_supply_voltage
+            below: 11.8
+        card:
+          type: markdown
+          content: |-
+            ## ⚠️ LOW CAR BATTERY VOLTAGE
+            Car main battery supply voltage is below **11.8 V**! Check vehicle battery to prevent failure to start.
+          card_mod:
+            style: |
+              ha-card { background: #b71c1c !important; color: white; }
+
+      # ── VEHICLE AUTOMATIONS ──
+      - type: grid
+        title: 🤖 Car Automations
+        columns: 2
+        square: false
+        cards:
+          - type: button
+            entity: automation.presence_car_1_arrival_departure
+            name: Arrival/Departure Alerts
+            icon: mdi:bell-ring
+            icon_height: 40px
+            show_state: true
+          - type: button
+            entity: automation.traccar_car_1_fast_location_polling
+            name: 30s Fast GPS Polling
+            icon: mdi:timer-sync
+            icon_height: 40px
+            show_state: true

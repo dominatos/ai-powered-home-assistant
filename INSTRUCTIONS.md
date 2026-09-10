@@ -10,6 +10,9 @@ The user is the project owner and makes final decisions.
 >
 > This repository contains live smart-home configuration and local custom integrations.
 > Treat every change as potentially user-visible inside the home.
+>
+> **NOTE: Home Assistant may run on a separate server, NOT on the local development PC. You may not be able to read live logs or traces directly from the local filesystem.**
+> **If you need to read live logs or automation traces for debugging, explicitly ask the user to run `bash tools/pull_debug_files.sh` locally.**
 
 ---
 
@@ -45,22 +48,38 @@ The user is the project owner and makes final decisions.
 7. **Documentation responsibilities**
    - If behavior changes, update relevant docs in this repo.
    - If secrets handling changes, verify `.gitignore` still protects sensitive files.
-   - Keep `INSTRUCTIONS.md`, `prompts/prompt.txt`, and `review.md` aligned with the real repo structure and workflow.
+   - Keep `INSTRUCTIONS.md`, `prompts/prompt.txt`, and `README.md` aligned with the real repo structure and workflow.
    - Always analyze `HOUSE_CONTEXT.md` before automation, device, room, or entity-related work.
-   - Update `HOUSE_CONTEXT.md` when the work discovers new devices, rooms, entity relationships, or important automation behavior that is missing or outdated.
+   - Update `HOUSE_CONTEXT.md` when the work discovers new devices, rooms, entity relationships, or important automation behavior that is missing or outdated. After making any changes to automations, always run `python3 tools/check_docs.py` to ensure every automation has matching documentation and no stale aliases remain.
+   - Keep `automations_kb.md` up to date whenever you add, remove, or substantially change an automation in `automations.yaml`. After every automation change, add or update the corresponding entry in `automations_kb.md`.
    - If a newly discovered device is not described in `HOUSE_CONTEXT.md`, add a clear description of it. If required information is missing, ask the user for the missing context before guessing.
    - When automation analysis discovers practical improvement opportunities that are worth considering but are not approved for immediate implementation, record them in `to-implement-after.md` with priority, rationale, and the affected automation/entities. Do not treat that backlog entry as approval to change live behavior.
-   - Add session notes to `history.txt` when the user asks or when the repo workflow depends on recorded context.
+   - If requested, record major decisions in a persistent artifact or backlog file.
 
-8. **Safety and secrets**
+8. **Configuration and automation backups**
+   - Before modifying any existing automation, create a backup of the original automation YAML in the `backups/` directory.
+   - Before modifying `configuration.yaml`, create a full backup of the file in the `backups/` directory.
+   - The backup file name must include a timestamp and the name of the automation or file (e.g., `backups/20231024_153000_kitchen_main_light.yaml` or `backups/20231024_153000_configuration.yaml`).
+   - Automation backup files should be valid YAML automation snippets with `alias`, `description`, `trigger`, `condition`, and `action` sections.
+
+9. **Safety and secrets**
    - Never expose or commit secrets from files such as `secrets.yaml`, `google_key.json`, `.storage/`, tokens, webhook URLs, device identifiers, or API credentials.
    - Treat this repo as a live home environment, not a toy project.
    - Be careful with changes that may affect alarms, climate, locks, cameras, power usage, or remote access.
 
-9. **Debugging**
-   - Prefer understanding existing behavior before changing it.
-   - If something is unclear, inspect the related YAML, manifests, and custom component code first.
-   - If a fix is uncertain, say so plainly and propose the safest next step.
+10. **Debugging**
+    - Prefer understanding existing behavior before changing it.
+    - If something is unclear, inspect the related YAML, manifests, and custom component code first.
+    - If a fix is uncertain, say so plainly and propose the safest next step.
+
+11. **Performance**
+    - Use efficient data structures and minimal required queries.
+    - Keep automations simple; favor built-in HA features over custom scripts where possible.
+    - Avoid polling when push-based events are available.
+
+12. **Scope of advice**
+    - Provide complete code snippets when making changes.
+    - If providing purely informational or theoretical answers, keep them brief and direct.
 
 ---
 
@@ -75,10 +94,13 @@ The user is the project owner and makes final decisions.
 3. **Implement**
    Apply focused changes with minimal blast radius.
 
-4. **Explain**
+4. **Extract Patterns**
+   If the implementation introduces a new reusable logic, safety guard, or structural pattern, extract it and append it to `patterns/standardize.md` under a new numbered section. This ensures future automations can follow established house patterns.
+
+5. **Explain**
    Summarize what changed, why it changed, and any user-visible effect.
 
-5. **Verify**
+6. **Verify**
    Describe how the change was validated and what still remains unverified.
 
 ---
@@ -106,8 +128,21 @@ Stop and ask before proceeding if:
   as an `automations.yaml` list item, and always include an explicit `id`.
 - Avoid changing comments written by the user unless needed for correctness.
 
+### Automations knowledge base (`automations_kb.md`)
+- `automations_kb.md` is the **human-readable summary of all automations** in `automations.yaml`.
+- It is the quick-reference index for finding what automations exist, what IDs they have, what triggers/conditions/actions they use, and a brief description of each.
+- **Keep `automations_kb.md` up to date** whenever you add, remove, or substantially change an automation in `automations.yaml`.
+- Format: one section per automation, with the `## Alias` as heading and a bullet list of ID, description, triggers, conditions, and key actions.
+- Do not use `automations_kb.md` as a replacement for reading `automations.yaml` directly when full YAML detail matters. Use it as the high-level overview and navigation aid.
+- Regenerate it any time via `python3 tools/generate_automations_kb.py`.
+
+### Automation patterns (`patterns/standardize.md`)
+- `patterns/standardize.md` is the **canonical reference for naming conventions and structural patterns** for all automations.
+- **Always check `patterns/standardize.md`** before creating or modifying any automation to ensure it follows the established conventions.
+- If you create a new automation that introduces a unique or reusable pattern (e.g., a new safety logic, a complex occupancy flow, or a cross-room interaction), **add it to `patterns/standardize.md`** so it can be reused as a reference for future work.
+
 ### Inventory and apartment map workflow
-- `tools/export_ha_inventory.sh` exports:
+- `tools/export_ha_inventory.py` exports:
   - `ha_device_inventory.json`, the detailed sanitized entity/device inventory
   - `inventory.txt`, a simple numbered device list for labeling apartment maps
   - `inventory_numbers.json`, the persistent device-to-map-number assignment
@@ -183,6 +218,7 @@ Stop and ask before proceeding if:
   - exit condition
   rather than one flat chain of actions.
 - When proposing a new automation or refactor, optimize for behavior that feels "obviously right" to the person in the home, even in edge cases.
+- If your house uses a global TTS mute toggle (e.g., `input_boolean.quiet_tts_notifications`), **every automation that plays TTS must respect it**. See `patterns/standardize.md` § 7 (Quiet TTS Guard) for the four approaches (top-level condition, choose block, dynamic `active_speakers` variable, inline `if`). Choose the approach that matches the automation's side-effect profile — silent suppression of speech while allowing other actions (e.g., Telegram notifications) to proceed normally.
 
 ### Custom integrations
 - `custom_components/` contains local integrations with different ownership and quality levels.
@@ -202,6 +238,8 @@ Stop and ask before proceeding if:
 After code or config changes, use the safest relevant verification available.
 
 Typical checks include:
+- Run `python3 tools/check_docs.py` to ensure all automations in `automations.yaml` are correctly documented in `HOUSE_CONTEXT.md` and no stale aliases remain.
+- Run `python3 tools/dashboard_audit.py` when making changes to `dashboard.yaml` to validate entity references against the latest inventory.
 - YAML syntax and include sanity checks for edited config files
 - Python syntax checks for edited `custom_components/*` files
 - targeted grep/trace checks for renamed entities or service references
@@ -224,13 +262,21 @@ This repo currently includes at least:
 - `scenes.yaml`
 - `custom_components/`
 - `zigbee2mqtt/`
-- `go2rtc-1.9.9/`
 - `.HA_VERSION`
 - `.gitignore`
 - `INSTRUCTIONS.md`
+- `HOUSE_CONTEXT.template.md` (rename to `HOUSE_CONTEXT.md` after setup)
 - `prompts/prompt.txt`
-- `review.md`
-- `history.txt`
+- `readme-LLM-setup.md`
+- `AUTOMATIONS_KB.template.md` (rename to `automations_kb.md` after setup)
+- `FUTURE-automations.template.md` (rename to `FUTURE-automations.md` after setup)
+- `patterns/standardize.md`
+- `to-implement-after.template.md` (rename to `to-implement-after.md` after setup)
+- `to-improve.template.md` (rename to `to-improve.md` after setup)
+- `to-assign.template.md` (rename to `to-assign.md` after setup)
+- `configuration.template.yaml` (rename to `configuration.yaml` after setup)
+- `scripts.template.yaml` (rename to `scripts.yaml` after setup)
+- `backups/` (gitignored)
 - `ha_device_inventory.json` when exported
 - `inventory.txt` when exported
 - `inventory_numbers.json` when exported

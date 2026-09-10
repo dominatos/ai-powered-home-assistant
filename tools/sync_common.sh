@@ -3,6 +3,24 @@ set -Eeuo pipefail
 
 MANAGED_FILES_PATH="${MANAGED_FILES_PATH:-}"
 
+# Cache ssh-agent details to a file so it can be reused across script executions
+SSH_ENV="${HOME}/.ssh/agent-environment"
+mkdir -p "${HOME}/.ssh"
+
+# 1. Try to load the existing agent connection details
+if [ -f "${SSH_ENV}" ]; then
+  . "${SSH_ENV}" > /dev/null
+fi
+
+# 2. If the agent isn't running, start a new one and cache it
+if [ -z "${SSH_AGENT_PID:-}" ] || ! kill -0 "${SSH_AGENT_PID:-0}" 2>/dev/null; then
+  ssh-agent -s | sed 's/^echo/#echo/' > "${SSH_ENV}"
+  chmod 600 "${SSH_ENV}"
+  . "${SSH_ENV}" > /dev/null
+  ssh-add ~/.ssh/id_rsa_git < /dev/null 2>/dev/null || true
+fi
+
+# log prints a timestamped message to standard output.
 log() {
   printf '[%s] %s\n' "$(date +%H:%M:%S)" "$*"
 }

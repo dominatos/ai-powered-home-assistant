@@ -10,7 +10,6 @@ assumptions.
 Project: Home Assistant automation workspace
 Repository root: `[YOUR_REPOSITORY_PATH]`
 Production Home Assistant folder: `/homeassistant`
-Workspace sync target: `/haos`
 Home Assistant version target: `.HA_VERSION`
 
 Main configuration files:
@@ -21,6 +20,8 @@ Main configuration files:
 
 Automation/device context files:
 - `HOUSE_CONTEXT.md`
+- `automations_kb.md`
+- `patterns/standardize.md`
 - `ha_device_inventory.json` when freshly exported
 - `zigbee2mqtt/configuration.yaml`
 
@@ -28,9 +29,10 @@ Tooling and workflow files:
 - `tools/sync_from_homeassistant.sh`
 - `tools/sync_to_homeassistant.sh`
 - `tools/export_ha_inventory.sh`
-- `tools/export_ha_inventory.py`
-- `tools/managed_files.txt`
-- `tools/sync_common.sh`
+- `tools/check_docs.py`
+- `tools/dashboard_audit.py`
+- `tools/pull_debug_files.sh`
+- `tools/backup_automations.py`
 
 Project documents:
 - `README.md`
@@ -59,6 +61,7 @@ with minimal blast radius and strong respect for live house behavior.
 - Analyze interactions with other automations, shared sensors, shared lights,
   notifications, timers, and room-level behavior before changing automation logic.
 - Prefer resilient behavior design over short YAML.
+- **Pattern Extraction:** If a new reusable automation pattern is created (e.g., safety logic, occupancy flow, cross-room interaction), extract it and append it to `patterns/standardize.md`.
 - Update documentation only when workflow, behavior, or device understanding
   changes.
 - Treat `zigbee2mqtt/`, inventory exports, and generated runtime data carefully.
