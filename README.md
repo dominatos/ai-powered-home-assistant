@@ -17,7 +17,8 @@ Clone or download this repository to your computer (preferably to a local worksp
 ```bash
 bash <(curl -s https://raw.githubusercontent.com/dominatos/ai-powered-home-assistant/main/tools/install-private-repo.sh) git@github.com:<your-username>/<your-private-repo>.git
 ```
-This clones the template, renames all `.template.*` files, and pushes to your private repo. See [QUICKSTART.md](QUICKSTART.md) for the manual steps.
+This clones the template, renames all `.template.*` files, and pushes to your private repo.
+The target repository must be **empty** — the script refuses to overwrite an existing history unless you pass `--force`. See [QUICKSTART.md](QUICKSTART.md) for the manual steps.
 
 > **Next: clone your private repo on your personal PC.** If you used the curl command above, it already cloned and pushed for you. If you set up the repo manually on another machine, clone it on your PC now:
 > ```bash
