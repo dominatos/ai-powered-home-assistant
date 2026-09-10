@@ -8,109 +8,6 @@ This repository solves that problem by providing a **strict context and tooling 
 
 **Recommended workflow:** Use a **private Git repository** on GitHub/GitLab/Bitbucket to sync changes between your PC and Home Assistant. This gives you version control, rollback capability, and a safety net for all AI-generated changes. See [Quick Start Guide](QUICKSTART.md) or [Git Syncing](#6-git-syncing-recommended) below.
 
-## What's Included
-
-### 🛠️ Sync & Export Scripts (`tools/`)
-Shell scripts to safely move files between your live Home Assistant and this repository:
-
-| Script | Purpose |
-|--------|---------|
-| `tools/sync_from_homeassistant.sh` | Pull latest config from HA → repo (run *before* AI work) |
-| `tools/sync_to_homeassistant.sh` | Push AI-generated changes repo → HA (run *after* review) |
-| `tools/export_ha_inventory.sh` | Export all device/entity IDs so the AI never guesses |
-| `tools/check_docs.py` | Validates that every automation is documented in `HOUSE_CONTEXT.md` |
-| `tools/dashboard_audit.py` | Validates entity references in `dashboard.yaml` against the inventory |
-| `tools/pull_debug_files.sh` | Securely pulls logs and traces from a remote HA instance |
-| `tools/backup_automations.py` | Creates point-in-time YAML backups of specific automations |
-
-The sync scripts create automatic backups (where applicable), support `--dry-run` and `--diff` flags, and require a clean Git tree for safety. See [Sync Your Configuration](#3-sync-your-configuration-tools-folder) below for details.
-
-- **`tools/test_all.py`** — Validates all templates, tools, and documentation in one run:
-  ```bash
-  python3 tools/test_all.py
-  ```
-
-### 🔍 Code Review (CodeRabbit)
-
-This repository includes a [CodeRabbit](https://coderabbit.ai) configuration for automated AI code reviews on pull requests. To enable it:
-
-1. Install the [CodeRabbit GitHub App](https://github.com/apps/coderabbit) on your repository
-2. The `.coderabbit.yaml` config is already set up with path-specific review rules for:
-   - Template files — checks for personal data and placeholder consistency
-   - Python tools — validates error handling and documentation
-   - Shell scripts — enforces safety patterns (`set -Eeuo pipefail`, backups)
-   - Tests — ensures proper temp directory cleanup
-
-#### Utility Scripts
-
-Helper scripts for less common tasks:
-
-| Script | Purpose |
-|--------|---------|
-| `tools/generate_automations_kb.py` | Regenerates `automations_kb.md` from `automations.yaml` |
-| `tools/export_ha_inventory.py` | Python implementation of inventory export |
-| `tools/sync_common.sh` | Shared library sourced by sync scripts (internal) |
-| `tools/generate_yaml_template.py` | Generates YAML templates from Python data structures |
-| `tools/write_yaml_template.py` | Writes large YAML files exceeding opencode's payload limit |
-
-### 🤖 Ready-to-Use AI Prompts (`prompts/`)
-Drop-in prompt templates you paste into your AI IDE to perform specific tasks:
-
-| Prompt | What It Does |
-|--------|-------------|
-| `prompts/prompt.txt` | **Main session prompt** — the starting point for any AI task |
-| `prompts/dashboard--current.md` | **Dashboard edit prompt** — starting point for modifying Lovelace dashboards |
-| `prompts/HC-gen.md` | Auto-generate `HOUSE_CONTEXT.md` from your existing inventory |
-| `prompts/naming-fix.md` | Standardize all automation names to `Room: Action` format |
-| `prompts/energy-saving.md` | Audit for energy waste (vampire drain, missing timeouts) |
-| `prompts/security-audit.md` | Find security flaws and missing fallbacks in your automations |
-| `prompts/dashboard-gen.md` | Auto-generate a Lovelace dashboard from your house context |
-| `prompts/yaml-cleanup.md` | Modernize YAML syntax without changing behavior |
-| `prompts/optimise.md` | Merge redundant automations and improve robustness |
-| `prompts/invent-new.md` | Brainstorm brand new automations based on your devices |
-| `prompts/describe-idea.md` | Architect your idea into a detailed plan in `FUTURE-automations.md` |
-| `prompts/replace-device.md` | Swap old entity IDs for new ones across all files |
-| `prompts/troubleshoot-trace.md` | Paste a JSON trace or error log and get a plain-English diagnosis |
-
-### 📋 Context & Rules
-| File | Purpose |
-|------|---------|
-| `INSTRUCTIONS.md` | Strict rules that prevent the AI from guessing or breaking things |
-| `HOUSE_CONTEXT.template.md` | Template to describe your physical house layout and devices |
-| `AUTOMATIONS_KB.template.md` | Template for the human-readable summary of all automations |
-| `automations-basic.template.yaml` | Simple automations: motion lighting, safety sensors, thermostat, A/C sync |
-| `automations-advanced.template.yaml` | AI-powered automations: Ollama/OpenCode weather, calendar, A/C advisor |
-| `dashboard-basic.template.yaml` | Basic Lovelace views: Overview, Kitchen, Bedroom, Bathroom, Child Room |
-| `dashboard-advanced.template.yaml` | Advanced views: Climate, Energy, Appliances, TV Remote, Tablet, Car |
-| `automations.template.yaml` | Legacy combined automations file (superseded by basic/advanced split) |
-| `dashboard.template.yaml` | Legacy combined dashboard file (superseded by basic/advanced split) |
-| `patterns/standardize.md` | Canonical library of safe, reusable automation logic patterns |
-| `readme-LLM-setup.md` | Guide on setting up local/cloud AI (Ollama/OpenCode) for TTS |
-| `to-implement-after.template.md`| Backlog template for future automation ideas |
-| `to-improve.template.md` | Backlog template for structural and architectural improvements |
-| `to-assign.template.md` | Backlog template for tracking unassigned/global entities |
-
-### 📚 Advanced & Optional Reference Docs
-Reference documents for more complex setups:
-
-| File | Purpose |
-|------|---------|
-| `configuration.template.yaml` | Common `configuration.yaml` patterns: helpers, recorder, templates, Ollama, Powercalc |
-| `scripts.template.yaml` | Example reusable scripts: all-lights-off, TV timer, media transfer, thermostat pull |
-| `scenes.template.yaml` | Example scenes: A/C cooling, evening relax, movie mode |
-| `FUTURE-automations.template.md` | Design-first template for planning complex automations before implementing them |
-| `heating.template.md` | Complete thermostat integration reference: schedule helpers, automations, interaction matrix |
-| `README-ollama.template.md` | Local AI integration guide: Ollama setup, custom model, HA `rest_command`, troubleshooting |
-| `sell-mode-plan.template.md` | Pattern for a runtime "sell mode" that disables personalized automations at the flip of a switch |
-| `remove-customization.template.md` | Checklist for preparing a smart home for handover or sale — what to remove and why |
-
-## How It Works
-
-Instead of just asking the AI to "write an automation," you provide it with this entire repository (or parts of it) so the AI understands:
-1. **Your Strict Rules:** (`INSTRUCTIONS.md`) Forces the AI to ask for permission before deleting things, validates changes against other automations, and prevents it from rewriting your entire configuration file.
-2. **Your Physical House:** (`HOUSE_CONTEXT.template.md`) Gives the AI "eyes" into the real world. It knows which room connects to which, and what sensors are actually present.
-3. **Your Current Automations:** You sync your actual YAML files here so the AI can analyze how a new automation might conflict with an old one.
-
 ## Getting Started
 
 ### 1. Clone this Template
@@ -240,6 +137,109 @@ PC (AI IDE) → git push → Private Repo → git pull → HAOS → sync_to_home
 ```
 
 This gives you a clean, auditable history of every change and makes it easy to undo mistakes with `git revert`.
+
+## What's Included
+
+### 🛠️ Sync & Export Scripts (`tools/`)
+Shell scripts to safely move files between your live Home Assistant and this repository:
+
+| Script | Purpose |
+|--------|---------|
+| `tools/sync_from_homeassistant.sh` | Pull latest config from HA → repo (run *before* AI work) |
+| `tools/sync_to_homeassistant.sh` | Push AI-generated changes repo → HA (run *after* review) |
+| `tools/export_ha_inventory.sh` | Export all device/entity IDs so the AI never guesses |
+| `tools/check_docs.py` | Validates that every automation is documented in `HOUSE_CONTEXT.md` |
+| `tools/dashboard_audit.py` | Validates entity references in `dashboard.yaml` against the inventory |
+| `tools/pull_debug_files.sh` | Securely pulls logs and traces from a remote HA instance |
+| `tools/backup_automations.py` | Creates point-in-time YAML backups of specific automations |
+
+The sync scripts create automatic backups (where applicable), support `--dry-run` and `--diff` flags, and require a clean Git tree for safety. See [Sync Your Configuration](#3-sync-your-configuration-tools-folder) below for details.
+
+- **`tools/test_all.py`** — Validates all templates, tools, and documentation in one run:
+  ```bash
+  python3 tools/test_all.py
+  ```
+
+### 🔍 Code Review (CodeRabbit)
+
+This repository includes a [CodeRabbit](https://coderabbit.ai) configuration for automated AI code reviews on pull requests. To enable it:
+
+1. Install the [CodeRabbit GitHub App](https://github.com/apps/coderabbit) on your repository
+2. The `.coderabbit.yaml` config is already set up with path-specific review rules for:
+   - Template files — checks for personal data and placeholder consistency
+   - Python tools — validates error handling and documentation
+   - Shell scripts — enforces safety patterns (`set -Eeuo pipefail`, backups)
+   - Tests — ensures proper temp directory cleanup
+
+#### Utility Scripts
+
+Helper scripts for less common tasks:
+
+| Script | Purpose |
+|--------|---------|
+| `tools/generate_automations_kb.py` | Regenerates `automations_kb.md` from `automations.yaml` |
+| `tools/export_ha_inventory.py` | Python implementation of inventory export |
+| `tools/sync_common.sh` | Shared library sourced by sync scripts (internal) |
+| `tools/generate_yaml_template.py` | Generates YAML templates from Python data structures |
+| `tools/write_yaml_template.py` | Writes large YAML files exceeding opencode's payload limit |
+
+### 🤖 Ready-to-Use AI Prompts (`prompts/`)
+Drop-in prompt templates you paste into your AI IDE to perform specific tasks:
+
+| Prompt | What It Does |
+|--------|-------------|
+| `prompts/prompt.txt` | **Main session prompt** — the starting point for any AI task |
+| `prompts/dashboard--current.md` | **Dashboard edit prompt** — starting point for modifying Lovelace dashboards |
+| `prompts/HC-gen.md` | Auto-generate `HOUSE_CONTEXT.md` from your existing inventory |
+| `prompts/naming-fix.md` | Standardize all automation names to `Room: Action` format |
+| `prompts/energy-saving.md` | Audit for energy waste (vampire drain, missing timeouts) |
+| `prompts/security-audit.md` | Find security flaws and missing fallbacks in your automations |
+| `prompts/dashboard-gen.md` | Auto-generate a Lovelace dashboard from your house context |
+| `prompts/yaml-cleanup.md` | Modernize YAML syntax without changing behavior |
+| `prompts/optimise.md` | Merge redundant automations and improve robustness |
+| `prompts/invent-new.md` | Brainstorm brand new automations based on your devices |
+| `prompts/describe-idea.md` | Architect your idea into a detailed plan in `FUTURE-automations.md` |
+| `prompts/replace-device.md` | Swap old entity IDs for new ones across all files |
+| `prompts/troubleshoot-trace.md` | Paste a JSON trace or error log and get a plain-English diagnosis |
+
+### 📋 Context & Rules
+| File | Purpose |
+|------|---------|
+| `INSTRUCTIONS.md` | Strict rules that prevent the AI from guessing or breaking things |
+| `HOUSE_CONTEXT.template.md` | Template to describe your physical house layout and devices |
+| `AUTOMATIONS_KB.template.md` | Template for the human-readable summary of all automations |
+| `automations-basic.template.yaml` | Simple automations: motion lighting, safety sensors, thermostat, A/C sync |
+| `automations-advanced.template.yaml` | AI-powered automations: Ollama/OpenCode weather, calendar, A/C advisor |
+| `dashboard-basic.template.yaml` | Basic Lovelace views: Overview, Kitchen, Bedroom, Bathroom, Child Room |
+| `dashboard-advanced.template.yaml` | Advanced views: Climate, Energy, Appliances, TV Remote, Tablet, Car |
+| `automations.template.yaml` | Legacy combined automations file (superseded by basic/advanced split) |
+| `dashboard.template.yaml` | Legacy combined dashboard file (superseded by basic/advanced split) |
+| `patterns/standardize.md` | Canonical library of safe, reusable automation logic patterns |
+| `readme-LLM-setup.md` | Guide on setting up local/cloud AI (Ollama/OpenCode) for TTS |
+| `to-implement-after.template.md`| Backlog template for future automation ideas |
+| `to-improve.template.md` | Backlog template for structural and architectural improvements |
+| `to-assign.template.md` | Backlog template for tracking unassigned/global entities |
+
+### 📚 Advanced & Optional Reference Docs
+Reference documents for more complex setups:
+
+| File | Purpose |
+|------|---------|
+| `configuration.template.yaml` | Common `configuration.yaml` patterns: helpers, recorder, templates, Ollama, Powercalc |
+| `scripts.template.yaml` | Example reusable scripts: all-lights-off, TV timer, media transfer, thermostat pull |
+| `scenes.template.yaml` | Example scenes: A/C cooling, evening relax, movie mode |
+| `FUTURE-automations.template.md` | Design-first template for planning complex automations before implementing them |
+| `heating.template.md` | Complete thermostat integration reference: schedule helpers, automations, interaction matrix |
+| `README-ollama.template.md` | Local AI integration guide: Ollama setup, custom model, HA `rest_command`, troubleshooting |
+| `sell-mode-plan.template.md` | Pattern for a runtime "sell mode" that disables personalized automations at the flip of a switch |
+| `remove-customization.template.md` | Checklist for preparing a smart home for handover or sale — what to remove and why |
+
+## How It Works
+
+Instead of just asking the AI to "write an automation," you provide it with this entire repository (or parts of it) so the AI understands:
+1. **Your Strict Rules:** (`INSTRUCTIONS.md`) Forces the AI to ask for permission before deleting things, validates changes against other automations, and prevents it from rewriting your entire configuration file.
+2. **Your Physical House:** (`HOUSE_CONTEXT.template.md`) Gives the AI "eyes" into the real world. It knows which room connects to which, and what sensors are actually present.
+3. **Your Current Automations:** You sync your actual YAML files here so the AI can analyze how a new automation might conflict with an old one.
 
 ## Example Use Cases (What to ask the AI)
 
