@@ -72,7 +72,7 @@ reviews:
     - "!promptproject.txt"
 
   # Review profile
-  profile: chill
+  profile: default
 
   # Show walkthrough for PRs
   show_walkthrough: true
