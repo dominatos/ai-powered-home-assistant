@@ -1,5 +1,15 @@
+# Files synced between the repository and the live Home Assistant config.
+#
+# One repo-relative path per line. Lines starting with "#" are comments.
+#
+# Prefix a path with "?" to mark it OPTIONAL: if it is absent from the sync
+# source it is skipped with a log line instead of aborting the run.
 configuration.yaml
 automations.yaml
 scripts.yaml
 scenes.yaml
-zigbee2mqtt/configuration.yaml
+
+# Optional: only present when the zigbee2mqtt add-on is in use. It is also
+# listed in .gitignore (it holds MQTT credentials), so it never travels with
+# the repo -- a fresh clone on the HA host will not contain it.
+?zigbee2mqtt/configuration.yaml

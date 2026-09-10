@@ -112,14 +112,25 @@ require_file() {
   [[ -f "${path}" ]] || die "Missing required file: ${path}"
 }
 
+# Entries in managed_files.txt may be prefixed with "?" to mark them optional.
+# An optional file that is absent from the sync source is skipped with a log
+# line instead of aborting the run. OPTIONAL_FILES holds the un-prefixed names.
+OPTIONAL_FILES=()
+
 load_managed_files() {
   [[ -n "${MANAGED_FILES_PATH}" ]] || die "MANAGED_FILES_PATH is not set"
   require_file "${MANAGED_FILES_PATH}"
 
   FILES=()
+  OPTIONAL_FILES=()
   while IFS= read -r rel || [[ -n "${rel}" ]]; do
     [[ -n "${rel}" ]] || continue
     [[ "${rel}" == \#* ]] && continue
+    if [[ "${rel}" == \?* ]]; then
+      rel="${rel#\?}"
+      [[ -n "${rel}" ]] || continue
+      OPTIONAL_FILES+=("${rel}")
+    fi
     FILES+=("${rel}")
   done < "${MANAGED_FILES_PATH}"
 
@@ -185,13 +196,43 @@ print_diff() {
   fi
 }
 
+is_optional_file() {
+  local needle=$1 candidate
+  for candidate in ${OPTIONAL_FILES[@]+"${OPTIONAL_FILES[@]}"}; do
+    [[ "${candidate}" == "${needle}" ]] && return 0
+  done
+  return 1
+}
+
+# ensure_requirements verifies that every managed file exists under the given
+# source root. Missing required files abort the run; missing optional files are
+# pruned from FILES so downstream backup/diff/sync steps skip them cleanly.
 ensure_requirements() {
   local root rel path
+  local kept=() skipped=()
   root=$1
+
   for rel in "${FILES[@]}"; do
     path="${root}/${rel}"
-    [[ -f "${path}" ]] || die "Missing required file: ${path}"
+    if [[ -f "${path}" ]]; then
+      kept+=("${rel}")
+    elif is_optional_file "${rel}"; then
+      skipped+=("${rel}")
+    else
+      die "Missing required file: ${path}"
+    fi
   done
+
+  if [[ ${#skipped[@]} -gt 0 ]]; then
+    log "Skipping ${#skipped[@]} optional file(s) not present in ${root}:"
+    printf '  - %s
+' "${skipped[@]}"
+  fi
+
+  # Guards against a mistyped SOURCE_ROOT silently becoming a no-op sync.
+  [[ ${#kept[@]} -gt 0 ]] || die "No managed files found under ${root}. Is the path correct?"
+
+  FILES=("${kept[@]}")
 }
 
 backup_targets() {
