@@ -138,6 +138,47 @@ else
   printf "  ✅ validate_yaml_file rejects invalid YAML\n"
 fi
 
+# Test: validate_yaml_file is fail-closed when no interpreter is available
+# Set CAN_VALIDATE_YAML directly rather than manipulating PATH: which
+# interpreters are reachable varies with how the suite is invoked.
+result="$(cd "${REPO_ROOT}" && bash -c "
+  source tools/sync_common.sh
+  CAN_VALIDATE_YAML=0
+  validate_yaml_file '${valid_yaml}'
+  echo ACCEPTED
+" 2>&1 || true)"
+if [[ "${result}" == *"ACCEPTED"* ]]; then
+  FAIL=$((FAIL + 1))
+  printf "  â validate_yaml_file fails closed without an interpreter
+"
+else
+  PASS=$((PASS + 1))
+  printf "  â validate_yaml_file fails closed without an interpreter
+"
+fi
+
+# Test: ALLOW_UNVALIDATED_YAML=1 is an explicit opt-out
+result="$(cd "${REPO_ROOT}" && bash -c "
+  source tools/sync_common.sh
+  CAN_VALIDATE_YAML=0
+  ALLOW_UNVALIDATED_YAML=1 validate_yaml_file '${valid_yaml}'
+  echo ACCEPTED
+" 2>&1 || true)"
+check "ALLOW_UNVALIDATED_YAML=1 bypasses validation" "ACCEPTED" "${result}"
+
+# Test: validate_yaml_file accepts UTF-8 content (Windows cp1252 regression)
+utf8_yaml="${TMPDIR_TEST}/utf8.yaml"
+printf 'name: CafÃ©
+temp: 21Â°C
+' > "${utf8_yaml}"
+result="$(cd "${REPO_ROOT}" && bash -c "
+  source tools/sync_common.sh
+  detect_yaml_validation
+  validate_yaml_file '${utf8_yaml}'
+  echo OK
+" 2>&1 || true)"
+check "validate_yaml_file accepts UTF-8 YAML" "OK" "${result}"
+
 # Test: files_differ
 file_a="${TMPDIR_TEST}/file_a.txt"
 file_b="${TMPDIR_TEST}/file_b.txt"
