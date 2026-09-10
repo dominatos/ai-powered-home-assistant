@@ -19,6 +19,8 @@ bash <(curl -s https://raw.githubusercontent.com/dominatos/ai-powered-home-assis
 ```
 This clones the template, renames all `.template.*` files, and pushes to your private repo. See [QUICKSTART.md](QUICKSTART.md) for the manual steps.
 
+> **You need the same repo on two machines:** your personal PC (where you use the AI) and your Home Assistant server (where the config lives). After pushing from your PC, clone the same repo on HAOS — see [Step 5: Connecting to HAOS](#5-connecting-to-haos) and [Step 6: Git Syncing](#6-git-syncing-recommended).
+
 ### 2. Set Up Your Context
 1. Rename all `.template.*` files by removing only the `.template` segment while preserving canonical casing, with one exception: `AUTOMATIONS_KB.template.md` → `automations_kb.md` (e.g., `HOUSE_CONTEXT.template.md` → `HOUSE_CONTEXT.md`, `dashboard.template.yaml` → `dashboard.yaml`, `automations-basic.template.yaml` → `automations-basic.yaml`).
 2. Open `HOUSE_CONTEXT.md` and document your physical house layout, rooms, and devices. Be as descriptive as possible. *(Tip: If you already have a lot of devices and automations in Home Assistant, you can paste the contents of `prompts/HC-gen.md` into the AI IDE to have it automatically generate your `HOUSE_CONTEXT.md` for you!)*

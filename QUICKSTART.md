@@ -70,6 +70,8 @@ This creates your working copies:
 
 **Important:** Replace the `<your-name>` placeholder in the `LICENSE` file with your actual name before publishing.
 
+> **You need the same repo on two machines:** your personal PC (where you use the AI) and your Home Assistant server (where the config lives). After pushing from your PC, clone the same repo on HAOS — see [Step 6: Deploy Changes](#step-6-deploy-changes) for the HAOS setup.
+
 ## Step 2: Document Your House
 
 Open `HOUSE_CONTEXT.md` and fill in:
