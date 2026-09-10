@@ -24,9 +24,18 @@ Get up and running in 5 minutes using a **private Git repository** — the recom
 1. Create a **new private repository** on GitHub/GitLab/Bitbucket
 2. Clone this template and push it as your own:
 
+**Option A: One command (recommended)**
+
+Download and run the setup script — it clones, renames, and pushes for you:
+```bash
+bash <(curl -s https://raw.githubusercontent.com/dominatos/ai-powered-home-assistant/main/tools/install-private-repo.sh) git@github.com:<your-username>/<your-private-repo>.git
+```
+
+**Option B: Manual steps**
+
 ```bash
 # Clone the template repository
-git clone https://github.com/<TEMPLATE_ORG>/ai-powered-home-assistant.git
+git clone https://github.com/dominatos/ai-powered-home-assistant.git
 cd ai-powered-home-assistant
 
 # Replace the template remote with your own repo
@@ -49,7 +58,7 @@ done
 # Commit the initial state
 git add .
 git commit -m "Initial setup with renamed templates"
-git push -u origin main
+git push --set-upstream origin main --force
 ```
 
 This creates your working copies:
@@ -96,10 +105,8 @@ These scripts connect to your running Home Assistant instance and pull its confi
 # Then sync your automations, scripts, scenes
 ./tools/sync_from_homeassistant.sh
 
-# Commit the synced config
-git add .
-git commit -m "Sync initial HA config"
-git push
+# Push the synced config (the script already committed automatically)
+git push --set-upstream origin main
 ```
 
 This pulls your actual `automations.yaml`, `scripts.yaml`, etc. into the repo so the AI has real context.
