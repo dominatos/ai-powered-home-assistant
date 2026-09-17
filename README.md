@@ -1,10 +1,14 @@
-# AI-Powered Home Assistant
+<p align="center">
+  <img src="./assets/readme/hero.svg" width="100%" alt="AI-Powered Home Assistant: A strict context and tooling framework for managing Home Assistant safely with LLMs.">
+</p>
 
-This repository is a framework and template for managing your Home Assistant instance using an LLM (like Claude, ChatGPT, or Gemini) as your personal Senior Home Assistant Engineer.
+This repository is a framework and template for managing your Home Assistant instance using an agentic LLM (like Claude, Devin, or Gemini) as your personal Senior Home Assistant Engineer.
 
-Many people use AI to generate simple Home Assistant YAML scripts, but they quickly run into problems: the AI hallucinates entity IDs, breaks existing automations, or misunderstands how the physical house is laid out (e.g., turning off the bathroom light while someone is in the shower).
+Most people who try to use AI for Home Assistant run into a wall: the AI hallucinates entity IDs, breaks existing YAML, or misunderstands how the physical house is laid out (e.g., turning off the bathroom light while someone is in the shower).
 
-This repository solves that problem by providing a **strict context and tooling framework**.
+**This repository solves that problem by providing a strict context and tooling framework.**
+
+By giving the AI a mapped `HOUSE_CONTEXT.md` and syncing your live YAML via our `tools/` scripts, the AI stops guessing and starts engineering safely.
 
 **Recommended workflow:** Use a **private Git repository** on GitHub/GitLab/Bitbucket to sync changes between your PC and Home Assistant. This gives you version control, rollback capability, and a safety net for all AI-generated changes. See [Quick Start Guide](QUICKSTART.md) or [Git Syncing](#6-git-syncing-recommended) below.
 

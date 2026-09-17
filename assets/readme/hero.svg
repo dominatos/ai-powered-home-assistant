@@ -1,0 +1,64 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 600" width="100%">
+  <!-- Background -->
+  <rect width="1200" height="600" fill="#0d1117" rx="16"/>
+  
+  <!-- Subtle Grid -->
+  <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+    <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#30363d" stroke-width="0.5" opacity="0.3"/>
+  </pattern>
+  <rect width="1200" height="600" fill="url(#grid)" rx="16"/>
+
+  <!-- Left Side: Typography -->
+  <g transform="translate(80, 200)">
+    <text x="0" y="0" font-family="system-ui, -apple-system, sans-serif" font-size="24" font-weight="600" fill="#58a6ff" letter-spacing="2">TEMPLATE FRAMEWORK</text>
+    <text x="0" y="70" font-family="system-ui, -apple-system, sans-serif" font-size="64" font-weight="800" fill="#c9d1d9">AI-Powered</text>
+    <text x="0" y="140" font-family="system-ui, -apple-system, sans-serif" font-size="64" font-weight="800" fill="#c9d1d9">Home Assistant</text>
+    <text x="0" y="210" font-family="system-ui, -apple-system, sans-serif" font-size="28" font-weight="400" fill="#8b949e">A strict context and tooling framework for</text>
+    <text x="0" y="250" font-family="system-ui, -apple-system, sans-serif" font-size="28" font-weight="400" fill="#8b949e">managing Home Assistant safely with LLMs.</text>
+  </g>
+
+  <!-- Right Side: Graphic/Code -->
+  <g transform="translate(680, 100)">
+    <!-- Code Window -->
+    <rect width="440" height="400" fill="#161b22" rx="12" stroke="#30363d" stroke-width="1"/>
+    <!-- Window Controls -->
+    <circle cx="24" cy="24" r="6" fill="#ff5f56"/>
+    <circle cx="44" cy="24" r="6" fill="#ffbd2e"/>
+    <circle cx="64" cy="24" r="6" fill="#27c93f"/>
+    <!-- File tab -->
+    <text x="94" y="28" font-family="ui-monospace, SFMono-Regular, monospace" font-size="14" fill="#8b949e">automations.yaml</text>
+    <path d="M 0 48 L 440 48" stroke="#30363d" stroke-width="1"/>
+
+    <!-- Code Content -->
+    <g transform="translate(24, 80)" font-family="ui-monospace, SFMono-Regular, monospace" font-size="16" fill="#c9d1d9">
+      <text x="0" y="0"><tspan fill="#ff7b72">-</tspan> <tspan fill="#79c0ff">alias:</tspan> <tspan fill="#a5d6ff">"Bathroom: Motion Light"</tspan></text>
+      <text x="16" y="30"><tspan fill="#79c0ff">description:</tspan> <tspan fill="#a5d6ff">"AI generated safe rules"</tspan></text>
+      <text x="16" y="60"><tspan fill="#79c0ff">trigger:</tspan></text>
+      <text x="32" y="90"><tspan fill="#ff7b72">-</tspan> <tspan fill="#79c0ff">platform:</tspan> <tspan fill="#a5d6ff">state</tspan></text>
+      <text x="48" y="120"><tspan fill="#79c0ff">entity_id:</tspan> <tspan fill="#a5d6ff">binary_sensor.bath_motion</tspan></text>
+      <text x="48" y="150"><tspan fill="#79c0ff">to:</tspan> <tspan fill="#a5d6ff">"on"</tspan></text>
+      <text x="16" y="180"><tspan fill="#79c0ff">condition:</tspan></text>
+      <text x="32" y="210"><tspan fill="#ff7b72">-</tspan> <tspan fill="#79c0ff">condition:</tspan> <tspan fill="#a5d6ff">state</tspan></text>
+      <text x="48" y="240"><tspan fill="#79c0ff">entity_id:</tspan> <tspan fill="#a5d6ff">binary_sensor.shower</tspan></text>
+      <text x="48" y="270"><tspan fill="#79c0ff">state:</tspan> <tspan fill="#a5d6ff">"off"</tspan> <tspan fill="#8b949e"># Context aware</tspan></text>
+    </g>
+
+    <!-- AI Cursor/Badge -->
+    <g transform="translate(240, 260)">
+      <path d="M 0 0 L 20 20 L 10 20 L 5 35 L -2 33 L 3 18 L -8 18 Z" fill="#58a6ff" stroke="#0d1117" stroke-width="1.5" transform="rotate(-15)"/>
+      <rect x="18" y="18" width="100" height="28" fill="#58a6ff" rx="4"/>
+      <text x="26" y="37" font-family="system-ui, -apple-system, sans-serif" font-size="14" font-weight="700" fill="#0d1117">AI AGENT</text>
+    </g>
+  </g>
+
+  <!-- Connective elements (Context -> Code) -->
+  <g stroke="#30363d" stroke-width="2" stroke-dasharray="6,6" fill="none">
+    <path d="M 520 400 Q 600 400 680 300"/>
+  </g>
+  
+  <g transform="translate(420, 370)">
+    <rect width="130" height="40" fill="#161b22" rx="20" stroke="#30363d" stroke-width="1"/>
+    <circle cx="20" cy="20" r="4" fill="#238636"/>
+    <text x="36" y="25" font-family="ui-monospace, SFMono-Regular, monospace" font-size="12" fill="#8b949e">HOUSE_CONTEXT</text>
+  </g>
+</svg>
