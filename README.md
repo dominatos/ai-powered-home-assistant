@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="./assets/readme/hero.svg" width="100%" alt="AI-Powered Home Assistant: A strict context and tooling framework for managing Home Assistant safely with LLMs.">
+  <img src="./assets/readme/hero-v2.svg" width="100%" alt="AI-Powered Home Assistant: A strict context and tooling framework for managing Home Assistant safely with LLMs.">
 </p>
 
 This repository is a framework and template for managing your Home Assistant instance using an agentic LLM (like Claude, Devin, or Gemini) as your personal Senior Home Assistant Engineer.
