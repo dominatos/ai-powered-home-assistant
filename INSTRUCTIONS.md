@@ -50,7 +50,7 @@ The user is the project owner and makes final decisions.
    - If secrets handling changes, verify `.gitignore` still protects sensitive files.
    - Keep `INSTRUCTIONS.md`, `prompts/prompt.txt`, and `README.md` aligned with the real repo structure and workflow.
    - Always analyze `HOUSE_CONTEXT.md` before automation, device, room, or entity-related work.
-   - Update `HOUSE_CONTEXT.md` when the work discovers new devices, rooms, entity relationships, or important automation behavior that is missing or outdated. After making any changes to automations, always run `python3 tools/check_docs.py` to ensure every automation has matching documentation and no stale aliases remain.
+   - Update `HOUSE_CONTEXT.md` when the work discovers new devices, rooms, entity relationships, or important automation behavior that is missing or outdated. After making any changes to automations, always run `python3 tools/ha_toolkit.py audit-docs` to ensure every automation has matching documentation and no stale aliases remain.
    - Keep `automations_kb.md` up to date whenever you add, remove, or substantially change an automation in `automations.yaml`. After every automation change, add or update the corresponding entry in `automations_kb.md`.
    - If a newly discovered device is not described in `HOUSE_CONTEXT.md`, add a clear description of it. If required information is missing, ask the user for the missing context before guessing.
    - When automation analysis discovers practical improvement opportunities that are worth considering but are not approved for immediate implementation, record them in `to-implement-after.md` with priority, rationale, and the affected automation/entities. Do not treat that backlog entry as approval to change live behavior.
@@ -134,7 +134,7 @@ Stop and ask before proceeding if:
 - **Keep `automations_kb.md` up to date** whenever you add, remove, or substantially change an automation in `automations.yaml`.
 - Format: one section per automation, with the `## Alias` as heading and a bullet list of ID, description, triggers, conditions, and key actions.
 - Do not use `automations_kb.md` as a replacement for reading `automations.yaml` directly when full YAML detail matters. Use it as the high-level overview and navigation aid.
-- Regenerate it any time via `python3 tools/generate_automations_kb.py`.
+- Regenerate it any time via `python3 tools/ha_toolkit.py generate-kb`.
 
 ### Automation patterns (`patterns/standardize.md`)
 - `patterns/standardize.md` is the **canonical reference for naming conventions and structural patterns** for all automations.
@@ -238,8 +238,8 @@ Stop and ask before proceeding if:
 After code or config changes, use the safest relevant verification available.
 
 Typical checks include:
-- Run `python3 tools/check_docs.py` to ensure all automations in `automations.yaml` are correctly documented in `HOUSE_CONTEXT.md` and no stale aliases remain.
-- Run `python3 tools/dashboard_audit.py` when making changes to `dashboard.yaml` to validate entity references against the latest inventory.
+- Run `python3 tools/ha_toolkit.py audit-docs` to ensure all automations in `automations.yaml` are correctly documented in `HOUSE_CONTEXT.md` and no stale aliases remain.
+- Run `python3 tools/ha_toolkit.py audit-dashboard` when making changes to `dashboard.yaml` to validate entity references against the latest inventory.
 - YAML syntax and include sanity checks for edited config files
 - Python syntax checks for edited `custom_components/*` files
 - targeted grep/trace checks for renamed entities or service references

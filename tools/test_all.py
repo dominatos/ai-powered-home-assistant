@@ -264,10 +264,8 @@ def test_instructions_references():
     # Check key file references
     refs = {
         "patterns/standardize.md": "patterns/standardize.md" in instr,
-        "tools/check_docs.py": "tools/check_docs.py" in instr,
-        "tools/dashboard_audit.py": "tools/dashboard_audit.py" in instr,
+        "tools/ha_toolkit.py": "tools/ha_toolkit.py" in instr,
         "tools/export_ha_inventory.py": "tools/export_ha_inventory.py" in instr,
-        "tools/generate_automations_kb.py": "tools/generate_automations_kb.py" in instr,
     }
     for ref, found in refs.items():
         check(f"INSTRUCTIONS.md → {ref}", found, "reference missing")

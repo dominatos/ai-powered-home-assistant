@@ -158,8 +158,8 @@ Shell scripts to safely move files between your live Home Assistant and this rep
 | `tools/sync_from_homeassistant.sh` | Pull latest config from HA → repo (run *before* AI work) |
 | `tools/sync_to_homeassistant.sh` | Push AI-generated changes repo → HA (run *after* review) |
 | `tools/export_ha_inventory.sh` | Export all device/entity IDs so the AI never guesses |
-| `tools/check_docs.py` | Validates that every automation is documented in `HOUSE_CONTEXT.md` |
-| `tools/dashboard_audit.py` | Validates entity references in `dashboard.yaml` against the inventory |
+| `tools/ha_toolkit.py audit-docs` | Validates that every automation is documented in `HOUSE_CONTEXT.md` |
+| `tools/ha_toolkit.py audit-dashboard` | Validates entity references in `dashboard.yaml` against the inventory |
 | `tools/pull_debug_files.sh` | Securely pulls logs and traces from a remote HA instance |
 | `tools/backup_automations.py` | Creates point-in-time YAML backups of specific automations |
 
@@ -187,7 +187,7 @@ Helper scripts for less common tasks:
 
 | Script | Purpose |
 |--------|---------|
-| `tools/generate_automations_kb.py` | Regenerates `automations_kb.md` from `automations.yaml` |
+| `tools/ha_toolkit.py generate-kb` | Regenerates `automations_kb.md` from `automations.yaml` |
 | `tools/export_ha_inventory.py` | Python implementation of inventory export |
 | `tools/sync_common.sh` | Shared library sourced by sync scripts (internal) |
 | `tools/generate_yaml_template.py` | Generates YAML templates from Python data structures |
@@ -218,8 +218,8 @@ Drop-in prompt templates you paste into your AI IDE to perform specific tasks:
 | `INSTRUCTIONS.md` | Strict rules that prevent the AI from guessing or breaking things |
 | `HOUSE_CONTEXT.template.md` | Template to describe your physical house layout and devices |
 | `AUTOMATIONS_KB.template.md` | Template for the human-readable summary of all automations |
-| `automations-basic.template.yaml` | Simple automations: motion lighting, safety sensors, thermostat, A/C sync |
-| `automations-advanced.template.yaml` | AI-powered automations: Ollama/OpenCode weather, calendar, A/C advisor |
+| `automations-basic.template.yaml` | Simple automations: motion lighting, safety sensors, thermostat, A/C sync, button/remote toggles |
+| `automations-advanced.template.yaml` | AI-powered automations: Ollama/OpenCode weather, calendar, A/C advisor, presence tracking |
 | `dashboard-basic.template.yaml` | Basic Lovelace views: Overview, Kitchen, Bedroom, Bathroom, Child Room |
 | `dashboard-advanced.template.yaml` | Advanced views: Climate, Energy, Appliances, TV Remote, Tablet, Car |
 | `automations.template.yaml` | Legacy combined automations file (superseded by basic/advanced split) |
@@ -236,8 +236,10 @@ Reference documents for more complex setups:
 | File | Purpose |
 |------|---------|
 | `configuration.template.yaml` | Common `configuration.yaml` patterns: helpers, recorder, templates, Ollama, Powercalc |
-| `scripts.template.yaml` | Example reusable scripts: all-lights-off, TV timer, media transfer, thermostat pull |
+| `scripts.template.yaml` | Example reusable scripts: all-lights-off, TV timer, media transfer, thermostat schedule |
 | `scenes.template.yaml` | Example scenes: A/C cooling, evening relax, movie mode |
+| `python_scripts/create_playlist.py` | NFS audio folder → M3U playlist generator for Music Assistant |
+| `readme-nfs.md` | NFS + Music Assistant setup guide: mount, playlist generation, automation trigger |
 | `FUTURE-automations.template.md` | Design-first template for planning complex automations before implementing them |
 | `heating.template.md` | Complete thermostat integration reference: schedule helpers, automations, interaction matrix |
 | `README-ollama.template.md` | Local AI integration guide: Ollama setup, custom model, HA `rest_command`, troubleshooting |

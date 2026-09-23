@@ -197,19 +197,113 @@ thermostat_pull_schedule_from_device:
         entity_id: input_number.thermostat_schedule_temp_4
       data:
         value: "{{ weekday_tokens[3].split('/')[1] | replace('°C','') | int }}"
-transfer_jellyfin_tales:
-  alias: Transfer Jellyfin Tales (Cycle)
-  description: Cycles the active Fairy Tales playback between Child Room, Kitchen,
+    # ── Saturday schedule ──
+    - variables:
+        saturday_tokens: "{{ states('sensor.<your_thermostat_schedule_saturday>').split() }}"
+    - if:
+        - condition: template
+          value_template: "{{ saturday_tokens | length >= 4 }}"
+      then:
+        - action: input_datetime.set_datetime
+          target:
+            entity_id: input_datetime.thermostat_schedule_saturday_time_1
+          data:
+            time: "{{ saturday_tokens[0].split('/')[0] }}:00"
+        - action: input_number.set_value
+          target:
+            entity_id: input_number.thermostat_schedule_saturday_temp_1
+          data:
+            value: "{{ saturday_tokens[0].split('/')[1] | replace('°C','') | int }}"
+        - action: input_datetime.set_datetime
+          target:
+            entity_id: input_datetime.thermostat_schedule_saturday_time_2
+          data:
+            time: "{{ saturday_tokens[1].split('/')[0] }}:00"
+        - action: input_number.set_value
+          target:
+            entity_id: input_number.thermostat_schedule_saturday_temp_2
+          data:
+            value: "{{ saturday_tokens[1].split('/')[1] | replace('°C','') | int }}"
+        - action: input_datetime.set_datetime
+          target:
+            entity_id: input_datetime.thermostat_schedule_saturday_time_3
+          data:
+            time: "{{ saturday_tokens[2].split('/')[0] }}:00"
+        - action: input_number.set_value
+          target:
+            entity_id: input_number.thermostat_schedule_saturday_temp_3
+          data:
+            value: "{{ saturday_tokens[2].split('/')[1] | replace('°C','') | int }}"
+        - action: input_datetime.set_datetime
+          target:
+            entity_id: input_datetime.thermostat_schedule_saturday_time_4
+          data:
+            time: "{{ saturday_tokens[3].split('/')[0] }}:00"
+        - action: input_number.set_value
+          target:
+            entity_id: input_number.thermostat_schedule_saturday_temp_4
+          data:
+            value: "{{ saturday_tokens[3].split('/')[1] | replace('°C','') | int }}"
+    # ── Sunday schedule ──
+    - variables:
+        sunday_tokens: "{{ states('sensor.<your_thermostat_schedule_sunday>').split() }}"
+    - if:
+        - condition: template
+          value_template: "{{ sunday_tokens | length >= 4 }}"
+      then:
+        - action: input_datetime.set_datetime
+          target:
+            entity_id: input_datetime.thermostat_schedule_sunday_time_1
+          data:
+            time: "{{ sunday_tokens[0].split('/')[0] }}:00"
+        - action: input_number.set_value
+          target:
+            entity_id: input_number.thermostat_schedule_sunday_temp_1
+          data:
+            value: "{{ sunday_tokens[0].split('/')[1] | replace('°C','') | int }}"
+        - action: input_datetime.set_datetime
+          target:
+            entity_id: input_datetime.thermostat_schedule_sunday_time_2
+          data:
+            time: "{{ sunday_tokens[1].split('/')[0] }}:00"
+        - action: input_number.set_value
+          target:
+            entity_id: input_number.thermostat_schedule_sunday_temp_2
+          data:
+            value: "{{ sunday_tokens[1].split('/')[1] | replace('°C','') | int }}"
+        - action: input_datetime.set_datetime
+          target:
+            entity_id: input_datetime.thermostat_schedule_sunday_time_3
+          data:
+            time: "{{ sunday_tokens[2].split('/')[0] }}:00"
+        - action: input_number.set_value
+          target:
+            entity_id: input_number.thermostat_schedule_sunday_temp_3
+          data:
+            value: "{{ sunday_tokens[2].split('/')[1] | replace('°C','') | int }}"
+        - action: input_datetime.set_datetime
+          target:
+            entity_id: input_datetime.thermostat_schedule_sunday_time_4
+          data:
+            time: "{{ sunday_tokens[3].split('/')[0] }}:00"
+        - action: input_number.set_value
+          target:
+            entity_id: input_number.thermostat_schedule_sunday_temp_4
+          data:
+            value: "{{ sunday_tokens[3].split('/')[1] | replace('°C','') | int }}"
+transfer_media_playback:
+  alias: Transfer Media Playback (Cycle)
+  description: Cycles the active media playback between Child Room, Kitchen,
     and Bedroom seamlessly.
   icon: mdi:music-box-multiple
   mode: single
   sequence:
   - variables:
-      is_child_playing: '{{ is_state(''input_boolean.child_room_jellyfin_tales'',
+      is_child_playing: '{{ is_state(''input_boolean.child_room_media_playback'',
         ''on'') }}'
-      is_kitchen_playing: '{{ is_state(''input_boolean.kitchen_jellyfin_tales'', ''on'')
+      is_kitchen_playing: '{{ is_state(''input_boolean.kitchen_media_playback'', ''on'')
         }}'
-      is_bedroom_playing: '{{ is_state(''input_boolean.bedroom_jellyfin_tales'', ''on'')
+      is_bedroom_playing: '{{ is_state(''input_boolean.bedroom_media_playback'', ''on'')
         }}'
       source_player: '{% if is_child_playing %} media_player.<your_child_room_speaker>
         {% elif is_kitchen_playing %} media_player.<your_kitchen_playback_speaker> {%
@@ -222,15 +316,15 @@ transfer_jellyfin_tales:
         %} media_player.<your_child_room_speaker> {% else %} none {% endif %}
 
         '
-      source_boolean: '{% if is_child_playing %} input_boolean.child_room_jellyfin_tales
-        {% elif is_kitchen_playing %} input_boolean.kitchen_jellyfin_tales {% elif
-        is_bedroom_playing %} input_boolean.bedroom_jellyfin_tales {% else %} none
+      source_boolean: '{% if is_child_playing %} input_boolean.child_room_media_playback
+        {% elif is_kitchen_playing %} input_boolean.kitchen_media_playback {% elif
+        is_bedroom_playing %} input_boolean.bedroom_media_playback {% else %} none
         {% endif %}
 
         '
-      target_boolean: '{% if is_child_playing %} input_boolean.kitchen_jellyfin_tales
-        {% elif is_kitchen_playing %} input_boolean.bedroom_jellyfin_tales {% elif
-        is_bedroom_playing %} input_boolean.child_room_jellyfin_tales {% else %} none
+      target_boolean: '{% if is_child_playing %} input_boolean.kitchen_media_playback
+        {% elif is_kitchen_playing %} input_boolean.bedroom_media_playback {% elif
+        is_bedroom_playing %} input_boolean.child_room_media_playback {% else %} none
         {% endif %}
 
         '
@@ -254,9 +348,9 @@ transfer_jellyfin_tales:
     - action: input_boolean.turn_off
       target:
         entity_id: '{{ source_boolean }}'
-play_tales_with_retry:
-  alias: Play Tales with Retry
-  description: Plays the tales playlist on the given MA player with up to 3 retries
+play_media_with_retry:
+  alias: Play Media with Retry
+  description: Plays the media playlist on the given MA player with up to 3 retries
     on provider errors.
   icon: mdi:replay
   fields:
@@ -280,7 +374,7 @@ play_tales_with_retry:
             seconds: 5
       - action: music_assistant.play_media
         data:
-          media_id: '{{ states(''input_text.jellyfin_tales_playlist'') }}'
+          media_id: '{{ states(''input_text.media_playlist_name'') }}'
           media_type: playlist
           enqueue: play
         target:

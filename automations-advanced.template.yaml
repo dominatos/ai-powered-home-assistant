@@ -727,94 +727,6 @@
         \ investment summary is ready. Please check the dashboard for details.\n{%\
         \ endif %}"
   mode: single
-- id: fridge_supermarket_preparation
-  alias: 'Fridge: Preparation after supermarket'
-  description: When someone leaves the supermarket zone, sends an actionable notification
-    to choose Cool/Freeze/Both. The selected cooling mode activates immediately upon
-    selection, with a 10-minute timeout for the notification.
-  triggers:
-  - trigger: zone
-    entity_id: person.person_1
-    zone: zone.supermarket
-    event: leave
-  conditions:
-  - condition: state
-    entity_id: person.person_2
-    state: not_home
-  actions:
-  - action: notify.mobile_app_<your_phone>
-    data:
-      title: Fridge Preparation
-      message: You left the supermarket. Set fridge preparation mode?
-      data:
-        tag: fridge_supermarket
-        actions:
-        - action: FRIDGE_COOL
-          title: Cool
-        - action: FRIDGE_FREEZE
-          title: Freeze
-        - action: FRIDGE_BOTH
-          title: Both
-        - action: FRIDGE_NONE
-          title: None
-  - wait_for_trigger:
-    - platform: event
-      event_type: mobile_app_notification_action
-      event_data:
-        action: FRIDGE_COOL
-    - platform: event
-      event_type: mobile_app_notification_action
-      event_data:
-        action: FRIDGE_FREEZE
-    - platform: event
-      event_type: mobile_app_notification_action
-      event_data:
-        action: FRIDGE_BOTH
-    - platform: event
-      event_type: mobile_app_notification_action
-      event_data:
-        action: FRIDGE_NONE
-    timeout: 00:10:00
-    continue_on_timeout: true
-  - action: notify.mobile_app_<your_phone>
-    data:
-      message: clear_notification
-      data:
-        tag: fridge_supermarket
-  - if:
-    - condition: template
-      value_template: '{{ wait.trigger is not none and wait.trigger.event.data.action
-        in [''FRIDGE_COOL'', ''FRIDGE_BOTH''] }}'
-    then:
-    - action: climate.set_temperature
-      target:
-        entity_id: climate.fridge
-      data:
-        temperature: 2
-        hvac_mode: cool
-  - if:
-    - condition: template
-      value_template: '{{ wait.trigger is not none and wait.trigger.event.data.action
-        in [''FRIDGE_FREEZE'', ''FRIDGE_BOTH''] }}'
-    then:
-    - action: climate.set_temperature
-      target:
-        entity_id: climate.freezer
-      data:
-        temperature: -18
-        hvac_mode: cool
-  - if:
-    - condition: template
-      value_template: '{{ wait.trigger is not none and wait.trigger.event.data.action
-        not in [''FRIDGE_NONE''] }}'
-    then:
-    - delay:
-        minutes: 20
-    - action: notify.mobile_app_<your_phone>
-      data:
-        title: Fridge Mode Active
-        message: Fridge preparation mode has been activated. Groceries are being cooled.
-  mode: single
 - id: bedroom_smart_ac_advisor
   alias: 'Bedroom: Smart A/C Advisor (Open Windows)'
   description: Every 15 minutes (08:00-20:00), checks if A/C is running while outdoor
@@ -1160,16 +1072,16 @@
     - action: input_boolean.turn_off
       target:
         entity_id: '{{ helper }}'
-- alias: 'Room: Jellyfin Tales (Dashboard)'
-  description: Toggles fairy tales (<your_tales_folder>) from dashboard boolean on the kitchen
+- alias: 'Room: Media Playback (Dashboard)'
+  description: Toggles a media playlist (<your_playlist_folder>) from dashboard boolean on the kitchen
     speaker. Only allowed between 07:00 and 21:00. Auto-off after 10 min of no kitchen
     motion. Hard stop after 60 min of no motion or at 23:00.
   triggers:
   - trigger: state
-    entity_id: input_boolean.kitchen_jellyfin_tales
+    entity_id: input_boolean.kitchen_media_playback
     to: 'on'
   - trigger: state
-    entity_id: input_boolean.kitchen_jellyfin_tales
+    entity_id: input_boolean.kitchen_media_playback
     to: 'off'
   - trigger: state
     entity_id: binary_sensor.<entity_id_here>
@@ -1238,7 +1150,7 @@
                 entity_id: media_player.<your_kitchen_playback_speaker>
               data:
                 shuffle: true
-            - action: script.play_tales_with_retry
+            - action: script.play_media_with_retry
               data:
                 target_player: media_player.<your_kitchen_playback_speaker>
             - delay:
@@ -1264,7 +1176,7 @@
               entity_id: media_player.<your_kitchen_playback_speaker>
             data:
               shuffle: true
-          - action: script.play_tales_with_retry
+          - action: script.play_media_with_retry
             data:
               target_player: media_player.<your_kitchen_playback_speaker>
           - delay:
@@ -1296,11 +1208,11 @@
             then:
             - action: input_boolean.turn_off
               target:
-                entity_id: input_boolean.kitchen_jellyfin_tales
+                entity_id: input_boolean.kitchen_media_playback
         else:
         - action: input_boolean.turn_off
           target:
-            entity_id: input_boolean.kitchen_jellyfin_tales
+            entity_id: input_boolean.kitchen_media_playback
           data: {}
     - conditions:
       - condition: trigger
@@ -1314,41 +1226,41 @@
       sequence:
       - action: input_boolean.turn_off
         target:
-          entity_id: input_boolean.kitchen_jellyfin_tales
+          entity_id: input_boolean.kitchen_media_playback
         data: {}
     - conditions:
       - condition: trigger
       sequence:
       - action: input_boolean.turn_off
         target:
-          entity_id: input_boolean.kitchen_jellyfin_tales
+          entity_id: input_boolean.kitchen_media_playback
         data: {}
       - action: media_player.media_stop
         target:
           entity_id: media_player.<your_kitchen_playback_speaker>
         data: {}
   mode: restart
-- alias: 'Tales: Pause After Current Track'
+- alias: 'Media: Pause After Current Track'
   description: Waits until the current playing track finishes or playback stops, then
-    turns off Tales.
+    turns off media playback.
   mode: restart
   triggers:
   - trigger: state
-    entity_id: input_boolean.pause_tales_after_track
+    entity_id: input_boolean.pause_media_after_track
     to: 'on'
   conditions: []
   actions:
   - variables:
-      active_player: '{% if is_state(''input_boolean.child_room_jellyfin_tales'',
-        ''on'') %} media_player.<your_child_room_speaker> {% elif is_state(''input_boolean.kitchen_jellyfin_tales'',
-        ''on'') %} media_player.<your_kitchen_speaker> {% elif is_state(''input_boolean.bedroom_jellyfin_tales'',
+      active_player: '{% if is_state(''input_boolean.child_room_media_playback'',
+        ''on'') %} media_player.<your_child_room_speaker> {% elif is_state(''input_boolean.kitchen_media_playback'',
+        ''on'') %} media_player.<your_kitchen_speaker> {% elif is_state(''input_boolean.bedroom_media_playback'',
         ''on'') %} media_player.<your_bedroom_speaker> {% else %} none {% endif %}
 
         '
-      active_boolean: '{% if is_state(''input_boolean.child_room_jellyfin_tales'',
-        ''on'') %} input_boolean.child_room_jellyfin_tales {% elif is_state(''input_boolean.kitchen_jellyfin_tales'',
-        ''on'') %} input_boolean.kitchen_jellyfin_tales {% elif is_state(''input_boolean.bedroom_jellyfin_tales'',
-        ''on'') %} input_boolean.bedroom_jellyfin_tales {% else %} none {% endif %}
+      active_boolean: '{% if is_state(''input_boolean.child_room_media_playback'',
+        ''on'') %} input_boolean.child_room_media_playback {% elif is_state(''input_boolean.kitchen_media_playback'',
+        ''on'') %} input_boolean.kitchen_media_playback {% elif is_state(''input_boolean.bedroom_media_playback'',
+        ''on'') %} input_boolean.bedroom_media_playback {% else %} none {% endif %}
 
         '
   - if:
@@ -1374,4 +1286,206 @@
           entity_id: '{{ active_boolean }}'
   - action: input_boolean.turn_off
     target:
-      entity_id: input_boolean.pause_tales_after_track
+      entity_id: input_boolean.pause_media_after_track
+
+# ---- SECTION: BEDROOM MOTION KILL LOGIC ----
+
+- id: bedroom_sync_kill_motion_logic
+  alias: 'Bedroom: Sync Kill Motion Logic'
+  description: Syncs the kill-motion input_boolean with the actual automation state
+    and announces changes via TTS.
+  triggers:
+  - trigger: state
+    entity_id: automation.<your_bedroom_motion_automation_id>
+  conditions: []
+  actions:
+  - variables:
+      is_off: "{{ is_state('automation.<your_bedroom_motion_automation_id>', 'off') }}"
+  - if:
+      - condition: template
+        value_template: "{{ is_off }}"
+    then:
+      - action: input_boolean.turn_on
+        target:
+          entity_id: input_boolean.bedroom_kill_motion_logic
+    else:
+      - action: input_boolean.turn_off
+        target:
+          entity_id: input_boolean.bedroom_kill_motion_logic
+  mode: single
+
+- id: bedroom_prompt_reenable_motion
+  alias: 'Bedroom: Prompt to Re-enable Motion Detection on Light Turn On'
+  description: When the bedroom light is turned on manually while motion detection
+    is disabled, sends an actionable notification to re-enable it.
+  triggers:
+  - trigger: state
+    entity_id: light.<your_bed_light>
+    to: 'on'
+  conditions:
+  - condition: state
+    entity_id: input_boolean.bedroom_kill_motion_logic
+    state: 'on'
+  actions:
+  - action: notify.mobile_app_<your_phone>
+    data:
+      title: Motion Detection Disabled
+      message: Bedroom motion detection is off. Re-enable it?
+      data:
+        tag: bedroom_motion_reenable
+        actions:
+        - action: BEDROOM_MOTION_REENABLE
+          title: Re-enable
+        - action: BEDROOM_MOTION_DISMISS
+          title: Dismiss
+  - wait_for_trigger:
+    - platform: event
+      event_type: mobile_app_notification_action
+      event_data:
+        action: BEDROOM_MOTION_REENABLE
+    - platform: event
+      event_type: mobile_app_notification_action
+      event_data:
+        action: BEDROOM_MOTION_DISMISS
+    timeout: 00:05:00
+    continue_on_timeout: true
+  - action: notify.mobile_app_<your_phone>
+    data:
+      message: clear_notification
+      data:
+        tag: bedroom_motion_reenable
+  - if:
+    - condition: template
+      value_template: "{{ wait.trigger is not none and wait.trigger.event.data.action == 'BEDROOM_MOTION_REENABLE' }}"
+    then:
+      - action: input_boolean.turn_off
+        target:
+          entity_id: input_boolean.bedroom_kill_motion_logic
+      - action: automation.turn_on
+        target:
+          entity_id: automation.<your_bedroom_motion_automation_id>
+  mode: single
+
+# ---- SECTION: NOTIFICATIONS ----
+
+- id: notification_missed_call_message
+  alias: 'Notification: Missed Call or Message Alert'
+  description: When a phone is detected as not_home, checks for missed calls/messages
+    and sends a TTS + push alert. Resets when the person returns home.
+  triggers:
+  - trigger: state
+    entity_id: person.<your_person>
+    to: 'not_home'
+    for:
+      minutes: 5
+    id: departed
+  - trigger: state
+    entity_id: person.<your_person>
+    to: 'home'
+    id: returned
+  conditions: []
+  actions:
+  - if:
+      - condition: trigger
+        id: returned
+    then:
+      - action: input_boolean.turn_off
+        target:
+          entity_id: input_boolean.missed_call_alert
+      - stop: Person returned home, alert reset
+  - condition: state
+    entity_id: input_boolean.missed_call_alert
+    state: 'off'
+  - action: input_boolean.turn_on
+    target:
+      entity_id: input_boolean.missed_call_alert
+  - action: notify.mobile_app_<your_phone>
+    data:
+      title: Missed Communication
+      message: You may have missed calls or messages while away.
+      data:
+        tag: missed_call
+  - action: tts.speak
+    target:
+      entity_id: tts.google_translate_en_com
+    data:
+      cache: false
+      media_player_entity_id: media_player.<your_speaker>
+      language: en
+      message: You may have missed calls or messages.
+  mode: single
+
+# ---- SECTION: FRIDGE / APPLIANCE ----
+
+- id: fridge_supermarket_preparation
+  alias: 'Fridge: Preparation after Supermarket'
+  description: When someone leaves the supermarket zone, sends an actionable notification
+    to choose Cool/Freeze/Both. The selected cooling mode activates immediately upon
+    selection, with a 10-minute timeout.
+  triggers:
+  - trigger: zone
+    entity_id: person.<your_person>
+    zone: zone.supermarket
+    event: leave
+  conditions: []
+  actions:
+  - action: notify.mobile_app_<your_phone>
+    data:
+      title: Fridge Preparation
+      message: You left the supermarket. Set fridge preparation mode?
+      data:
+        tag: fridge_supermarket
+        actions:
+        - action: FRIDGE_COOL
+          title: Cool
+        - action: FRIDGE_FREEZE
+          title: Freeze
+        - action: FRIDGE_BOTH
+          title: Both
+        - action: FRIDGE_NONE
+          title: None
+  - wait_for_trigger:
+    - platform: event
+      event_type: mobile_app_notification_action
+      event_data:
+        action: FRIDGE_COOL
+    - platform: event
+      event_type: mobile_app_notification_action
+      event_data:
+        action: FRIDGE_FREEZE
+    - platform: event
+      event_type: mobile_app_notification_action
+      event_data:
+        action: FRIDGE_BOTH
+    - platform: event
+      event_type: mobile_app_notification_action
+      event_data:
+        action: FRIDGE_NONE
+    timeout: 00:10:00
+    continue_on_timeout: true
+  - action: notify.mobile_app_<your_phone>
+    data:
+      message: clear_notification
+      data:
+        tag: fridge_supermarket
+  - if:
+    - condition: template
+      value_template: "{{ wait.trigger is not none and wait.trigger.event.data.action in ['FRIDGE_COOL', 'FRIDGE_BOTH'] }}"
+    then:
+    - action: climate.set_temperature
+      target:
+        entity_id: climate.<your_fridge>
+      data:
+        temperature: 2
+        hvac_mode: cool
+  - if:
+    - condition: template
+      value_template: "{{ wait.trigger is not none and wait.trigger.event.data.action in ['FRIDGE_FREEZE', 'FRIDGE_BOTH'] }}"
+    then:
+    - action: climate.set_temperature
+      target:
+        entity_id: climate.<your_freezer>
+      data:
+        temperature: -18
+        hvac_mode: cool
+  mode: single
