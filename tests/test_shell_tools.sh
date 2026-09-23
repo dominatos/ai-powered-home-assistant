@@ -109,6 +109,46 @@ mf_exit=$?
 set -e
 check_exit "load_managed_files with missing file exits non-zero" 1 "${mf_exit}"
 
+# Test: optional managed files ("?" prefix) are skipped when absent
+opt_src="${TMPDIR_TEST}/optsrc"
+opt_list="${TMPDIR_TEST}/managed_optional.txt"
+mkdir -p "${opt_src}"
+printf 'a.yaml
+?missing.yaml
+' > "${opt_list}"
+printf 'x: 1
+' > "${opt_src}/a.yaml"
+result="$(cd "${REPO_ROOT}" && bash -c "
+  MANAGED_FILES_PATH='${opt_list}'
+  source tools/sync_common.sh
+  load_managed_files
+  ensure_requirements '${opt_src}'
+  echo \"KEPT:\${FILES[*]}\"
+" 2>&1 || true)"
+check "optional managed file is skipped when absent" "KEPT:a.yaml" "${result}"
+
+# Test: a missing REQUIRED managed file still aborts
+req_list="${TMPDIR_TEST}/managed_required.txt"
+printf 'a.yaml
+missing.yaml
+' > "${req_list}"
+result="$(cd "${REPO_ROOT}" && bash -c "
+  MANAGED_FILES_PATH='${req_list}'
+  source tools/sync_common.sh
+  load_managed_files
+  ensure_requirements '${opt_src}'
+  echo REACHED
+" 2>&1 || true)"
+if [[ "${result}" == *"REACHED"* ]]; then
+  FAIL=$((FAIL + 1))
+  printf "  ❌ missing required managed file aborts
+"
+else
+  PASS=$((PASS + 1))
+  printf "  ✅ missing required managed file aborts
+"
+fi
+
 # Test: validate_yaml_file with valid YAML
 valid_yaml="${TMPDIR_TEST}/valid.yaml"
 echo "key: value" > "${valid_yaml}"
