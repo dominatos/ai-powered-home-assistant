@@ -42,7 +42,7 @@ sudo apt install nfs-kernel-server
 sudo mkdir -p /export/music
 
 # Add to /etc/exports:
-# /export/music 192.168.1.0/24(rw,sync,no_subtree_check,no_root_squash)
+# /export/music 192.168.1.X/24(rw,sync,no_subtree_check)
 sudo exportfs -ra
 
 # Start the service
@@ -55,16 +55,14 @@ Place your audio files in `/export/music` (subdirectories are supported and sort
 
 ### HAOS (Supervised / OS)
 
-In your HA host terminal or via the File Editor add-on:
+Use the built-in network storage workflow:
 
-```bash
-# Create mount point
-mkdir -p /media/music
-
-# Mount (add to /etc/fstab for persistence):
-# 192.168.1.100:/export/music  /media/music  nfs  defaults,_netdev  0  0
-sudo mount -t nfs 192.168.1.100:/export/music /media/music
-```
+1. Go to **Settings → System → Storage**.
+2. Click **Add network storage**.
+3. Select **NFS** as the type.
+4. Enter the NFS server address and share path (e.g., `192.168.1.X:/export/music`).
+5. Set the mount point to `/media/music`.
+6. Save. Home Assistant will mount the share and make it available at `/media/music`.
 
 ### Docker / HA Core
 
@@ -99,10 +97,10 @@ cp python_scripts/create_playlist.py /config/python_scripts/
 
 ```bash
 # On the HA host:
-python3 /config/python_scripts/create_playlist.py /media/music /config/www/playlist.m3u
+    python3 /config/python_scripts/create_playlist.py /media/music /media/music/playlist.m3u
 ```
 
-You should see: `Playlist saved to /config/www/playlist.m3u (N tracks)`
+You should see: `Playlist saved to /media/music/playlist.m3u (N tracks)`
 
 ## Step 5 — Configure shell_command
 
@@ -111,7 +109,7 @@ Add to `configuration.yaml`:
 ```yaml
 shell_command:
   create_playlist: >
-    python3 /config/python_scripts/create_playlist.py /media/music /config/www/playlist.m3u
+python3 /config/python_scripts/create_playlist.py /media/music /media/music/playlist.m3u
 ```
 
 ## Step 6 — Set Up Music Assistant Filesystem Provider
@@ -122,8 +120,8 @@ shell_command:
 4. Configure:
    - **Name**: `NFS Music Library` (or any name)
    - **Path type**: NFS
-   - **URL**: `nfs://192.168.1.100/export/music` (or the mounted path `/media/music`)
-   - **Playlist folder**: `/config/www` (where the M3U is written)
+   - **URL**: `nfs://192.168.1.X/export/music` (or the mounted path `/media/music`)
+   - **Playlist folder**: Inside the NFS music source (e.g., `/media/music` or `/export/music`)
 5. Save. Music Assistant will scan and index the files.
 
 ## Step 7 — Store Playlist Name
@@ -189,7 +187,7 @@ Use `music_assistant.transfer_queue` to move playback between speakers:
 | Setting | Where | Notes |
 |---------|-------|-------|
 | Audio formats | `create_playlist.py` line 10 | Add/remove extensions in `AUDIO_EXTENSIONS` tuple |
-| Playlist location | `shell_command` + script args | Change `/config/www/playlist.m3u` to any path |
+| Playlist location | `shell_command` + script args | Change `/media/music/playlist.m3u` to any path |
 | Sync interval | Automation `time_pattern` | Change `"/10"` to `"/5"`, `"/30"`, etc. |
 | Playlist name | `input_text.media_playlist_name` | Must match the M3U filename (without `.m3u`) |
 | NFS mount path | Mount command | Change `/media/music` to any local path |

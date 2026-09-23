@@ -968,7 +968,7 @@ A timer helper (`timer.<name>`) is managed with interactive dashboard controls (
 
 **Key design decisions:**
 - **State Tracker (`input_boolean`):** Turned `on` when started, kept `on` while active or paused, turned `off` when finished or cancelled (`timer.cancelled` event trigger).
-- **Dynamic Extend Script:** Checks `timer.<name>` state: if `idle`, starts the timer; if `active` or `paused`, calls `timer.change` with duration derived from `input_number.<name>`.
+- **Dynamic Extend Script:** Checks `timer.<name>` state: if `idle`, starts the timer; if `active`, calls `timer.change` with duration derived from `input_number.<name>`. Does not extend paused or already-maxed timers.
 - **Paused Remaining Display:** Template sensor checks `is_state('timer.<name>', 'paused')` and formats `state_attr('timer.<name>', 'remaining')` into `HH:MM (Paused)` format so remaining time is preserved visually when paused.
 
 **Template:**
@@ -1117,6 +1117,8 @@ GPS tracking (`person` entities) can occasionally drift, causing false "not_home
       entity_id:
         - person.<owner_1>
         - person.<owner_2>
+    - trigger: homeassistant
+      event: start
   actions:
     - variables:
         person_id: "{{ trigger.entity_id }}"
@@ -1137,8 +1139,7 @@ GPS tracking (`person` entities) can occasionally drift, causing false "not_home
         - action: input_boolean.turn_off
           target:
             entity_id: "{{ helper }}"
-  mode: parallel
-  max: 10
+  mode: restart
 ```
 
 **Template (Master Occupancy Template Sensor):**
@@ -1322,7 +1323,7 @@ actions:
           {{ not is_state('media_player.<speaker_1>', 'playing') and
              not is_state('media_player.<speaker_2>', 'playing') }}
         timeout: "00:01:30"
-        continue_on_timeout: true
+        continue_on_timeout: false
       - action: media_player.volume_set
         target:
           entity_id: "{{ active_speakers }}"
@@ -1363,4 +1364,4 @@ actions:
 After creating or modifying an automation:
 1. Add or update its entry in `automations_kb.md`
 2. Update `HOUSE_CONTEXT.md` if new devices, sensors, or room relationships are involved
-3. Run `python3 tools/ha_toolkit.py audit_docs` to verify consistency
+3. Run `python3 tools/ha_toolkit.py audit-docs` to verify consistency

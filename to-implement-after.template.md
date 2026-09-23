@@ -18,10 +18,10 @@
 ## Remaining Items (from production that were skipped)
 
 ### Personal automations not suitable for templates
-- **VW Golf Fast Location Polling** — Traccar integration, car-specific
-- **Yuliia Left Work notification** — person + calendar-specific
+- **Vehicle Fast Location Polling** — Traccar integration, vehicle-specific
+- **Person Left Work notification** — person + calendar-specific
 - **Kitchen: Evening Meal Reminder** — old/disabled version in production
-- **TEST: Kidroom Ghost Motion Detection** — test automation
+- **TEST: Room Motion Detection** — test automation
 
 ### Blueprint files (5 production blueprints)
 - backup, find3, frigate, node-red, sonoff — already in public repo, no action needed

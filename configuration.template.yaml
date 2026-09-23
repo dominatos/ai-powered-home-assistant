@@ -114,6 +114,17 @@ input_boolean:
     name: Thermostat Weekend Schedule Ready
     icon: mdi:calendar-check
 
+  # Media playback room toggles (used by Room: Media Playback automations).
+  kitchen_media_playback:
+    name: Kitchen Media Playback
+    icon: mdi:play-circle
+  child_room_media_playback:
+    name: Child Room Media Playback
+    icon: mdi:play-circle
+  bedroom_media_playback:
+    name: Bedroom Media Playback
+    icon: mdi:play-circle
+
 # --- Dashboard trigger buttons ---
 input_button:
   tv_start_timer:
@@ -353,7 +364,7 @@ shell_command:
   # Generate an M3U playlist from a directory of audio files.
   # Requires python_scripts/create_playlist.py.
   create_playlist: >
-    python3 /config/python_scripts/create_playlist.py /path/to/audio /config/www/playlist.m3u
+    python3 /config/python_scripts/create_playlist.py /config/<your_audio_directory> /config/www/playlist.m3u
 
 # --- Recorder optimizations ---
 # Exclude high-churn, low-value entities from history to reduce DB size.

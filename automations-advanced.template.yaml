@@ -727,94 +727,6 @@
         \ investment summary is ready. Please check the dashboard for details.\n{%\
         \ endif %}"
   mode: single
-- id: fridge_supermarket_preparation
-  alias: 'Fridge: Preparation after supermarket'
-  description: When someone leaves the supermarket zone, sends an actionable notification
-    to choose Cool/Freeze/Both. The selected cooling mode activates immediately upon
-    selection, with a 10-minute timeout for the notification.
-  triggers:
-  - trigger: zone
-    entity_id: person.person_1
-    zone: zone.supermarket
-    event: leave
-  conditions:
-  - condition: state
-    entity_id: person.person_2
-    state: not_home
-  actions:
-  - action: notify.mobile_app_<your_phone>
-    data:
-      title: Fridge Preparation
-      message: You left the supermarket. Set fridge preparation mode?
-      data:
-        tag: fridge_supermarket
-        actions:
-        - action: FRIDGE_COOL
-          title: Cool
-        - action: FRIDGE_FREEZE
-          title: Freeze
-        - action: FRIDGE_BOTH
-          title: Both
-        - action: FRIDGE_NONE
-          title: None
-  - wait_for_trigger:
-    - platform: event
-      event_type: mobile_app_notification_action
-      event_data:
-        action: FRIDGE_COOL
-    - platform: event
-      event_type: mobile_app_notification_action
-      event_data:
-        action: FRIDGE_FREEZE
-    - platform: event
-      event_type: mobile_app_notification_action
-      event_data:
-        action: FRIDGE_BOTH
-    - platform: event
-      event_type: mobile_app_notification_action
-      event_data:
-        action: FRIDGE_NONE
-    timeout: 00:10:00
-    continue_on_timeout: true
-  - action: notify.mobile_app_<your_phone>
-    data:
-      message: clear_notification
-      data:
-        tag: fridge_supermarket
-  - if:
-    - condition: template
-      value_template: '{{ wait.trigger is not none and wait.trigger.event.data.action
-        in [''FRIDGE_COOL'', ''FRIDGE_BOTH''] }}'
-    then:
-    - action: climate.set_temperature
-      target:
-        entity_id: climate.fridge
-      data:
-        temperature: 2
-        hvac_mode: cool
-  - if:
-    - condition: template
-      value_template: '{{ wait.trigger is not none and wait.trigger.event.data.action
-        in [''FRIDGE_FREEZE'', ''FRIDGE_BOTH''] }}'
-    then:
-    - action: climate.set_temperature
-      target:
-        entity_id: climate.freezer
-      data:
-        temperature: -18
-        hvac_mode: cool
-  - if:
-    - condition: template
-      value_template: '{{ wait.trigger is not none and wait.trigger.event.data.action
-        not in [''FRIDGE_NONE''] }}'
-    then:
-    - delay:
-        minutes: 20
-    - action: notify.mobile_app_<your_phone>
-      data:
-        title: Fridge Mode Active
-        message: Fridge preparation mode has been activated. Groceries are being cooled.
-  mode: single
 - id: bedroom_smart_ac_advisor
   alias: 'Bedroom: Smart A/C Advisor (Open Windows)'
   description: Every 15 minutes (08:00-20:00), checks if A/C is running while outdoor
@@ -1459,18 +1371,31 @@
 - id: notification_missed_call_message
   alias: 'Notification: Missed Call or Message Alert'
   description: When a phone is detected as not_home, checks for missed calls/messages
-    and sends a TTS + push alert.
+    and sends a TTS + push alert. Resets when the person returns home.
   triggers:
   - trigger: state
     entity_id: person.<your_person>
     to: 'not_home'
     for:
       minutes: 5
-  conditions:
+    id: departed
+  - trigger: state
+    entity_id: person.<your_person>
+    to: 'home'
+    id: returned
+  conditions: []
+  actions:
+  - if:
+      - condition: trigger
+        id: returned
+    then:
+      - action: input_boolean.turn_off
+        target:
+          entity_id: input_boolean.missed_call_alert
+      - stop: Person returned home, alert reset
   - condition: state
     entity_id: input_boolean.missed_call_alert
     state: 'off'
-  actions:
   - action: input_boolean.turn_on
     target:
       entity_id: input_boolean.missed_call_alert

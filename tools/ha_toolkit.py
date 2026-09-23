@@ -32,19 +32,15 @@ def load_automations(repo: Path) -> list:
     try:
         content = auto_file.read_text(encoding='utf-8')
     except (OSError, UnicodeDecodeError) as e:
-        print(f"Error reading {auto_file}: {e}")
-        sys.exit(1)
+        raise FileNotFoundError(f"Error reading {auto_file}: {e}")
 
-    content = re.sub(r"!include\S*", '"__directive__"', content)
     try:
         automations = yaml.load(content, Loader=HASafeLoader)
     except yaml.YAMLError as e:
-        print(f"Error parsing automations.yaml: {e}")
-        sys.exit(1)
+        raise ValueError(f"Error parsing automations.yaml: {e}")
 
     if not isinstance(automations, list):
-        print("Error: automations.yaml is not a list.")
-        sys.exit(1)
+        raise ValueError("Error: automations.yaml is not a list.")
     return automations
 
 
@@ -268,13 +264,30 @@ def audit_dashboard(args, repo: Path):
     if not inv_file.exists():
         print("  SKIPPED — ha_device_inventory.json not found.")
         return
-    if not dash_file.exists():
-        print("  SKIPPED — dashboard.yaml not found.")
-        return
 
     data = load_inventory(repo)
     entities = data.get("entities", [])
     inv_ids = {e.get("entity_id") for e in entities if "entity_id" in e}
+
+    if not dash_file.exists():
+        print("  dashboard.yaml not found — reporting inventory summary only.")
+        input_booleans = [e for e in entities if e.get("entity_id", "").startswith("input_boolean.") and not e.get("disabled_by")]
+        if input_booleans:
+            print(f"\n  ALL INPUT_BOOLEAN HELPERS ({len(input_booleans)}):")
+            for ib in sorted(input_booleans, key=lambda x: x.get("entity_id", "")):
+                print(f"    - {ib['entity_id']} ({ib.get('original_name', '\u2014')})")
+
+        print("\n" + "=" * 70)
+        print("TEMPERATURE & HUMIDITY SENSORS")
+        print("=" * 70)
+        for ent in entities:
+            eid = ent.get("entity_id", "")
+            if ("temperature" in eid or "humidity" in eid) and "sensor." in eid and not ent.get("disabled_by"):
+                area = ent.get("area") or {}
+                aname = area.get("area_name", "\u2014") if isinstance(area, dict) else "\u2014"
+                print(f"  {eid:65s} | {aname}")
+        print()
+        return
 
     dash = dash_file.read_text(encoding='utf-8')
     ent_refs = set(re.findall(r"entity:\s+[\"']?([\w.]+)[\"']?", dash))
@@ -322,7 +335,11 @@ def audit_dashboard(args, repo: Path):
 IGNORE_ALIASES: set[str] = set()
 
 def audit_docs(args, repo: Path):
-    automations = load_automations(repo)
+    try:
+        automations = load_automations(repo)
+    except (FileNotFoundError, ValueError) as e:
+        print(e)
+        sys.exit(1)
     aliases = {
         a.get("alias", "").strip()
         for a in automations
@@ -371,7 +388,11 @@ def audit_docs(args, repo: Path):
 # 5. GENERATE KB (from generate_automations_kb.py)
 # ==============================================================================
 def generate_kb(args, repo: Path):
-    automations = load_automations(repo)
+    try:
+        automations = load_automations(repo)
+    except (FileNotFoundError, ValueError) as e:
+        print(e)
+        sys.exit(1)
     
     kb = "# Home Assistant Automations Knowledge Base\n\n"
     kb += "This document provides a human-readable summary of all automations currently configured in `automations.yaml`.\n"
@@ -406,8 +427,11 @@ def generate_kb(args, repo: Path):
             kb += "### Triggers\n"
             if isinstance(triggers, list):
                 for t in triggers:
-                    platform = t.get('platform', t.get('trigger', 'unknown'))
-                    kb += f"- **{platform}**: `{json.dumps({k:v for k,v in t.items() if k not in ('platform', 'trigger')})}`\n"
+                    if isinstance(t, dict):
+                        platform = t.get('platform', t.get('trigger', 'unknown'))
+                        kb += f"- **{platform}**: `{json.dumps({k:v for k,v in t.items() if k not in ('platform', 'trigger')})}`\n"
+                    else:
+                        kb += f"- `{t}`\n"
             else:
                 kb += f"- `{json.dumps(triggers)}`\n"
         
@@ -416,8 +440,11 @@ def generate_kb(args, repo: Path):
             kb += "\n### Conditions\n"
             if isinstance(conditions, list):
                 for c in conditions:
-                    c_type = c.get('condition', 'unknown')
-                    kb += f"- **{c_type}**: `{json.dumps({k:v for k,v in c.items() if k != 'condition'})}`\n"
+                    if isinstance(c, dict):
+                        c_type = c.get('condition', 'unknown')
+                        kb += f"- **{c_type}**: `{json.dumps({k:v for k,v in c.items() if k != 'condition'})}`\n"
+                    else:
+                        kb += f"- `{c}`\n"
             else:
                 kb += f"- `{json.dumps(conditions)}`\n"
                 
@@ -426,13 +453,16 @@ def generate_kb(args, repo: Path):
             kb += "\n### Actions\n"
             if isinstance(actions, list):
                 for a in actions:
-                    action_type = "service/action" if ('service' in a or 'action' in a) else next(iter(a.keys()), "unknown")
-                    target = a.get('service', a.get('action', 'unknown'))
-                    kb += f"- **{action_type}**: `{target}` "
-                    if 'entity_id' in a or ('target' in a and 'entity_id' in a['target']):
-                        ent = a.get('entity_id', a.get('target', {}).get('entity_id', ''))
-                        kb += f"on `{ent}` "
-                    kb += "\n"
+                    if isinstance(a, dict):
+                        action_type = "service/action" if ('service' in a or 'action' in a) else next(iter(a.keys()), "unknown")
+                        target = a.get('service', a.get('action', 'unknown'))
+                        kb += f"- **{action_type}**: `{target}` "
+                        if 'entity_id' in a or ('target' in a and isinstance(a.get('target'), dict) and 'entity_id' in a['target']):
+                            ent = a.get('entity_id', a.get('target', {}).get('entity_id', ''))
+                            kb += f"on `{ent}` "
+                        kb += "\n"
+                    else:
+                        kb += f"- `{a}`\n"
             else:
                 kb += f"- `{json.dumps(actions)}`\n"
                 
@@ -472,14 +502,14 @@ def main():
     inv_parser.add_argument("--show-all-entities", action="store_true", help="Show all entities for matched devices")
 
     # Dashboard Audit
-    dash_parser = subparsers.add_parser("audit_dashboard", help="Audit dashboard.yaml against inventory")
+    dash_parser = subparsers.add_parser("audit-dashboard", help="Audit dashboard.yaml against inventory")
     dash_parser.add_argument("--details", action="store_true", help="Print detailed entity lists (sensors/lights)")
 
     # Docs Audit
-    docs_parser = subparsers.add_parser("audit_docs", help="Audit HOUSE_CONTEXT.md against automations.yaml")
+    docs_parser = subparsers.add_parser("audit-docs", help="Audit HOUSE_CONTEXT.md against automations.yaml")
 
     # Generate KB
-    kb_parser = subparsers.add_parser("generate_kb", help="Regenerate automations_kb.md")
+    kb_parser = subparsers.add_parser("generate-kb", help="Regenerate automations_kb.md")
     kb_parser.add_argument("--output", help="Output file (default: automations_kb.md)")
 
     args = parser.parse_args()
@@ -489,11 +519,11 @@ def main():
         analyze_traces(args, repo)
     elif args.command == "inventory":
         analyze_inventory(args, repo)
-    elif args.command == "audit_dashboard":
+    elif args.command == "audit-dashboard":
         audit_dashboard(args, repo)
-    elif args.command == "audit_docs":
+    elif args.command == "audit-docs":
         audit_docs(args, repo)
-    elif args.command == "generate_kb":
+    elif args.command == "generate-kb":
         generate_kb(args, repo)
     else:
         parser.print_help()

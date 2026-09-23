@@ -200,93 +200,97 @@ thermostat_pull_schedule_from_device:
     # ── Saturday schedule ──
     - variables:
         saturday_tokens: "{{ states('sensor.<your_thermostat_schedule_saturday>').split() }}"
-    - condition: template
-      value_template: "{{ saturday_tokens | length >= 4 }}"
-    - action: input_datetime.set_datetime
-      target:
-        entity_id: input_datetime.thermostat_schedule_saturday_time_1
-      data:
-        time: "{{ saturday_tokens[0].split('/')[0] }}:00"
-    - action: input_number.set_value
-      target:
-        entity_id: input_number.thermostat_schedule_saturday_temp_1
-      data:
-        value: "{{ saturday_tokens[0].split('/')[1] | replace('°C','') | int }}"
-    - action: input_datetime.set_datetime
-      target:
-        entity_id: input_datetime.thermostat_schedule_saturday_time_2
-      data:
-        time: "{{ saturday_tokens[1].split('/')[0] }}:00"
-    - action: input_number.set_value
-      target:
-        entity_id: input_number.thermostat_schedule_saturday_temp_2
-      data:
-        value: "{{ saturday_tokens[1].split('/')[1] | replace('°C','') | int }}"
-    - action: input_datetime.set_datetime
-      target:
-        entity_id: input_datetime.thermostat_schedule_saturday_time_3
-      data:
-        time: "{{ saturday_tokens[2].split('/')[0] }}:00"
-    - action: input_number.set_value
-      target:
-        entity_id: input_number.thermostat_schedule_saturday_temp_3
-      data:
-        value: "{{ saturday_tokens[2].split('/')[1] | replace('°C','') | int }}"
-    - action: input_datetime.set_datetime
-      target:
-        entity_id: input_datetime.thermostat_schedule_saturday_time_4
-      data:
-        time: "{{ saturday_tokens[3].split('/')[0] }}:00"
-    - action: input_number.set_value
-      target:
-        entity_id: input_number.thermostat_schedule_saturday_temp_4
-      data:
-        value: "{{ saturday_tokens[3].split('/')[1] | replace('°C','') | int }}"
+    - if:
+        - condition: template
+          value_template: "{{ saturday_tokens | length >= 4 }}"
+      then:
+        - action: input_datetime.set_datetime
+          target:
+            entity_id: input_datetime.thermostat_schedule_saturday_time_1
+          data:
+            time: "{{ saturday_tokens[0].split('/')[0] }}:00"
+        - action: input_number.set_value
+          target:
+            entity_id: input_number.thermostat_schedule_saturday_temp_1
+          data:
+            value: "{{ saturday_tokens[0].split('/')[1] | replace('°C','') | int }}"
+        - action: input_datetime.set_datetime
+          target:
+            entity_id: input_datetime.thermostat_schedule_saturday_time_2
+          data:
+            time: "{{ saturday_tokens[1].split('/')[0] }}:00"
+        - action: input_number.set_value
+          target:
+            entity_id: input_number.thermostat_schedule_saturday_temp_2
+          data:
+            value: "{{ saturday_tokens[1].split('/')[1] | replace('°C','') | int }}"
+        - action: input_datetime.set_datetime
+          target:
+            entity_id: input_datetime.thermostat_schedule_saturday_time_3
+          data:
+            time: "{{ saturday_tokens[2].split('/')[0] }}:00"
+        - action: input_number.set_value
+          target:
+            entity_id: input_number.thermostat_schedule_saturday_temp_3
+          data:
+            value: "{{ saturday_tokens[2].split('/')[1] | replace('°C','') | int }}"
+        - action: input_datetime.set_datetime
+          target:
+            entity_id: input_datetime.thermostat_schedule_saturday_time_4
+          data:
+            time: "{{ saturday_tokens[3].split('/')[0] }}:00"
+        - action: input_number.set_value
+          target:
+            entity_id: input_number.thermostat_schedule_saturday_temp_4
+          data:
+            value: "{{ saturday_tokens[3].split('/')[1] | replace('°C','') | int }}"
     # ── Sunday schedule ──
     - variables:
         sunday_tokens: "{{ states('sensor.<your_thermostat_schedule_sunday>').split() }}"
-    - condition: template
-      value_template: "{{ sunday_tokens | length >= 4 }}"
-    - action: input_datetime.set_datetime
-      target:
-        entity_id: input_datetime.thermostat_schedule_sunday_time_1
-      data:
-        time: "{{ sunday_tokens[0].split('/')[0] }}:00"
-    - action: input_number.set_value
-      target:
-        entity_id: input_number.thermostat_schedule_sunday_temp_1
-      data:
-        value: "{{ sunday_tokens[0].split('/')[1] | replace('°C','') | int }}"
-    - action: input_datetime.set_datetime
-      target:
-        entity_id: input_datetime.thermostat_schedule_sunday_time_2
-      data:
-        time: "{{ sunday_tokens[1].split('/')[0] }}:00"
-    - action: input_number.set_value
-      target:
-        entity_id: input_number.thermostat_schedule_sunday_temp_2
-      data:
-        value: "{{ sunday_tokens[1].split('/')[1] | replace('°C','') | int }}"
-    - action: input_datetime.set_datetime
-      target:
-        entity_id: input_datetime.thermostat_schedule_sunday_time_3
-      data:
-        time: "{{ sunday_tokens[2].split('/')[0] }}:00"
-    - action: input_number.set_value
-      target:
-        entity_id: input_number.thermostat_schedule_sunday_temp_3
-      data:
-        value: "{{ sunday_tokens[2].split('/')[1] | replace('°C','') | int }}"
-    - action: input_datetime.set_datetime
-      target:
-        entity_id: input_datetime.thermostat_schedule_sunday_time_4
-      data:
-        time: "{{ sunday_tokens[3].split('/')[0] }}:00"
-    - action: input_number.set_value
-      target:
-        entity_id: input_number.thermostat_schedule_sunday_temp_4
-      data:
-        value: "{{ sunday_tokens[3].split('/')[1] | replace('°C','') | int }}"
+    - if:
+        - condition: template
+          value_template: "{{ sunday_tokens | length >= 4 }}"
+      then:
+        - action: input_datetime.set_datetime
+          target:
+            entity_id: input_datetime.thermostat_schedule_sunday_time_1
+          data:
+            time: "{{ sunday_tokens[0].split('/')[0] }}:00"
+        - action: input_number.set_value
+          target:
+            entity_id: input_number.thermostat_schedule_sunday_temp_1
+          data:
+            value: "{{ sunday_tokens[0].split('/')[1] | replace('°C','') | int }}"
+        - action: input_datetime.set_datetime
+          target:
+            entity_id: input_datetime.thermostat_schedule_sunday_time_2
+          data:
+            time: "{{ sunday_tokens[1].split('/')[0] }}:00"
+        - action: input_number.set_value
+          target:
+            entity_id: input_number.thermostat_schedule_sunday_temp_2
+          data:
+            value: "{{ sunday_tokens[1].split('/')[1] | replace('°C','') | int }}"
+        - action: input_datetime.set_datetime
+          target:
+            entity_id: input_datetime.thermostat_schedule_sunday_time_3
+          data:
+            time: "{{ sunday_tokens[2].split('/')[0] }}:00"
+        - action: input_number.set_value
+          target:
+            entity_id: input_number.thermostat_schedule_sunday_temp_3
+          data:
+            value: "{{ sunday_tokens[2].split('/')[1] | replace('°C','') | int }}"
+        - action: input_datetime.set_datetime
+          target:
+            entity_id: input_datetime.thermostat_schedule_sunday_time_4
+          data:
+            time: "{{ sunday_tokens[3].split('/')[0] }}:00"
+        - action: input_number.set_value
+          target:
+            entity_id: input_number.thermostat_schedule_sunday_temp_4
+          data:
+            value: "{{ sunday_tokens[3].split('/')[1] | replace('°C','') | int }}"
 transfer_media_playback:
   alias: Transfer Media Playback (Cycle)
   description: Cycles the active media playback between Child Room, Kitchen,
