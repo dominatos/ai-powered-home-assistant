@@ -126,19 +126,61 @@ load_managed_files() {
   [[ ${#FILES[@]} -gt 0 ]] || die "Managed file list is empty: ${MANAGED_FILES_PATH}"
 }
 
+# ---------------------------------------------------------------------------
+# YAML validation
+#
+# validate_yaml_file is the only syntax gate before a file is written over a
+# live Home Assistant configuration, so it is FAIL-CLOSED: if no Python
+# interpreter with PyYAML can be found, the sync aborts rather than silently
+# writing unvalidated YAML into a running house.
+#
+# Set ALLOW_UNVALIDATED_YAML=1 to opt out explicitly (not recommended).
+# Set HA_PYTHON to force a specific interpreter.
+# ---------------------------------------------------------------------------
+PYTHON_CMD=()
+
 detect_yaml_validation() {
-  if command -v python3 >/dev/null 2>&1 && python3 -c 'import yaml' >/dev/null 2>&1; then
+  local candidate
+  CAN_VALIDATE_YAML=0
+  PYTHON_CMD=()
+
+  # "python3" is absent on many Windows installs, where the interpreter is
+  # exposed as "python" or only via the "py" launcher.
+  for candidate in "${HA_PYTHON:-}" python3 python; do
+    [[ -n "${candidate}" ]] || continue
+    if command -v "${candidate}" >/dev/null 2>&1 &&
+       "${candidate}" -c 'import yaml' >/dev/null 2>&1; then
+      PYTHON_CMD=("${candidate}")
+      CAN_VALIDATE_YAML=1
+      return 0
+    fi
+  done
+
+  if command -v py >/dev/null 2>&1 && py -3 -c 'import yaml' >/dev/null 2>&1; then
+    PYTHON_CMD=(py -3)
     CAN_VALIDATE_YAML=1
-  else
-    CAN_VALIDATE_YAML=0
-    log "python3+PyYAML not available. YAML syntax validation will be skipped."
+    return 0
   fi
+
+  log "WARNING: no Python interpreter with PyYAML found (tried python3, python, py -3)."
+  return 0
 }
 
 validate_yaml_file() {
   local file_path=$1
-  [[ "${CAN_VALIDATE_YAML:-0}" -eq 1 ]] || return 0
-  python3 - "${file_path}" <<'PY'
+
+  if [[ "${CAN_VALIDATE_YAML:-0}" -ne 1 ]]; then
+    if [[ "${ALLOW_UNVALIDATED_YAML:-0}" -eq 1 ]]; then
+      log "WARNING: skipping YAML validation for ${file_path} (ALLOW_UNVALIDATED_YAML=1)."
+      return 0
+    fi
+    die "ERROR: cannot validate ${file_path} - no Python interpreter with PyYAML found.
+Install PyYAML (pip install pyyaml), set HA_PYTHON to a suitable interpreter, or
+re-run with ALLOW_UNVALIDATED_YAML=1 to bypass validation.
+Refusing to write unvalidated YAML to a live configuration."
+  fi
+
+  "${PYTHON_CMD[@]}" - "${file_path}" <<'PY'
 import pathlib
 import sys
 import yaml
@@ -154,7 +196,7 @@ def construct_ha_tag(loader, tag_suffix, node):
     return loader.construct_scalar(node)
 
 HomeAssistantLoader.add_multi_constructor("!", construct_ha_tag)
-yaml.load(pathlib.Path(sys.argv[1]).read_text(), Loader=HomeAssistantLoader)
+yaml.load(pathlib.Path(sys.argv[1]).read_text(encoding="utf-8"), Loader=HomeAssistantLoader)
 PY
 }
 
