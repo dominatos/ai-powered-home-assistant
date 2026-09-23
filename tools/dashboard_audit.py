@@ -24,6 +24,15 @@ from typing import Any
 
 import yaml
 
+# These tools print emoji in their status output. On Windows the default
+# stdout encoding is a legacy codepage (cp1252), which raises
+# UnicodeEncodeError - and does so most often when the output is captured by
+# a parent process rather than shown in a terminal. Force UTF-8 where the
+# stream supports being reconfigured.
+for _stream in (sys.stdout, sys.stderr):
+    if hasattr(_stream, "reconfigure"):
+        _stream.reconfigure(encoding="utf-8", errors="replace")
+
 
 class HASafeLoader(yaml.SafeLoader):
     """SafeLoader subclass that handles Home Assistant tags."""

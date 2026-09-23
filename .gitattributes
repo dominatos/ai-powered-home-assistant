@@ -1,0 +1,11 @@
+# Home Assistant runs on Linux, and these files are executed there after being
+# checked out on a contributor's machine. Without this, a Windows clone with
+# core.autocrlf=true gets CRLF line endings and every shell script fails with
+# "syntax error near unexpected token" before running a single command.
+* text=auto eol=lf
+
+# Belt and braces for the files that are actually executed or parsed.
+*.sh   text eol=lf
+*.py   text eol=lf
+*.yaml text eol=lf
+*.yml  text eol=lf

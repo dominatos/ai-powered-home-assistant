@@ -31,6 +31,13 @@ ROOT = Path(__file__).resolve().parent.parent
 PASS = 0
 FAIL = 0
 
+# This script prints emoji. On Windows the default console encoding is a
+# legacy codepage (cp1252), which raises UnicodeEncodeError on the first
+# print. Force UTF-8 where the stream supports being reconfigured.
+for _stream in (sys.stdout, sys.stderr):
+    if hasattr(_stream, "reconfigure"):
+        _stream.reconfigure(encoding="utf-8", errors="replace")
+
 
 def check(label, ok, detail=""):
     """Record and display the result of a repository validation check.
@@ -54,7 +61,7 @@ def test_yaml_templates():
     print("\n📋 YAML Templates")
     for f in sorted(ROOT.glob("*.template.yaml")):
         try:
-            content = f.read_text()
+            content = f.read_text(encoding="utf-8")
             content = re.sub(r"!include.*", '"__directive__"', content)
             data = yaml.safe_load(content)
             count = len(data) if isinstance(data, list) else len(data.get("views", [])) if isinstance(data, dict) else 1
@@ -67,7 +74,7 @@ def test_yaml_headers():
     """Verify that each root template YAML file contains a comment within its first eight lines."""
     print("\n📝 Template YAML Headers")
     for f in sorted(ROOT.glob("*.template.yaml")):
-        lines = f.read_text().splitlines()
+        lines = f.read_text(encoding="utf-8").splitlines()
         has_header = any(line.startswith("#") for line in lines[:8])
         check(f"{f.name}", has_header, "no comment header in first 8 lines")
 
@@ -84,7 +91,7 @@ def test_no_personal_data():
         (r"\b[a-f0-9]{32}\b", "Home Assistant device ID"),
     ]
     for f in sorted(ROOT.glob("*.template.*")):
-        text = f.read_text(errors="ignore")
+        text = f.read_text(encoding="utf-8", errors="ignore")
         found = []
         for pat, desc in patterns:
             if re.search(pat, text):
@@ -99,7 +106,7 @@ def test_python_tools():
     print("\n🐍 Python Tools")
     for f in sorted(ROOT.glob("tools/*.py")):
         try:
-            ast.parse(f.read_text())
+            ast.parse(f.read_text(encoding="utf-8"))
             check(f.name, True)
         except SyntaxError as e:
             check(f.name, False, f"line {e.lineno}: {e.msg}")
@@ -112,9 +119,16 @@ def test_shell_scripts():
     print("\n🐚 Shell Scripts")
     for f in sorted(ROOT.glob("tools/*.sh")):
         try:
+            # Pass a POSIX-style relative path. A native Windows absolute
+            # path reaches bash with its separators read as escapes, which
+            # mangles the filename and reports every script as missing.
             result = subprocess.run(
-                ["bash", "-n", str(f)],
-                capture_output=True, text=True, timeout=5
+                ["bash", "-n", f.relative_to(ROOT).as_posix()],
+                capture_output=True, text=True, timeout=5,
+                cwd=str(ROOT),
+                # Children emit UTF-8; without this, decoding uses the
+                # legacy codepage on Windows and raises UnicodeDecodeError.
+                encoding="utf-8", errors="replace",
             )
             check(f.name, result.returncode == 0, result.stderr.strip()[:80])
         except Exception as e:
@@ -130,7 +144,7 @@ def test_readme_anchors():
     check("README.md exists", readme_path.exists())
     if not readme_path.exists():
         return
-    readme = readme_path.read_text()
+    readme = readme_path.read_text(encoding="utf-8")
     headings = re.findall(r"^#{1,6}\s+(.+)$", readme, re.MULTILINE)
     anchors = set()
     for h in headings:
@@ -153,7 +167,7 @@ def test_readme_tables():
     if not readme_path.exists():
         check("README.md exists", False, "file not found")
         return
-    readme = readme_path.read_text()
+    readme = readme_path.read_text(encoding="utf-8")
     # Files that exist only after user renames templates — skip these
     skip_files = {
         "HOUSE_CONTEXT.md", "automations.yaml", "dashboard.yaml",
@@ -186,7 +200,7 @@ def test_prompts_documented():
         check("prompts directory exists", False, "directory not found")
         return
     readme_path = ROOT / "README.md"
-    readme = readme_path.read_text() if readme_path.exists() else ""
+    readme = readme_path.read_text(encoding="utf-8") if readme_path.exists() else ""
     for f in sorted(prompts_dir.iterdir()):
         if f.is_file():
             check(f"prompts/{f.name} exists", True)
@@ -216,7 +230,7 @@ def test_ci_workflow():
     check(".coderabbit.yaml exists", cr.exists())
     if cr.exists():
         try:
-            yaml.safe_load(cr.read_text())
+            yaml.safe_load(cr.read_text(encoding="utf-8"))
             check(".coderabbit.yaml is valid YAML", True)
         except yaml.YAMLError as e:
             check(".coderabbit.yaml is valid YAML", False, str(e))
@@ -228,7 +242,7 @@ def test_patterns():
     p = ROOT / "patterns" / "standardize.md"
     check("patterns/standardize.md exists", p.exists())
     if p.exists():
-        text = p.read_text()
+        text = p.read_text(encoding="utf-8")
         sections = re.findall(r"^## ", text, re.MULTILINE)
         check(f"patterns/standardize.md has sections", len(sections) > 0, f"found {len(sections)}")
 
@@ -239,7 +253,7 @@ def test_quickstart():
     qs = ROOT / "QUICKSTART.md"
     check("QUICKSTART.md exists", qs.exists())
     if qs.exists():
-        text = qs.read_text()
+        text = qs.read_text(encoding="utf-8")
         check("QUICKSTART.md references README.md", "README.md" in text)
         check("QUICKSTART.md references prompts/", "prompts/" in text)
         check("QUICKSTART.md references tools/", "tools/" in text)
@@ -260,7 +274,7 @@ def test_instructions_references():
     if not instr_path.exists():
         check("INSTRUCTIONS.md exists", False, "file not found")
         return
-    instr = instr_path.read_text()
+    instr = instr_path.read_text(encoding="utf-8")
     # Check key file references
     refs = {
         "patterns/standardize.md": "patterns/standardize.md" in instr,
@@ -317,7 +331,7 @@ def main():
     print("\n🐚 Shell Unit Tests (tests/test_shell_tools.sh)")
     try:
         r = subprocess.run(
-            ["bash", str(ROOT / "tests" / "test_shell_tools.sh")],
+            ["bash", "tests/test_shell_tools.sh"],
             cwd=str(ROOT), timeout=30
         )
         sh_pass = r.returncode == 0
