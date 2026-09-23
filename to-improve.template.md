@@ -6,6 +6,22 @@
 
 ---
 
+## Completed
+
+### Production → Template Sync (v2)
+- **Done**: Added 25 button/toggle automations (MQTT, remote, NFC, rotary knob)
+- **Done**: Added 10 advanced automations (bedroom motion kill logic, presence sync, missed call alert, fridge preparation, media playback pause-after-track)
+- **Done**: Added 6 patterns (Guarded Thermostat Sync, Stable Presence, Guest Mode, Cross-Automation Time Guard, TTS Playback Guard, Sequential TTS Coordination)
+- **Done**: Added `python_scripts/create_playlist.py` for NFS playlist generation
+- **Done**: Added `tools/ha_toolkit.py` (unified CLI replacing 5 separate scripts)
+- **Done**: Added 20+ config helpers (weekend thermostat schedule, kill-motion timer, privacy mode, LED color modes, TV daily counter, media playlist name, fairy lights scene selector)
+- **Done**: Added template sensors (Events Tomorrow/This Week, TV Runtime/Timer Remaining/Working Source, Google Calendar Agenda, temperature trend)
+- **Done**: Updated `scripts.template.yaml` with Saturday/Sunday thermostat schedule support
+- **Done**: Genericized all "jellyfin_tales" references to "media_playback"
+- **Done**: Created `readme-nfs.md` for NFS + Music Assistant setup
+
+---
+
 ## Priority 1: Security & Secrets
 
 ### Hardcoded Passwords in Zigbee2MQTT

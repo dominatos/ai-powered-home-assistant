@@ -1547,3 +1547,344 @@
     target:
       entity_id: light.fairy_lights
   mode: single
+
+# ---- SECTION 7: BUTTON / REMOTE / NFC TOGGLES ----
+# These are representative patterns. Copy one and change the placeholders
+# to create your own button → device toggles.
+
+# PATTERN 1: MQTT button → toggle light
+- id: button_toggle_light
+  alias: 'Room: Button Toggle Light'
+  description: MQTT button single press toggles a light. Replace device_id and entity_id.
+  triggers:
+  - domain: mqtt
+    device_id: <your_button_device_id>
+    type: action
+    subtype: 1_single
+    trigger: device
+  conditions: []
+  actions:
+  - type: toggle
+    device_id: <your_light_device_id>
+    entity_id: <your_light_entity_id>
+    domain: light
+  mode: single
+
+# PATTERN 2: MQTT button → toggle switch (fan, plug, etc.)
+- id: button_toggle_switch
+  alias: 'Room: Button Toggle Switch'
+  description: MQTT button hold toggles a switch. Replace device_id and entity_id.
+  triggers:
+  - domain: mqtt
+    device_id: <your_button_device_id>
+    type: action
+    subtype: 1_hold
+    trigger: device
+  conditions: []
+  actions:
+  - type: toggle
+    device_id: <your_switch_device_id>
+    entity_id: <your_switch_entity_id>
+    domain: switch
+  mode: single
+
+# PATTERN 3: NFC tag → toggle light
+- id: nfc_toggle_light
+  alias: 'Room: NFC Toggle Light'
+  description: NFC tag scan toggles a light. Replace tag_id and device_id.
+  triggers:
+  - trigger: tag
+    tag_id: <your_nfc_tag_id>
+  conditions: []
+  actions:
+  - type: toggle
+    device_id: <your_light_device_id>
+    entity_id: <your_light_entity_id>
+    domain: light
+  mode: single
+
+# PATTERN 4: Multiple triggers → toggle (e.g. remote + IKEA remote, same action)
+- id: multi_trigger_toggle
+  alias: 'Room: Multi-Trigger Toggle'
+  description: Two different remotes/buttons trigger the same toggle. Shows how to
+    combine multiple triggers for one action.
+  triggers:
+  - domain: mqtt
+    device_id: <your_remote_1_device_id>
+    type: action
+    subtype: 1_single
+    trigger: device
+  - domain: mqtt
+    device_id: <your_remote_2_device_id>
+    type: action
+    subtype: toggle
+    trigger: device
+  conditions: []
+  actions:
+  - action: light.toggle
+    target:
+      device_id: <your_light_device_id>
+  mode: single
+
+# PATTERN 5: Time-aware toggle (different device at night vs day)
+- id: time_aware_toggle
+  alias: 'Room: Time-Aware Toggle'
+  description: Button press toggles one device during night hours, another during the day.
+    Uses choose + time condition.
+  triggers:
+  - domain: mqtt
+    device_id: <your_button_device_id>
+    type: action
+    subtype: single
+    trigger: device
+    id: button_press
+  conditions: []
+  actions:
+  - choose:
+    - conditions:
+      - condition: trigger
+        id: button_press
+      - condition: time
+        after: '20:00:00'
+        before: 08:00:00
+      sequence:
+      - type: toggle
+        device_id: <your_night_device_id>
+        entity_id: <your_night_entity_id>
+        domain: switch
+    default:
+    - type: toggle
+      device_id: <your_day_device_id>
+      entity_id: <your_day_entity_id>
+      domain: light
+  mode: single
+
+# PATTERN 6: Double-click toggle
+- id: double_click_toggle
+  alias: 'Room: Double-Click Toggle'
+  description: Remote double-click toggles a device. Shows the double trigger subtype.
+  triggers:
+  - domain: mqtt
+    device_id: <your_remote_device_id>
+    type: action
+    subtype: 2_double
+    trigger: device
+  conditions: []
+  actions:
+  - type: toggle
+    device_id: <your_light_device_id>
+    entity_id: <your_light_entity_id>
+    domain: light
+  mode: single
+
+# PATTERN 7: Button → turn off multiple lights in area
+- id: button_all_off
+  alias: 'Room: All Lights Off'
+  description: Button press turns off multiple lights in an area. Uses area_id.
+  triggers:
+  - domain: mqtt
+    device_id: <your_button_device_id>
+    type: action
+    subtype: 4_single
+    trigger: device
+  conditions: []
+  actions:
+  - action: light.turn_off
+    target:
+      area_id:
+      - <your_area_id_1>
+      - <your_area_id_2>
+  mode: single
+
+# PATTERN 8: LED color mode toggle (random color ↔ white)
+- id: led_color_mode_toggle
+  alias: 'Room: LED Color Mode Toggle'
+  description: Button alternates an LED between random color and white. Requires
+    input_boolean.<room>_led_color_mode to track state.
+  triggers:
+  - domain: mqtt
+    device_id: <your_button_device_id>
+    type: action
+    subtype: 2_single
+    trigger: device
+  conditions: []
+  actions:
+  - choose:
+    - conditions:
+      - condition: state
+        entity_id: input_boolean.<your_room>_led_color_mode
+        state: 'off'
+      sequence:
+      - action: light.turn_on
+        target:
+          entity_id: <your_led_entity_id>
+        data:
+          hs_color:
+          - '{{ range(0, 360) | random }}'
+          - 100
+          brightness_pct: 100
+      - action: input_boolean.turn_on
+        target:
+          entity_id: input_boolean.<your_room>_led_color_mode
+    - conditions:
+      - condition: state
+        entity_id: input_boolean.<your_room>_led_color_mode
+        state: 'on'
+      sequence:
+      - action: light.turn_on
+        target:
+          entity_id: <your_led_entity_id>
+        data:
+          color_temp_kelvin: 4000
+          brightness_pct: 100
+      - action: input_boolean.turn_off
+        target:
+          entity_id: input_boolean.<your_room>_led_color_mode
+  mode: single
+
+# PATTERN 9: IKEA remote brightness control
+- id: ikea_brightness_control
+  alias: 'Room: IKEA Remote Brightness'
+  description: IKEA remote up/down arrows adjust light brightness. Requires light to be on.
+  triggers:
+  - domain: mqtt
+    device_id: <your_ikea_remote_device_id>
+    type: action
+    subtype: brightness_down_click
+    trigger: device
+    id: decrease
+  - domain: mqtt
+    device_id: <your_ikea_remote_device_id>
+    type: action
+    subtype: brightness_up_click
+    trigger: device
+    id: increase
+  conditions:
+  - condition: device
+    type: is_on
+    device_id: <your_light_device_id>
+    entity_id: <your_light_entity_id>
+    domain: light
+  actions:
+  - choose:
+    - conditions:
+      - condition: trigger
+        id: decrease
+      sequence:
+      - device_id: <your_light_device_id>
+        domain: light
+        entity_id: <your_light_entity_id>
+        type: brightness_decrease
+    - conditions:
+      - condition: trigger
+        id: increase
+      sequence:
+      - device_id: <your_light_device_id>
+        domain: light
+        entity_id: <your_light_entity_id>
+        type: brightness_increase
+  mode: single
+
+# PATTERN 10: IKEA remote smart media (next track with speaker priority)
+- id: ikea_smart_next_track
+  alias: 'Room: IKEA Remote Smart Next Track'
+  description: Arrow-right on IKEA remote skips to next track. Checks multiple media
+    players in priority order (playing first, then paused).
+  triggers:
+  - domain: mqtt
+    device_id: <your_ikea_remote_device_id>
+    type: action
+    subtype: arrow_right_click
+    trigger: device
+  conditions: []
+  actions:
+  - choose:
+    - conditions:
+      - condition: state
+        entity_id: media_player.<your_primary_speaker>
+        state: playing
+      sequence:
+      - action: media_player.media_next_track
+        target:
+          entity_id: media_player.<your_primary_speaker>
+        continue_on_error: true
+    - conditions:
+      - condition: state
+        entity_id: media_player.<your_secondary_speaker>
+        state: playing
+      sequence:
+      - action: media_player.media_next_track
+        target:
+          entity_id: media_player.<your_secondary_speaker>
+        continue_on_error: true
+    - conditions:
+      - condition: state
+        entity_id: media_player.<your_primary_speaker>
+        state: paused
+      sequence:
+      - action: media_player.media_next_track
+        target:
+          entity_id: media_player.<your_primary_speaker>
+        continue_on_error: true
+    - conditions:
+      - condition: state
+        entity_id: media_player.<your_secondary_speaker>
+        state: paused
+      sequence:
+      - action: media_player.media_next_track
+        target:
+          entity_id: media_player.<your_secondary_speaker>
+        continue_on_error: true
+  mode: single
+
+# PATTERN 11: IKEA remote smart play/pause (same priority logic)
+- id: ikea_smart_play_pause
+  alias: 'Room: IKEA Remote Smart Play/Pause'
+  description: Arrow-left on IKEA remote toggles play/pause. Checks multiple media
+    players in priority order.
+  triggers:
+  - domain: mqtt
+    device_id: <your_ikea_remote_device_id>
+    type: action
+    subtype: arrow_left_click
+    trigger: device
+  conditions: []
+  actions:
+  - choose:
+    - conditions:
+      - condition: state
+        entity_id: media_player.<your_primary_speaker>
+        state: playing
+      sequence:
+      - action: media_player.media_play_pause
+        target:
+          entity_id: media_player.<your_primary_speaker>
+        continue_on_error: true
+    - conditions:
+      - condition: state
+        entity_id: media_player.<your_secondary_speaker>
+        state: playing
+      sequence:
+      - action: media_player.media_play_pause
+        target:
+          entity_id: media_player.<your_secondary_speaker>
+        continue_on_error: true
+    - conditions:
+      - condition: state
+        entity_id: media_player.<your_primary_speaker>
+        state: paused
+      sequence:
+      - action: media_player.media_play_pause
+        target:
+          entity_id: media_player.<your_primary_speaker>
+        continue_on_error: true
+    - conditions:
+      - condition: state
+        entity_id: media_player.<your_secondary_speaker>
+        state: paused
+      sequence:
+      - action: media_player.media_play_pause
+        target:
+          entity_id: media_player.<your_secondary_speaker>
+        continue_on_error: true
+  mode: single

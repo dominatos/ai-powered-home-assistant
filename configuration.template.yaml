@@ -64,6 +64,39 @@ input_boolean:
     name: TV Timer Active
     icon: mdi:timer-check
 
+  # Suppress all camera recordings, TTS, and notifications.
+  privacy_mode:
+    name: Privacy Mode
+    icon: mdi:eye-off
+
+  # Track whether a light was turned on by a "night auto" automation vs manually.
+  kitchen_dish_light_started_by_night_auto:
+    name: Kitchen Dish Light Started by Night Auto
+    icon: mdi:lightbulb-on-outline
+
+  # LED color mode: tracks whether a room's LED is in white vs RGB scene mode.
+  bathroom_led_color_mode:
+    name: Bathroom LED Color Mode
+    icon: mdi:palette
+  bedroom_led_color_mode:
+    name: Bedroom LED Color Mode
+    icon: mdi:palette
+
+  # Kill-switch for motion-based automations (e.g., "I'm in bed, stop turning lights on from motion").
+  bedroom_kill_motion_logic:
+    name: Bedroom Kill Motion Logic
+    icon: mdi:motion-sensor-off
+
+  # Pause media playback after the current track finishes.
+  pause_media_after_track:
+    name: Pause Media After Current Track
+    icon: mdi:pause-circle-outline
+
+  # Flag for missed call alerts.
+  missed_call_alert:
+    name: Missed Call Alert
+    icon: mdi:phone-missed
+
   # Thermostat overrides
   thermostat_boost_1h:
     name: Thermostat Boost 1h
@@ -76,15 +109,22 @@ input_boolean:
     name: Thermostat Night Mode Active
     icon: mdi:weather-night
 
+  # Indicates weekend-specific thermostat schedules have been reviewed and are ready to apply.
+  thermostat_weekend_schedule_ready:
+    name: Thermostat Weekend Schedule Ready
+    icon: mdi:calendar-check
+
 # --- Dashboard trigger buttons ---
 input_button:
   tv_start_timer:
     name: Start TV Timer
     icon: mdi:play-circle
+  missed_call_alert:
+    name: Trigger Missed Call Alert
+    icon: mdi:phone-missed
 
 # --- Thermostat schedule helpers ---
 # 4 time slots × 3 days (weekday, Saturday, Sunday) = 12 helpers each.
-# Shown here for weekdays only; duplicate for Saturday/Sunday if needed.
 input_datetime:
   thermostat_schedule_time_1:
     name: Thermostat Schedule Morning Time
@@ -102,6 +142,40 @@ input_datetime:
     name: Thermostat Schedule Night Time
     has_date: false
     has_time: true
+  # Saturday schedule
+  thermostat_schedule_saturday_time_1:
+    name: Thermostat Saturday Morning Time
+    has_date: false
+    has_time: true
+  thermostat_schedule_saturday_time_2:
+    name: Thermostat Saturday Day Time
+    has_date: false
+    has_time: true
+  thermostat_schedule_saturday_time_3:
+    name: Thermostat Saturday Evening Time
+    has_date: false
+    has_time: true
+  thermostat_schedule_saturday_time_4:
+    name: Thermostat Saturday Night Time
+    has_date: false
+    has_time: true
+  # Sunday schedule
+  thermostat_schedule_sunday_time_1:
+    name: Thermostat Sunday Morning Time
+    has_date: false
+    has_time: true
+  thermostat_schedule_sunday_time_2:
+    name: Thermostat Sunday Day Time
+    has_date: false
+    has_time: true
+  thermostat_schedule_sunday_time_3:
+    name: Thermostat Sunday Evening Time
+    has_date: false
+    has_time: true
+  thermostat_schedule_sunday_time_4:
+    name: Thermostat Sunday Night Time
+    has_date: false
+    has_time: true
 
 input_number:
   # TV timer
@@ -114,7 +188,16 @@ input_number:
     icon: mdi:timer
     mode: box
 
-  # Thermostat schedule temperatures
+  # TV daily usage accumulator (incremented by automation, reset at midnight)
+  tv_daily_minutes_counter:
+    name: TV Daily Minutes
+    min: 0
+    max: 1440
+    step: 1
+    unit_of_measurement: min
+    icon: mdi:television
+
+  # Thermostat schedule temperatures — Weekday
   thermostat_schedule_temp_1:
     name: Thermostat Morning Temperature
     min: 15
@@ -150,6 +233,64 @@ input_number:
     step: 1
     unit_of_measurement: °C
     icon: mdi:home-export-outline
+  # Saturday temperatures
+  thermostat_schedule_saturday_temp_1:
+    name: Thermostat Saturday Morning Temperature
+    min: 15
+    max: 30
+    step: 1
+    unit_of_measurement: °C
+    icon: mdi:thermometer
+  thermostat_schedule_saturday_temp_2:
+    name: Thermostat Saturday Day Temperature
+    min: 15
+    max: 30
+    step: 1
+    unit_of_measurement: °C
+    icon: mdi:thermometer
+  thermostat_schedule_saturday_temp_3:
+    name: Thermostat Saturday Evening Temperature
+    min: 15
+    max: 30
+    step: 1
+    unit_of_measurement: °C
+    icon: mdi:thermometer
+  thermostat_schedule_saturday_temp_4:
+    name: Thermostat Saturday Night Temperature
+    min: 15
+    max: 30
+    step: 1
+    unit_of_measurement: °C
+    icon: mdi:thermometer
+  # Sunday temperatures
+  thermostat_schedule_sunday_temp_1:
+    name: Thermostat Sunday Morning Temperature
+    min: 15
+    max: 30
+    step: 1
+    unit_of_measurement: °C
+    icon: mdi:thermometer
+  thermostat_schedule_sunday_temp_2:
+    name: Thermostat Sunday Day Temperature
+    min: 15
+    max: 30
+    step: 1
+    unit_of_measurement: °C
+    icon: mdi:thermometer
+  thermostat_schedule_sunday_temp_3:
+    name: Thermostat Sunday Evening Temperature
+    min: 15
+    max: 30
+    step: 1
+    unit_of_measurement: °C
+    icon: mdi:thermometer
+  thermostat_schedule_sunday_temp_4:
+    name: Thermostat Sunday Night Temperature
+    min: 15
+    max: 30
+    step: 1
+    unit_of_measurement: °C
+    icon: mdi:thermometer
 
 # --- AI model selector ---
 # Allows switching between a local Ollama model and a cloud provider
@@ -159,6 +300,16 @@ input_text:
     name: "Ollama Model"
     initial: "your-model-nothink"
     icon: mdi:robot-outline
+  ai_opencode_model:
+    name: "OpenCode Model"
+    initial: "your-cloud-model"
+    icon: mdi:cloud-outline
+
+  # Playlist name for media playback (used by playlist sync automation)
+  media_playlist_name:
+    name: "Playlist Name"
+    initial: "your-playlist-name"
+    icon: mdi:playlist-music
 
 input_select:
   ai_provider_selector:
@@ -169,17 +320,40 @@ input_select:
     initial: "Local (Ollama)"
     icon: mdi:robot
 
+  # Fairy lights scene selector — choose a preset scene for controllable LED strips.
+  # Add your own scene names to the options list.
+  fairy_lights_scene_selector:
+    name: Fairy Lights Scene
+    options:
+      - "Scene 1"
+      - "Scene 2"
+      - "Scene 3"
+      - "Scene 4"
+    initial: "Scene 1"
+    icon: mdi:string-lights
+
 # --- TV Off Timer ---
 timer:
   tv_off_timer:
     name: TV Off Timer
     icon: mdi:television
 
+  # Bedroom kill-motion timer — disables motion detection for 2 hours when triggered.
+  bedroom_kill_motion_2h:
+    name: Bedroom Kill Motion (2h)
+    icon: mdi:motion-sensor-off
+    duration: "02:00:00"
+
 # --- Shell commands ---
 shell_command:
   # Reset Bluetooth adapter if devices stop connecting.
   reset_bluetooth: >
     echo "power off" | bluetoothctl && sleep 2 && echo "power on" | bluetoothctl && sleep 2 && echo "scan on" | bluetoothctl
+
+  # Generate an M3U playlist from a directory of audio files.
+  # Requires python_scripts/create_playlist.py.
+  create_playlist: >
+    python3 /config/python_scripts/create_playlist.py /path/to/audio /config/www/playlist.m3u
 
 # --- Recorder optimizations ---
 # Exclude high-churn, low-value entities from history to reduce DB size.

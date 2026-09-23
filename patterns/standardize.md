@@ -960,36 +960,32 @@ A virtual boolean (`input_boolean`) acts as the single source of truth for an IR
 
 ---
 
-## 21. Dynamic Helper-Driven Timer Control
+## 22. Dynamic Helper-Driven Timer Control (Start, Pause, Resume, Extend, Cancel)
 
-A timer helper (`timer.<name>`) is managed with interactive dashboard controls (Start, Pause, Resume, Extend, Cancel), an `input_number` helper for duration configuration, and an `input_boolean` state tracker.
+A timer helper (`timer.<name>`) is managed with interactive dashboard controls (Start, Pause, Resume, Extend, Cancel), an `input_number` helper for runtime configuration, and an `input_boolean` state tracker.
 
-**When to use:** Countdown features (e.g., appliance timers, TV shutoff timers) where users need to set duration, start/pause/resume/extend, and receive notifications or auto-off actions on completion.
+**When to use:** Countdown features (e.g., TV timer, appliance timers) where users need to set countdown duration, start/pause/resume execution, extend remaining time dynamically, and receive notifications or auto-off actions on finish or cancel.
 
 **Key design decisions:**
-- **State Tracker (`input_boolean`):** Turned `on` when started, `off` when finished or cancelled.
-- **Dynamic Extend Script:** Checks timer state: if `idle`, starts the timer; if `active` or `paused`, calls `timer.change` with duration from `input_number`.
-- **Paused Remaining Display:** Template sensor checks if timer is paused and formats remaining time as `HH:MM (Paused)`.
+- **State Tracker (`input_boolean`):** Turned `on` when started, kept `on` while active or paused, turned `off` when finished or cancelled (`timer.cancelled` event trigger).
+- **Dynamic Extend Script:** Checks `timer.<name>` state: if `idle`, starts the timer; if `active` or `paused`, calls `timer.change` with duration derived from `input_number.<name>`.
+- **Paused Remaining Display:** Template sensor checks `is_state('timer.<name>', 'paused')` and formats `state_attr('timer.<name>', 'remaining')` into `HH:MM (Paused)` format so remaining time is preserved visually when paused.
 
 **Template:**
 ```yaml
-# Script for dynamic extend/start
-extend_or_start_timer_script:
-  alias: "Extend or Start Timer"
-  description: "Extends active/paused timer by configured duration or starts if idle."
+# Script for dynamic extend
+extend_timer_script:
+  alias: "Extend Timer"
+  description: "Extends active/paused timer by configured input_number or starts if idle."
   sequence:
     - if:
         - condition: state
           entity_id: timer.my_timer
           state: "idle"
       then:
-        - action: timer.start
+        - action: input_button.press
           target:
-            entity_id: timer.my_timer
-          data:
-            duration: >
-              {% set m = states('input_number.timer_minutes') | int(15) %}
-              {{ '{:02d}:{:02d}:00'.format(m // 60, m % 60) }}
+            entity_id: input_button.start_timer
       else:
         - action: timer.change
           target:
@@ -999,9 +995,9 @@ extend_or_start_timer_script:
               {% set m = states('input_number.timer_minutes') | int(15) %}
               {{ '{:02d}:{:02d}:00'.format(m // 60, m % 60) }}
 
-# Automation: reset state on cancel
+# Automation for cancel event handling
 - id: timer_cancelled_reset
-  alias: 'System: Reset Timer State on Cancel'
+  alias: 'System: Reset Timer Active on Cancel'
   triggers:
     - trigger: event
       event_type: timer.cancelled
@@ -1018,7 +1014,7 @@ extend_or_start_timer_script:
 
 ---
 
-## 22. 24/7 API Health Probing & Auto-Recovery
+## 23. 24/7 API Health Probing & Auto-Recovery
 
 An external API health check runs periodically (e.g., hourly) to validate remote service availability, automatically switching Home Assistant to a local fallback when the remote API fails, and restoring the primary provider when health is recovered.
 
@@ -1079,6 +1075,279 @@ An external API health check runs periodically (e.g., hourly) to validate remote
 
 ---
 
+## 24. Guarded Native Thermostat Schedule Synchronization
+
+When dashboard helpers control device-resident schedules, separate schedule
+storage from schedule activation:
+
+1. Validate all transition times are strictly ascending before writing; invalid
+   dashboard values must preserve the existing device schedule.
+2. Use a readiness boolean for newly introduced schedule groups whose helper
+   values have not yet been reviewed. Do not infer safe defaults from a device.
+3. It is safe to write a future schedule during a temporary override, but do
+   not re-activate `schedule` mode until Boost, Away/Night, and presence guards
+   permit it.
+4. Route all override-restoration paths through the one guarded schedule
+   automation rather than publishing `schedule` mode independently. This avoids
+   races with an override that has not finished setting its state.
+
+**Generic examples:**
+- `Thermostat: Write Native Schedule` — writes weekday/Saturday/Sunday schedules to Zigbee2MQTT with ascending-time validation and weekend readiness guard
+
+---
+
+## 25. Stable Presence Tracking & Master Occupancy
+
+GPS tracking (`person` entities) can occasionally drift, causing false "not_home" states that trigger Away automations while someone is still in the house.
+
+**When to use:** Whenever an automation needs to know if someone is home (e.g., thermostat away mode, alarm systems, "nobody was home" arrival announcements). Never use raw `person` state for away logic if the automation has high impact.
+
+**Key design decisions:**
+- **Debounced Departures:** Use `input_boolean.<person>_home_stable` helpers. On arrival, turn on immediately. On departure, wait 5 minutes before turning off. If the person returns to `home` within the 5 minutes, the timer cancels and the helper stays on uninterrupted.
+- **Unified Master Sensor:** `binary_sensor.house_occupied` combines all stable helpers, `input_boolean.guest_mode`, and internal motion trackers (like Magic Areas) into a single unified `on`/`off` state.
+- **Guest Mode:** Always include an `input_boolean.guest_mode` in the master occupancy logic to prevent the house from shutting down when owners leave guests behind.
+
+**Template (Stable Sync Automation):**
+```yaml
+- id: presence_stable_sync
+  alias: 'Presence: Stable Presence Sync'
+  description: Updates stable input_booleans with a 5-minute debounce on departure.
+  triggers:
+    - trigger: state
+      entity_id:
+        - person.<owner_1>
+        - person.<owner_2>
+  actions:
+    - variables:
+        person_id: "{{ trigger.entity_id }}"
+        is_home: "{{ trigger.to_state.state == 'home' }}"
+        helper: "input_boolean.{{ person_id.split('.')[1] }}_home_stable"
+    - if:
+        - condition: template
+          value_template: "{{ is_home }}"
+      then:
+        - action: input_boolean.turn_on
+          target:
+            entity_id: "{{ helper }}"
+      else:
+        - delay:
+            minutes: 5
+        - condition: template
+          value_template: "{{ states(person_id) != 'home' }}"
+        - action: input_boolean.turn_off
+          target:
+            entity_id: "{{ helper }}"
+  mode: parallel
+  max: 10
+```
+
+**Template (Master Occupancy Template Sensor):**
+```yaml
+template:
+  - binary_sensor:
+      - name: House Occupied
+        unique_id: house_occupied_master
+        state: >
+          {{ 
+             is_state('input_boolean.<owner_1>_home_stable', 'on') or 
+             is_state('input_boolean.<owner_2>_home_stable', 'on') or 
+             is_state('input_boolean.guest_mode', 'on') or
+             is_state('binary_sensor.magic_areas_presence_tracking_interior_area_state', 'on')
+          }}
+```
+
+**Generic examples:**
+- `Presence: Stable Presence Sync` — debounces departure by 5 minutes per person
+- `binary_sensor.house_occupied` — unified occupancy from stable helpers + guest mode + motion
+
+---
+
+## 26. Guest Mode Suppression (Night / Reminders)
+
+Disables automations that assume normal family occupancy, such as night path lighting, energy-saving shutoffs, or loud announcements, when guests are visiting.
+
+**When to use:** When an automation's default behavior would disturb a guest sleeping in a common area or turn off something they are using.
+
+**Template (Condition Block):**
+```yaml
+  conditions:
+    - condition: state
+      entity_id: input_boolean.guest_mode
+      state: 'off'
+```
+
+**Template (Energy Auto-Off Exception):**
+Allows an auto-off timer during the day, but keeps the device on at night if a guest is present.
+```yaml
+  conditions:
+    - condition: or
+      conditions:
+        - condition: time
+          after: '08:00:00'
+          before: '19:00:00'
+        - condition: state
+          entity_id: input_boolean.guest_mode
+          state: 'off'
+```
+
+**Generic examples:**
+- `Kitchen: Dish Light on Night Motion` (suppressed when guests present)
+- `Kitchen: Turn Off A/C After 30m No Motion` (energy exception at night with guests)
+
+---
+
+## 27. Cross-Automation Time Guard
+
+Uses the `last_triggered` attribute of a conflicting automation to block the current automation if the conflicting one fired recently.
+
+**When to use:** When one action (e.g., turning off all lights to leave the house) should temporarily suppress an automatic reaction (e.g., opening the door turning the lights back on) that would otherwise defeat the intent of the first action.
+
+**Template:**
+```yaml
+  conditions:
+    - condition: template
+      value_template: >
+        {{ as_timestamp(now()) - as_timestamp(state_attr('automation.<target_automation>', 'last_triggered'), 0) > 300 }}
+      alias: "Block if '<Target Automation>' fired within the last 5 minutes"
+```
+
+**Generic examples:**
+- `Kitchen: Main Light on Door Open` (blocked for 5 minutes after `House: All Lights Off` triggers)
+
+---
+
+## 28. TTS Playback Guard (Non-Interruptive Announcements)
+
+Prevents TTS announcements from interrupting active media playback (e.g., music, stories, podcasts). When a speaker is already `playing`, it is excluded from the `active_speakers` list so the TTS action simply skips that speaker instead of forcing a stream switch.
+
+**When to use:** Any automation that sends TTS to speakers that may also play media via Music Assistant.
+
+**Key design decisions:**
+- **Playback check inside `active_speakers`** — each speaker is only added if its state is NOT `playing`. This is evaluated at action time, so it captures the live state.
+- **No volume boost/restore when skipped** — if no speakers are available (all busy or quiet mode), the entire TTS block is skipped, including volume manipulation.
+- **Telegram/push fallback stays outside the TTS guard** — notifications that already fire before the TTS block (like Telegram) are unaffected. The TTS skip is silent; the user still gets notified via phone.
+- **Works alongside Quiet TTS guard** — the `input_boolean.quiet_tts_notifications` check remains the outermost guard. The playback check is an additional inner filter.
+
+**Template (multi-room with Quiet TTS guard):**
+```yaml
+actions:
+  - variables:
+      active_speakers: >
+        {% set ns = namespace(speakers=[]) %}
+        {% if is_state('input_boolean.quiet_tts_notifications', 'off') %}
+          {% if is_state('media_player.<speaker_1>', 'playing') == false %}
+            {% set ns.speakers = ns.speakers + ['media_player.<speaker_1>'] %}
+          {% endif %}
+          {% if is_state('media_player.<speaker_2>', 'playing') == false %}
+            {% set ns.speakers = ns.speakers + ['media_player.<speaker_2>'] %}
+          {% endif %}
+        {% endif %}
+        {{ ns.speakers | join(', ') }}
+  - if:
+      - condition: template
+        value_template: "{{ active_speakers | length > 0 }}"
+    then:
+      - action: media_player.volume_set
+        target:
+          entity_id: "{{ active_speakers }}"
+        data:
+          volume_level: 0.4
+      - action: tts.speak
+        ...
+```
+
+**Template (single-room, no Quiet TTS guard):**
+```yaml
+actions:
+  - variables:
+      active_speakers: >
+        {% set ns = namespace(speakers=[]) %}
+        {% if is_state('media_player.<speaker>', 'playing') == false %}
+          {% set ns.speakers = ns.speakers + ['media_player.<speaker>'] %}
+        {% endif %}
+        {{ ns.speakers | join(', ') }}
+  - if:
+      - condition: template
+        value_template: "{{ active_speakers | length > 0 }}"
+    then:
+      - action: tts.speak
+        ...
+```
+
+**Generic examples:**
+- `Calendar: Events Announcement` — skips speakers playing media
+- `Bedroom: Weight Announcement with AI` — skips bedroom speaker during media playback
+
+---
+
+## 29. Sequential TTS Coordination & Speaker-Busy Guard
+
+When multiple spoken announcements can trigger around the same time (e.g. morning weather and calendar), they compete for:
+1. **AI Provider Generation**: Simultaneous calls can overload local LLM servers (like Ollama) or hit cloud rate limits.
+2. **Media Player Playback**: Two `tts.speak` actions targeting the same speaker will clobber and cut each other off mid-sentence.
+
+**When to use:** Any automation that delivers TTS speech or calls an AI provider where another automation might be active at or around the same time window.
+
+**Key Techniques:**
+1. **Upstream Automation Finish Wait**: Wait until the other automation's `current` attribute is 0 before calling AI.
+2. **Speaker Busy Guard**: Wait until the target media player is not `playing` before adjusting volume and speaking.
+3. **Resilient Direct Fallback**: If the AI call fails or times out, read the raw data directly from sensors/calendar instead of an unhelpful "I couldn't read this" error message.
+
+**Template:**
+```yaml
+actions:
+  # 1. Wait for upstream automation to finish (e.g. morning weather)
+  - if:
+      - condition: template
+        value_template: "{{ trigger.id == 'today' and now().weekday() < 5 }}"
+    then:
+      - alias: "Wait for morning weather alert to finish if active"
+        wait_template: "{{ is_state_attr('automation.<weather_alert>', 'current', 0) }}"
+        timeout: "00:02:00"
+        continue_on_timeout: true
+      - delay:
+          seconds: 2
+
+  # 2. Call AI provider and format text...
+  # [AI call sequence here]
+
+  # 3. Speaker-Busy Guard before volume_set and tts.speak
+  - if:
+      - condition: state
+        entity_id: input_boolean.quiet_tts_notifications
+        state: 'off'
+    then:
+      - alias: "Wait for speaker to finish playing before speaking"
+        wait_template: >-
+          {{ not is_state('media_player.<speaker_1>', 'playing') and
+             not is_state('media_player.<speaker_2>', 'playing') }}
+        timeout: "00:01:30"
+        continue_on_timeout: true
+      - action: media_player.volume_set
+        target:
+          entity_id: "{{ active_speakers }}"
+        data:
+          volume_level: 0.4
+      - action: tts.speak
+        target:
+          entity_id: tts.google_translate_<lang>
+        data:
+          media_player_entity_id: "{{ active_speakers }}"
+          language: en
+          message: >-
+            {% if ai_response is defined and ai_response.status == 200 and ai_response.content is defined %}
+              {{ ai_response.content }}
+            {% else %}
+              {# Resilient direct fallback reading the underlying entities #}
+              ...
+            {% endif %}
+```
+
+**Generic examples:**
+- `Calendar: Events Announcement` — waits for weather alert to finish, then speaks calendar summary
+
+---
+
 ## Mode Selection Guide
 
 | Mode | When to use |
@@ -1094,4 +1363,4 @@ An external API health check runs periodically (e.g., hourly) to validate remote
 After creating or modifying an automation:
 1. Add or update its entry in `automations_kb.md`
 2. Update `HOUSE_CONTEXT.md` if new devices, sensors, or room relationships are involved
-3. Run `python3 tools/check_docs.py` to verify consistency
+3. Run `python3 tools/ha_toolkit.py audit_docs` to verify consistency

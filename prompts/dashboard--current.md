@@ -51,13 +51,13 @@ Common cards in use (update with your actual installed cards):
 # Verification Step
 After any change to `dashboard.yaml`, run:
 ```bash
-python3 tools/dashboard_audit.py
+python3 tools/ha_toolkit.py audit-dashboard
 ```
 to validate entity references against the latest inventory.
 
 Also run after any automation change:
 ```bash
-python3 tools/check_docs.py
+python3 tools/ha_toolkit.py audit-docs
 ```
 to ensure all automations are documented and no stale aliases remain.
 

@@ -6,6 +6,31 @@
 
 ---
 
+## Completed
+
+### Production → Template Sync (v2)
+- **Done**: All 36 missing automations added (button toggles, motion kill, presence, notifications, NFC, TV, thermostat, calendar, fridge, media playback)
+- **Done**: All generic config helpers and sensors added
+- **Done**: Patterns and scripts updated
+
+---
+
+## Remaining Items (from production that were skipped)
+
+### Personal automations not suitable for templates
+- **VW Golf Fast Location Polling** — Traccar integration, car-specific
+- **Yuliia Left Work notification** — person + calendar-specific
+- **Kitchen: Evening Meal Reminder** — old/disabled version in production
+- **TEST: Kidroom Ghost Motion Detection** — test automation
+
+### Blueprint files (5 production blueprints)
+- backup, find3, frigate, node-red, sonoff — already in public repo, no action needed
+
+### `tools/backup/` and `tools/personal/` directories
+- Archived old scripts and house-specific migration scripts — not suitable for public repo
+
+---
+
 ## Priority 1: Safety System Hardening
 
 ### Water leak debounce and confirmation

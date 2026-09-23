@@ -196,6 +196,7 @@ This gives you a clean, auditable history of every change.
 ### Advanced / Optional Reference Docs
 - [FUTURE-automations.template.md](FUTURE-automations.template.md) — design complex automations before implementing
 - [heating.template.md](heating.template.md) — thermostat schedule architecture & automation interaction matrix
+- [readme-nfs.md](readme-nfs.md) — NFS + Music Assistant setup guide for local audio libraries
 - [README-ollama.template.md](README-ollama.template.md) — local AI (Ollama) integration with HA
 - [sell-mode-plan.template.md](sell-mode-plan.template.md) — runtime sell-mode pattern for disabling personal automations
 - [remove-customization.template.md](remove-customization.template.md) — handover checklist
