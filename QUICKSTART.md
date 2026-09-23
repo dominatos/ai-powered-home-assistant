@@ -27,6 +27,8 @@ Get up and running in 5 minutes using a **private Git repository** — the recom
 **Option A: One command (recommended)**
 
 Download and run the setup script — it clones, renames, and pushes for you:
+The target repository must be **empty** — the script refuses to overwrite an existing history unless you pass `--force`.
+
 ```bash
 bash <(curl -s https://raw.githubusercontent.com/dominatos/ai-powered-home-assistant/main/tools/install-private-repo.sh) git@github.com:<your-username>/<your-private-repo>.git
 ```
@@ -58,7 +60,7 @@ done
 # Commit the initial state
 git add .
 git commit -m "Initial setup with renamed templates"
-git push --set-upstream origin main --force
+git push --set-upstream origin main
 ```
 
 This creates your working copies:
