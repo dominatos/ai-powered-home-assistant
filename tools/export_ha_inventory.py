@@ -33,7 +33,7 @@ def load_storage_json(path: Path, optional: bool = False) -> list[dict]:
         SystemExit: If a required file is missing, the JSON is invalid, or the file structure is unexpected.
     """
     try:
-        data = json.loads(path.read_text())
+        data = json.loads(path.read_text(encoding="utf-8"))
     except FileNotFoundError:
         if optional:
             return []
@@ -219,7 +219,7 @@ def load_number_map(path: Path) -> dict:
         }
 
     try:
-        number_map = json.loads(path.read_text())
+        number_map = json.loads(path.read_text(encoding="utf-8"))
     except json.JSONDecodeError as exc:
         raise SystemExit(f"Invalid JSON in {path}: {exc}")
 
@@ -241,7 +241,7 @@ def load_legacy_text_numbers(path: Path, devices_by_id: dict[str, dict]) -> dict
         devices_by_name_area.setdefault(key, []).append(device)
 
     line_pattern = re.compile(r"^(?P<number>\d+)\.\s+(?P<name>.+)\s+\((?P<area>.*)\)$")
-    for line in path.read_text().splitlines():
+    for line in path.read_text(encoding="utf-8").splitlines():
         match = line_pattern.match(line)
         if not match:
             continue
@@ -422,7 +422,10 @@ def export_yaml_entities(config_dir: Path, output_dir: Path) -> None:
                 })
                 
         out_path.parent.mkdir(parents=True, exist_ok=True)
-        out_path.write_text(json.dumps(results, indent=2, ensure_ascii=True) + "\n")
+        out_path.write_text(
+            json.dumps(results, indent=2, ensure_ascii=True) + "\n",
+            encoding="utf-8", newline="\n",
+        )
         print(f"Wrote {len(results)} items from {yaml_file} to {out_path}")
 
 
@@ -495,15 +498,27 @@ def main() -> int:
     number_map = update_number_map(number_map, devices_by_id)
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    output_path.write_text(json.dumps(inventory, indent=2, ensure_ascii=True) + "\n")
+    output_path.write_text(
+        json.dumps(inventory, indent=2, ensure_ascii=True) + "\n",
+        encoding="utf-8", newline="\n",
+    )
     number_map_path.parent.mkdir(parents=True, exist_ok=True)
-    number_map_path.write_text(json.dumps(number_map, indent=2, ensure_ascii=True) + "\n")
+    number_map_path.write_text(
+        json.dumps(number_map, indent=2, ensure_ascii=True) + "\n",
+        encoding="utf-8", newline="\n",
+    )
     text_output_path.parent.mkdir(parents=True, exist_ok=True)
-    text_output_path.write_text(build_text_inventory(devices_by_id, number_map))
+    text_output_path.write_text(
+        build_text_inventory(devices_by_id, number_map),
+        encoding="utf-8", newline="\n",
+    )
     
     virtual_inventory = build_virtual_inventory(inventory)
     virtual_output_path.parent.mkdir(parents=True, exist_ok=True)
-    virtual_output_path.write_text(json.dumps(virtual_inventory, indent=2, ensure_ascii=True) + "\n")
+    virtual_output_path.write_text(
+        json.dumps(virtual_inventory, indent=2, ensure_ascii=True) + "\n",
+        encoding="utf-8", newline="\n",
+    )
 
     print(f"Wrote inventory to {output_path}")
     print(f"Wrote inventory number map to {number_map_path}")

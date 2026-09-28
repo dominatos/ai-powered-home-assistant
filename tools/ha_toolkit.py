@@ -14,6 +14,15 @@ import yaml
 from pathlib import Path
 from typing import Any
 
+# This toolkit prints emoji in its status output. On Windows the default
+# stdout encoding is a legacy codepage (cp1252), which raises
+# UnicodeEncodeError - and does so most often when the output is captured by
+# a parent process rather than shown in a terminal. Force UTF-8 where the
+# stream supports being reconfigured.
+for _stream in (sys.stdout, sys.stderr):
+    if hasattr(_stream, "reconfigure"):
+        _stream.reconfigure(encoding="utf-8", errors="replace")
+
 # ==============================================================================
 # YAML Helpers
 # ==============================================================================
@@ -470,7 +479,7 @@ def generate_kb(args, repo: Path):
     
     out_file = Path(args.output) if args.output else repo / "automations_kb.md"
     try:
-        out_file.write_text(kb, encoding='utf-8')
+        out_file.write_text(kb, encoding='utf-8', newline='\n')
         print(f"✅ Generated {out_file}")
     except Exception as e:
         print(f"Error writing to {out_file}: {e}")
