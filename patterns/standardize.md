@@ -1314,7 +1314,7 @@ actions:
       - alias: "Wait for morning weather alert to finish if active"
         wait_template: "{{ is_state_attr('automation.<weather_alert>', 'current', 0) }}"
         timeout: "00:02:00"
-        continue_on_timeout: true
+        continue_on_timeout: false
       - delay:
           seconds: 2
 

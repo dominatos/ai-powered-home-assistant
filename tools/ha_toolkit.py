@@ -96,11 +96,14 @@ def _extract_trace_meta(trace: dict) -> dict:
 
 
 def analyze_traces(args, repo: Path):
+    trace_file = repo / 'temp/trace.saved_traces'
     try:
-        with open(repo / 'temp/trace.saved_traces', 'r') as f:
-            data = json.load(f)
+        data = json.loads(trace_file.read_text(encoding='utf-8'))
     except FileNotFoundError:
-        print("Error: temp/trace.saved_traces not found. Pull it first using tools/pull_debug_files.sh.")
+        print(f"Error: {trace_file} not found. Pull it first using tools/pull_debug_files.sh.")
+        sys.exit(1)
+    except (json.JSONDecodeError, OSError) as e:
+        print(f"Error reading {trace_file}: {e}")
         sys.exit(1)
     
     traces_dict = data.get('data', {})
@@ -203,11 +206,14 @@ def analyze_traces(args, repo: Path):
 # 2. INVENTORY ANALYZER (from ha_debug_cli.py)
 # ==============================================================================
 def analyze_inventory(args, repo: Path):
+    inv_file = repo / 'ha_device_inventory.json'
     try:
-        with open(repo / 'ha_device_inventory.json', 'r') as f:
-            data = json.load(f)
+        data = json.loads(inv_file.read_text(encoding='utf-8'))
     except FileNotFoundError:
-        print("Error: ha_device_inventory.json not found.")
+        print(f"Error: {inv_file} not found.")
+        sys.exit(1)
+    except (json.JSONDecodeError, OSError) as e:
+        print(f"Error reading {inv_file}: {e}")
         sys.exit(1)
 
     print(f"Searching inventory for '{args.query}'...")

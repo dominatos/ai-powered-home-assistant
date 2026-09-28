@@ -182,6 +182,7 @@ fi
 # Set CAN_VALIDATE_YAML directly rather than manipulating PATH: which
 # interpreters are reachable varies with how the suite is invoked.
 result="$(cd "${REPO_ROOT}" && bash -c "
+  unset ALLOW_UNVALIDATED_YAML
   source tools/sync_common.sh
   CAN_VALIDATE_YAML=0
   validate_yaml_file '${valid_yaml}'
