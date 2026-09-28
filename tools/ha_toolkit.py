@@ -37,6 +37,13 @@ HASafeLoader.add_multi_constructor("!", _ha_constructor)
 
 
 def load_automations(repo: Path) -> list:
+    """
+    Load automations from automations.yaml using the HA custom yaml loader.
+    
+    Raises:
+        FileNotFoundError: If the file is missing or unreadable.
+        ValueError: If the YAML is malformed or does not contain a list.
+    """
     auto_file = repo / "automations.yaml"
     try:
         content = auto_file.read_text(encoding='utf-8')
@@ -263,6 +270,12 @@ def load_inventory(repo: Path) -> dict:
 
 
 def audit_dashboard(args, repo: Path):
+    """
+    Audit dashboard.yaml for missing entities against the HA device inventory.
+    
+    Errors non-fatally and returns early if ha_device_inventory.json is missing,
+    but treats missing referenced entities as a test failure (sys.exit(1)).
+    """
     print("=" * 70)
     print("DASHBOARD AUDIT")
     print("=" * 70)
@@ -344,6 +357,12 @@ def audit_dashboard(args, repo: Path):
 IGNORE_ALIASES: set[str] = set()
 
 def audit_docs(args, repo: Path):
+    """
+    Audit HOUSE_CONTEXT.md to ensure all automation aliases are documented.
+    
+    Exits with sys.exit(1) if automations cannot be loaded or if there is a
+    mismatch between documented and actual automations.
+    """
     try:
         automations = load_automations(repo)
     except (FileNotFoundError, ValueError) as e:
@@ -397,6 +416,11 @@ def audit_docs(args, repo: Path):
 # 5. GENERATE KB (from generate_automations_kb.py)
 # ==============================================================================
 def generate_kb(args, repo: Path):
+    """
+    Regenerate automations_kb.md from the current automations.yaml configuration.
+    
+    Exits with sys.exit(1) if the automations file cannot be loaded or parsed.
+    """
     try:
         automations = load_automations(repo)
     except (FileNotFoundError, ValueError) as e:
@@ -490,6 +514,12 @@ def generate_kb(args, repo: Path):
 # MAIN
 # ==============================================================================
 def main():
+    """
+    Main entry point for the Home Assistant Toolkit.
+    
+    Parses CLI subcommands and dispatches to the appropriate toolkit function.
+    Fatal errors within subcommands exit with sys.exit(1).
+    """
     parser = argparse.ArgumentParser(description="Home Assistant Toolkit")
     parser.add_argument("--repo", default=".", help="Path to HA repository (default: .)")
     subparsers = parser.add_subparsers(dest="command", help="Subcommands", required=True)
