@@ -1120,26 +1120,35 @@ GPS tracking (`person` entities) can occasionally drift, causing false "not_home
     - trigger: homeassistant
       event: start
   actions:
-    - variables:
-        person_id: "{{ trigger.entity_id }}"
-        is_home: "{{ trigger.to_state.state == 'home' }}"
-        helper: "input_boolean.{{ person_id.split('.')[1] }}_home_stable"
-    - if:
-        - condition: template
-          value_template: "{{ is_home }}"
-      then:
-        - action: input_boolean.turn_on
-          target:
-            entity_id: "{{ helper }}"
-      else:
-        - delay:
-            minutes: 5
-        - condition: template
-          value_template: "{{ states(person_id) != 'home' }}"
-        - action: input_boolean.turn_off
-          target:
-            entity_id: "{{ helper }}"
-  mode: restart
+    - repeat:
+        for_each: >
+          {% if trigger.platform == 'state' %}
+            {{ [trigger.entity_id] }}
+          {% else %}
+            {{ ['person.<owner_1>', 'person.<owner_2>'] }}
+          {% endif %}
+        sequence:
+          - variables:
+              person_id: "{{ repeat.item }}"
+              is_home: "{{ states(person_id) == 'home' }}"
+              helper: "input_boolean.{{ person_id.split('.')[1] }}_home_stable"
+          - if:
+              - condition: template
+                value_template: "{{ is_home }}"
+            then:
+              - action: input_boolean.turn_on
+                target:
+                  entity_id: "{{ helper }}"
+            else:
+              - delay:
+                  minutes: 5
+              - condition: template
+                value_template: "{{ states(person_id) != 'home' }}"
+              - action: input_boolean.turn_off
+                target:
+                  entity_id: "{{ helper }}"
+  mode: parallel
+  max: 10
 ```
 
 **Template (Master Occupancy Template Sensor):**
