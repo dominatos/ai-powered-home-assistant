@@ -319,7 +319,7 @@ def audit_dashboard(args, repo: Path):
         return
 
     dash = dash_file.read_text(encoding='utf-8')
-    ent_refs = set(re.findall(r"entity:\s+[\"']?([\w.]+)[\"']?", dash))
+    ent_refs = set(re.findall(r"entity(?:_id)?:\s+[\"']?([\w.]+)[\"']?", dash))
     print(f"  Entities referenced in dashboard.yaml: {len(ent_refs)}")
 
     missing = []
