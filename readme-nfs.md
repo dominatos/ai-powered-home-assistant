@@ -60,7 +60,7 @@ Use the built-in network storage workflow:
 1. Go to **Settings → System → Storage**.
 2. Click **Add network storage**.
 3. Select **NFS** as the type.
-4. Enter the NFS server address and share path (e.g., `192.168.1.X:/export/music`).
+4. Enter the NFS server address (e.g., `192.168.1.X`) in the **Server** field and the share path (e.g., `/export/music`) in the **Share** field — these are separate fields in HAOS.
 5. Name the storage `music` and select **Media** as the usage type, producing `/media/music`.
 6. Save. Home Assistant will mount the share and make it available at `/media/music`.
 
