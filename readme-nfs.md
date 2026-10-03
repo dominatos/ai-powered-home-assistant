@@ -87,7 +87,7 @@ cp python_scripts/create_playlist.py /config/
 
 ```bash
 # On the HA host:
-    python3 /config/create_playlist.py /media/music /media/music/playlist.m3u
+python3 /config/create_playlist.py /media/music /media/music/playlist.m3u
 ```
 
 You should see: `Playlist saved to /media/music/playlist.m3u (N tracks)`
