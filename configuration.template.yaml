@@ -309,17 +309,17 @@ input_number:
 input_text:
   ai_ollama_model:
     name: "Ollama Model"
-    initial: "your-model-nothink"
+    initial: "<your_ollama_model>"
     icon: mdi:robot-outline
   ai_opencode_model:
     name: "OpenCode Model"
-    initial: "your-cloud-model"
+    initial: "<your_cloud_model>"
     icon: mdi:cloud-outline
 
   # Playlist name for media playback (used by playlist sync automation)
   media_playlist_name:
     name: "Playlist Name"
-    initial: "your-playlist-name"
+    initial: "<your_playlist_name>"
     icon: mdi:playlist-music
 
 input_select:
