@@ -1292,8 +1292,7 @@
 
 - id: bedroom_sync_kill_motion_logic
   alias: 'Bedroom: Sync Kill Motion Logic'
-  description: Syncs the kill-motion input_boolean with the actual automation state
-    and announces changes via TTS.
+  description: Syncs the kill-motion input_boolean with the actual automation state.
   triggers:
   - trigger: state
     entity_id: automation.<your_bedroom_motion_automation_id>
