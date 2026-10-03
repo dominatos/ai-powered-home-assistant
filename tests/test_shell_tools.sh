@@ -190,12 +190,10 @@ result="$(cd "${REPO_ROOT}" && bash -c "
 " 2>&1 || true)"
 if [[ "${result}" == *"ACCEPTED"* ]]; then
   FAIL=$((FAIL + 1))
-  printf "  â validate_yaml_file fails closed without an interpreter
-"
+  printf "  \xe2\x9d\x8c validate_yaml_file fails closed without an interpreter\n"
 else
   PASS=$((PASS + 1))
-  printf "  â validate_yaml_file fails closed without an interpreter
-"
+  printf "  \xe2\x9c\x85 validate_yaml_file fails closed without an interpreter\n"
 fi
 
 # Test: ALLOW_UNVALIDATED_YAML=1 is an explicit opt-out
@@ -209,9 +207,7 @@ check "ALLOW_UNVALIDATED_YAML=1 bypasses validation" "ACCEPTED" "${result}"
 
 # Test: validate_yaml_file accepts UTF-8 content (Windows cp1252 regression)
 utf8_yaml="${TMPDIR_TEST}/utf8.yaml"
-printf 'name: CafÃ©
-temp: 21Â°C
-' > "${utf8_yaml}"
+printf 'name: Caf\xc3\xa9\ntemp: 21\xc2\xb0C\n' > "${utf8_yaml}"
 result="$(cd "${REPO_ROOT}" && bash -c "
   source tools/sync_common.sh
   detect_yaml_validation
