@@ -38,6 +38,8 @@ def load_storage_json(path: Path, optional: bool = False) -> list[dict]:
         if optional:
             return []
         raise SystemExit(f"Missing required storage file: {path}")
+    except UnicodeDecodeError:
+        raise SystemExit(f"Invalid UTF-8 encoding in {path}")
     except json.JSONDecodeError as exc:
         raise SystemExit(f"Invalid JSON in {path}: {exc}")
 
