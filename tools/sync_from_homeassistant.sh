@@ -148,13 +148,15 @@ git_available() {
 }
 
 # stage_paths stages only the given repo-relative paths. Paths that are
-# gitignored are skipped after explicit confirmation. Staging errors are
-# reported. Returns 0 if anything was actually staged, 1 otherwise.
+# gitignored are skipped after explicit confirmation. Returns 0 if changes
+# were staged, 1 if there were no changes, 2 if staging failed.
 #
 # This is deliberately narrow. `git add -A` swept every unrelated modified or
 # untracked file in the working tree into an automatic, pushed commit.
 stage_paths() {
   local rel
+  local add_failed=0
+  local staged_paths=()
   for rel in "$@"; do
     if [[ ! -e "${REPO_ROOT}/${rel}" ]]; then
       continue
@@ -164,9 +166,21 @@ stage_paths() {
     fi
     if ! git -C "${REPO_ROOT}" add -- "${rel}" > /dev/null 2>&1; then
       log "WARNING: git add failed for ${rel}"
+      add_failed=1
+      continue
     fi
+    staged_paths+=("${rel}")
   done
-  ! git -C "${REPO_ROOT}" diff --cached --quiet 2>/dev/null
+  if [[ "${add_failed}" -eq 1 ]]; then
+    return 2
+  fi
+  if [[ ${#staged_paths[@]} -eq 0 ]]; then
+    return 1
+  fi
+  if ! git -C "${REPO_ROOT}" diff --cached --quiet -- "${staged_paths[@]}" 2>/dev/null; then
+    return 0
+  fi
+  return 1
 }
 
 # commit_synced_files commits the files this sync actually touched, then pushes
@@ -175,10 +189,14 @@ stage_paths() {
 commit_synced_files() {
   git_available || return 0
 
-  if stage_paths ${FILES[@]+"${FILES[@]}"}; then
+  local rc=0
+  stage_paths ${FILES[@]+"${FILES[@]}"} || rc=$?
+  if [[ "${rc}" -eq 0 ]]; then
     log "Committing synced files to git"
-    git -C "${REPO_ROOT}" commit -m "sync: pull from homeassistant $(date +%Y-%m-%dT%H:%M:%S)"
+    git -C "${REPO_ROOT}" commit -m "sync: pull from homeassistant $(date +%Y-%m-%dT%H:%M:%S)" -- ${FILES[@]+"${FILES[@]}"}
     git -C "${REPO_ROOT}" push || log "WARNING: git push failed — continuing without push"
+  elif [[ "${rc}" -eq 2 ]]; then
+    log "WARNING: staging failed — skipping commit and push"
   else
     log "No changes to commit (files were identical to repo)"
   fi
@@ -290,10 +308,14 @@ commit_inventory_files() {
     virtual-inventory.json
   )
 
-  if stage_paths "${inventory_outputs[@]}"; then
+  local rc=0
+  stage_paths "${inventory_outputs[@]}" || rc=$?
+  if [[ "${rc}" -eq 0 ]]; then
     log "Committing inventory files to git"
-    git -C "${REPO_ROOT}" commit -m "inventory: update snapshot $(date +%Y-%m-%dT%H:%M:%S)"
+    git -C "${REPO_ROOT}" commit -m "inventory: update snapshot $(date +%Y-%m-%dT%H:%M:%S)" -- "${inventory_outputs[@]}"
     git -C "${REPO_ROOT}" push || log "WARNING: git push failed — continuing without push"
+  elif [[ "${rc}" -eq 2 ]]; then
+    log "WARNING: staging failed — skipping inventory commit and push"
   else
     log "No inventory changes to commit"
   fi

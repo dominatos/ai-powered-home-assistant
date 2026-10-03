@@ -94,7 +94,7 @@ You should see: `Playlist saved to /media/music/playlist.m3u (N tracks)`
 
 ## Step 4 — Configure shell_command
 
-Add to `configuration.yaml`:
+Add to `configuration.yaml`. This command replaces the placeholder in `configuration.template.yaml`:
 
 ```yaml
 shell_command:

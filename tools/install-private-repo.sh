@@ -82,7 +82,9 @@ git add .
 git commit -m "Initial setup with renamed templates"
 if [[ "${FORCE}" -eq 1 ]]; then
   git push --set-upstream origin main --force
-  git push origin main:master --force 2>/dev/null || true
+  if printf '%s\n' "${existing_refs}" | grep -q $'\trefs/heads/master$'; then
+    git push origin main:master --force
+  fi
 else
   git push --set-upstream origin main
 fi

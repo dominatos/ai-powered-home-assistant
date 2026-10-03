@@ -244,7 +244,7 @@ def load_legacy_text_numbers(path: Path, devices_by_id: dict[str, dict]) -> dict
 
     line_pattern = re.compile(r"^(?P<number>\d+)\.\s+(?P<name>.+)\s+\((?P<area>.*)\)$")
     content = None
-    for encoding in ("utf-8", "latin-1", "cp1252", "cp437"):
+    for encoding in ("utf-8", "cp1252", "latin-1"):
         try:
             content = path.read_text(encoding=encoding)
             break
