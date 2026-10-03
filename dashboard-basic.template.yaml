@@ -55,13 +55,13 @@ views:
     - type: conditional
       conditions:
       - condition: state
-        entity: person.person_1
+        entity: person.<your_person_1>
         state_not: home
       card:
         type: vertical-stack
         cards:
         - type: entity
-          entity: person.person_1
+          entity: person.<your_person_1>
           name: Person 1
           icon: mdi:account
         - type: markdown
@@ -74,13 +74,13 @@ views:
     - type: conditional
       conditions:
       - condition: state
-        entity: person.person_2
+        entity: person.<your_person_2>
         state_not: home
       card:
         type: vertical-stack
         cards:
         - type: entity
-          entity: person.person_2
+          entity: person.<your_person_2>
           name: Person 2
           icon: mdi:account
         - type: markdown
@@ -106,13 +106,13 @@ views:
     - entity: light.kitchen_main
       name: Kitchen
       icon: mdi:silverware-fork-knife
-    - entity: light.bedroom_light
+    - entity: light.<your_bedroom_light>
       name: Bedroom
       icon: mdi:bed
-    - entity: light.bathroom_light
+    - entity: light.<your_bathroom_light>
       name: Bathroom
       icon: mdi:shower
-    - entity: light.child_room_light
+    - entity: light.<your_child_room_light>
       name: Child Room
       icon: mdi:teddy-bear
   - type: grid
@@ -276,7 +276,7 @@ views:
     title: 🛏️ Bedroom — Lights
     show_header_toggle: false
     entities:
-    - entity: light.bedroom_light
+    - entity: light.<your_bedroom_light>
       name: Main Light
       icon: mdi:led-strip
   - type: conditional
@@ -327,7 +327,7 @@ views:
     title: 🚿 Bathroom — Lights
     show_header_toggle: false
     entities:
-    - entity: light.bathroom_light
+    - entity: light.<your_bathroom_light>
       name: Bathroom Light
       icon: mdi:lightbulb
   - type: glance
@@ -357,7 +357,7 @@ views:
     title: 🧒 Child Room — Lights
     show_header_toggle: false
     entities:
-    - entity: light.child_room_light
+    - entity: light.<your_child_room_light>
       name: Child Room Light
       icon: mdi:lightbulb
   - type: grid

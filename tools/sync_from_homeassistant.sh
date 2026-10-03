@@ -19,6 +19,7 @@ SHOW_STATUS=0
 WITH_INVENTORY=1
 WITH_ERRORS=1
 SKIP_CONFIRM=0
+LAST_STAGED_PATHS=()
 
 # cleanup removes the temporary synchronization directory and its contents.
 cleanup() {
@@ -141,21 +142,65 @@ sync_files() {
   log "Changed files synced: ${synced_count}; unchanged skipped: ${skipped_count}"
 }
 
-# commit_synced_files commits synchronized repository changes and pushes them when Git is available.
-commit_synced_files() {
-  # Commit any files that were synced so the repo is clean before
-  # the inventory exporter runs its own require_git_clean check.
-  if command -v git > /dev/null 2>&1 && \
-     git -C "${REPO_ROOT}" rev-parse --is-inside-work-tree > /dev/null 2>&1; then
-    if ! git -C "${REPO_ROOT}" diff --quiet HEAD -- 2>/dev/null || \
-       ! git -C "${REPO_ROOT}" diff --cached --quiet HEAD -- 2>/dev/null; then
-      log "Committing synced files to git"
-      git -C "${REPO_ROOT}" add -A
-      git -C "${REPO_ROOT}" commit -m "sync: pull from homeassistant $(date +%Y-%m-%dT%H:%M:%S)"
-      git -C "${REPO_ROOT}" push || log "WARNING: git push failed — continuing without push"
-    else
-      log "No changes to commit (files were identical to repo)"
+# git_available reports whether REPO_ROOT is a usable git work tree.
+git_available() {
+  command -v git > /dev/null 2>&1 &&
+    git -C "${REPO_ROOT}" rev-parse --is-inside-work-tree > /dev/null 2>&1
+}
+
+# stage_paths stages only the given repo-relative paths. Paths that are
+# gitignored are skipped after explicit confirmation. Returns 0 if changes
+# were staged, 1 if there were no changes, 2 if staging failed.
+#
+# Populates LAST_STAGED_PATHS with the paths that were actually staged.
+# This is deliberately narrow. `git add -A` swept every unrelated modified or
+# untracked file in the working tree into an automatic, pushed commit.
+stage_paths() {
+  local rel
+  local add_failed=0
+  LAST_STAGED_PATHS=()
+  for rel in "$@"; do
+    if [[ ! -e "${REPO_ROOT}/${rel}" ]]; then
+      continue
     fi
+    if git -C "${REPO_ROOT}" check-ignore -q -- "${rel}" 2>/dev/null; then
+      continue
+    fi
+    if ! git -C "${REPO_ROOT}" add -- "${rel}" > /dev/null 2>&1; then
+      log "WARNING: git add failed for ${rel}"
+      add_failed=1
+      continue
+    fi
+    LAST_STAGED_PATHS+=("${rel}")
+  done
+  if [[ "${add_failed}" -eq 1 ]]; then
+    return 2
+  fi
+  if [[ ${#LAST_STAGED_PATHS[@]} -eq 0 ]]; then
+    return 1
+  fi
+  if ! git -C "${REPO_ROOT}" diff --cached --quiet -- "${LAST_STAGED_PATHS[@]}" 2>/dev/null; then
+    return 0
+  fi
+  return 1
+}
+
+# commit_synced_files commits the files this sync actually touched, then pushes
+# so the repo is clean before the inventory exporter runs its own
+# require_git_clean check.
+commit_synced_files() {
+  git_available || return 0
+
+  local rc=0
+  stage_paths ${FILES[@]+"${FILES[@]}"} || rc=$?
+  if [[ "${rc}" -eq 0 ]]; then
+    log "Committing synced files to git"
+    git -C "${REPO_ROOT}" commit -m "sync: pull from homeassistant $(date +%Y-%m-%dT%H:%M:%S)" -- "${LAST_STAGED_PATHS[@]}"
+    git -C "${REPO_ROOT}" push || log "WARNING: git push failed — continuing without push"
+  elif [[ "${rc}" -eq 2 ]]; then
+    log "WARNING: staging failed — skipping commit and push"
+  else
+    log "No changes to commit (files were identical to repo)"
   fi
 }
 
@@ -253,18 +298,28 @@ load_blueprint_files() {
   fi
 }
 
-# commit_inventory_files commits inventory-related changes to the repository and attempts to push them to its configured remote.
+# commit_inventory_files commits the inventory snapshot produced by
+# maybe_export_inventory and attempts to push it to the configured remote.
 commit_inventory_files() {
-  if ! command -v git > /dev/null 2>&1 || \
-     ! git -C "${REPO_ROOT}" rev-parse --is-inside-work-tree > /dev/null 2>&1; then
-    return 0
-  fi
-  if ! git -C "${REPO_ROOT}" diff --quiet HEAD -- 2>/dev/null || \
-     [[ -n "$(git -C "${REPO_ROOT}" ls-files --others --exclude-standard 2>/dev/null)" ]]; then
+  git_available || return 0
+
+  local inventory_outputs=(
+    ha_device_inventory.json
+    inventory.txt
+    inventory_numbers.json
+    virtual-inventory.json
+  )
+
+  local rc=0
+  stage_paths "${inventory_outputs[@]}" || rc=$?
+  if [[ "${rc}" -eq 0 ]]; then
     log "Committing inventory files to git"
-    git -C "${REPO_ROOT}" add -A
-    git -C "${REPO_ROOT}" commit -m "inventory: update snapshot $(date +%Y-%m-%dT%H:%M:%S)"
+    git -C "${REPO_ROOT}" commit -m "inventory: update snapshot $(date +%Y-%m-%dT%H:%M:%S)" -- "${LAST_STAGED_PATHS[@]}"
     git -C "${REPO_ROOT}" push || log "WARNING: git push failed — continuing without push"
+  elif [[ "${rc}" -eq 2 ]]; then
+    log "WARNING: staging failed — skipping inventory commit and push"
+  else
+    log "No inventory changes to commit"
   fi
 }
 

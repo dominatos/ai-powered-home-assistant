@@ -35,8 +35,8 @@ HA_CONFIG="${HA_CONFIG:-/config}"
 
 if [[ -z "${HA_HOST}" ]]; then
   echo "Error: HA_HOST is not set."
-  echo "  Set it via environment variable:  HA_HOST=192.168.1.100 ./tools/pull_debug_files.sh"
-  echo "  Or export it in your shell:       export HA_HOST=192.168.1.100"
+  echo "  Set it via environment variable:  HA_HOST=192.168.1.X ./tools/pull_debug_files.sh"
+  echo "  Or export it in your shell:       export HA_HOST=192.168.1.X"
   exit 1
 fi
 

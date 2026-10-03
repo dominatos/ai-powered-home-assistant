@@ -36,7 +36,7 @@ def write_file(path: Path, content: str) -> None:
     	content (str): Text to write to the file.
     """
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(content)
+    path.write_text(content, encoding="utf-8", newline="\n")
 
 
 def run_tool(*args, cwd: Path = None) -> subprocess.CompletedProcess:
@@ -55,6 +55,10 @@ def run_tool(*args, cwd: Path = None) -> subprocess.CompletedProcess:
         capture_output=True, text=True,
         cwd=str(cwd) if cwd else None,
         timeout=10,
+        # The tools print emoji. Without an explicit encoding this decodes
+        # with the legacy Windows codepage and raises UnicodeDecodeError in
+        # subprocess' reader thread, leaving stdout empty.
+        encoding="utf-8", errors="replace",
     )
 
 
@@ -125,12 +129,12 @@ class TestBackupAutomations(unittest.TestCase):
 
 
 # ===========================================================================
-# 2. check_docs.py
+# 2. ha_toolkit.py audit-docs (replaces check_docs.py)
 # ===========================================================================
-class TestCheckDocs(unittest.TestCase):
+class TestAuditDocs(unittest.TestCase):
 
     def setUp(self):
-        self.test_dir = Path(tempfile.mkdtemp(prefix="ha_checkdocs_"))
+        self.test_dir = Path(tempfile.mkdtemp(prefix="ha_auditdocs_"))
 
     def tearDown(self):
         shutil.rmtree(self.test_dir, ignore_errors=True)
@@ -138,26 +142,26 @@ class TestCheckDocs(unittest.TestCase):
     def test_all_documented(self):
         write_file(self.test_dir / "automations.yaml", make_automations_yaml("Kitchen: Light On"))
         write_file(self.test_dir / "HOUSE_CONTEXT.md", "# Kitchen\n\n- `Kitchen: Light On` triggers when door opens\n")
-        r = run_tool(sys.executable, str(TOOLS / "check_docs.py"), cwd=self.test_dir)
+        r = run_tool(sys.executable, str(TOOLS / "ha_toolkit.py"), "audit-docs", cwd=self.test_dir)
         self.assertIn("All automations are documented", r.stdout)
         self.assertEqual(r.returncode, 0)
 
     def test_missing_documentation(self):
         write_file(self.test_dir / "automations.yaml", make_automations_yaml("Kitchen: Light On", "Bedroom: Fan Off"))
         write_file(self.test_dir / "HOUSE_CONTEXT.md", "# Kitchen\n\n- `Kitchen: Light On` triggers when door opens\n")
-        r = run_tool(sys.executable, str(TOOLS / "check_docs.py"), cwd=self.test_dir)
+        r = run_tool(sys.executable, str(TOOLS / "ha_toolkit.py"), "audit-docs", cwd=self.test_dir)
         self.assertIn("MISSING", r.stdout)
         self.assertNotEqual(r.returncode, 0)
 
     def test_stale_aliases(self):
         write_file(self.test_dir / "automations.yaml", make_automations_yaml("Kitchen: Light On"))
         write_file(self.test_dir / "HOUSE_CONTEXT.md", "# Kitchen\n\n- `Kitchen: Light On` is fine\n- `Old Removed: Automation` is gone\n")
-        r = run_tool(sys.executable, str(TOOLS / "check_docs.py"), cwd=self.test_dir)
+        r = run_tool(sys.executable, str(TOOLS / "ha_toolkit.py"), "audit-docs", cwd=self.test_dir)
         self.assertIn("STALE", r.stdout)
         self.assertNotEqual(r.returncode, 0)
 
     def test_no_automations_file(self):
-        r = run_tool(sys.executable, str(TOOLS / "check_docs.py"), cwd=self.test_dir)
+        r = run_tool(sys.executable, str(TOOLS / "ha_toolkit.py"), "audit-docs", cwd=self.test_dir)
         self.assertIn("Error", r.stdout)
         self.assertNotEqual(r.returncode, 0)
 
@@ -165,15 +169,15 @@ class TestCheckDocs(unittest.TestCase):
         write_file(self.test_dir / "my_automation.yaml", make_automations_yaml("Kitchen: Included Light"))
         write_file(self.test_dir / "automations.yaml", "- !include my_automation.yaml\n")
         write_file(self.test_dir / "HOUSE_CONTEXT.md", "# House\n\nNo automations configured yet.\n")
-        r = run_tool(sys.executable, str(TOOLS / "check_docs.py"), cwd=self.test_dir)
+        r = run_tool(sys.executable, str(TOOLS / "ha_toolkit.py"), "audit-docs", cwd=self.test_dir)
         self.assertNotIn("Kitchen: Included Light", r.stdout)
         self.assertEqual(r.returncode, 0)
 
 
 # ===========================================================================
-# 3. dashboard_audit.py
+# 3. ha_toolkit.py audit-dashboard (replaces dashboard_audit.py)
 # ===========================================================================
-class TestDashboardAudit(unittest.TestCase):
+class TestAuditDashboard(unittest.TestCase):
 
     def setUp(self):
         self.test_dir = Path(tempfile.mkdtemp(prefix="ha_dashaudit_"))
@@ -191,7 +195,7 @@ class TestDashboardAudit(unittest.TestCase):
             ]
         }
         write_file(self.test_dir / "ha_device_inventory.json", json.dumps(inventory, indent=2))
-        r = run_tool(sys.executable, str(TOOLS / "dashboard_audit.py"), cwd=self.test_dir)
+        r = run_tool(sys.executable, str(TOOLS / "ha_toolkit.py"), "audit-dashboard", cwd=self.test_dir)
         self.assertIn("TEMPERATURE & HUMIDITY", r.stdout)
         self.assertIn("sensor.kitchen_temperature", r.stdout)
 
@@ -206,7 +210,7 @@ class TestDashboardAudit(unittest.TestCase):
         """)
         write_file(self.test_dir / "ha_device_inventory.json", json.dumps(inventory))
         write_file(self.test_dir / "dashboard.yaml", dashboard)
-        r = run_tool(sys.executable, str(TOOLS / "dashboard_audit.py"), cwd=self.test_dir)
+        r = run_tool(sys.executable, str(TOOLS / "ha_toolkit.py"), "audit-dashboard", cwd=self.test_dir)
         self.assertIn("All dashboard entity references found", r.stdout)
 
     def test_dashboard_entity_refs_missing(self):
@@ -214,8 +218,9 @@ class TestDashboardAudit(unittest.TestCase):
         dashboard = "views:\n  - cards:\n      - entity: light.missing\n"
         write_file(self.test_dir / "ha_device_inventory.json", json.dumps(inventory))
         write_file(self.test_dir / "dashboard.yaml", dashboard)
-        r = run_tool(sys.executable, str(TOOLS / "dashboard_audit.py"), cwd=self.test_dir)
+        r = run_tool(sys.executable, str(TOOLS / "ha_toolkit.py"), "audit-dashboard", cwd=self.test_dir)
         self.assertIn("NOT IN INVENTORY", r.stdout)
+        self.assertNotEqual(r.returncode, 0)
 
     def test_input_booleans(self):
         inventory = {
@@ -225,17 +230,17 @@ class TestDashboardAudit(unittest.TestCase):
             ]
         }
         write_file(self.test_dir / "ha_device_inventory.json", json.dumps(inventory))
-        r = run_tool(sys.executable, str(TOOLS / "dashboard_audit.py"), cwd=self.test_dir)
+        r = run_tool(sys.executable, str(TOOLS / "ha_toolkit.py"), "audit-dashboard", cwd=self.test_dir)
         self.assertIn("input_boolean.vacation_mode", r.stdout)
 
     def test_malformed_inventory_json(self):
         write_file(self.test_dir / "ha_device_inventory.json", "not valid json {{{")
-        r = run_tool(sys.executable, str(TOOLS / "dashboard_audit.py"), cwd=self.test_dir)
+        r = run_tool(sys.executable, str(TOOLS / "ha_toolkit.py"), "audit-dashboard", cwd=self.test_dir)
         self.assertNotEqual(r.returncode, 0)
 
     def test_inventory_without_entities(self):
         write_file(self.test_dir / "ha_device_inventory.json", json.dumps({"other_key": []}))
-        r = run_tool(sys.executable, str(TOOLS / "dashboard_audit.py"), cwd=self.test_dir)
+        r = run_tool(sys.executable, str(TOOLS / "ha_toolkit.py"), "audit-dashboard", cwd=self.test_dir)
         self.assertNotEqual(r.returncode, 0)
 
 
@@ -314,7 +319,7 @@ class TestExportHaInventory(unittest.TestCase):
     def test_inventory_counts(self):
         self._write_storage_files()
         self._export()
-        inv = json.loads((self.test_dir / "inventory.json").read_text())
+        inv = json.loads((self.test_dir / "inventory.json").read_text(encoding="utf-8"))
         self.assertEqual(inv["counts"]["entities"], 1)
         self.assertEqual(inv["counts"]["areas"], 1)
         self.assertEqual(inv["counts"]["devices"], 1)
@@ -322,20 +327,20 @@ class TestExportHaInventory(unittest.TestCase):
     def test_text_inventory(self):
         self._write_storage_files()
         self._export()
-        txt = (self.test_dir / "inventory.txt").read_text()
+        txt = (self.test_dir / "inventory.txt").read_text(encoding="utf-8")
         self.assertIn("Temp Sensor", txt)
 
     def test_number_map_persists(self):
         self._write_storage_files()
         self._export()
-        nums = json.loads((self.test_dir / "numbers.json").read_text())
+        nums = json.loads((self.test_dir / "numbers.json").read_text(encoding="utf-8"))
         self.assertEqual(nums["version"], 1)
         self.assertIn("dev_1", nums["devices"])
 
     def test_virtual_inventory_zones(self):
         self._write_storage_files()
         self._export()
-        virt = json.loads((self.test_dir / "virtual.json").read_text())
+        virt = json.loads((self.test_dir / "virtual.json").read_text(encoding="utf-8"))
         self.assertGreaterEqual(virt["counts"]["virtual_entities"], 1)
 
     def test_missing_storage_exits(self):
@@ -361,9 +366,9 @@ class TestExportHaInventory(unittest.TestCase):
 
 
 # ===========================================================================
-# 5. generate_automations_kb.py
+# 5. ha_toolkit.py generate-kb (replaces generate_automations_kb.py)
 # ===========================================================================
-class TestGenerateAutomationsKB(unittest.TestCase):
+class TestGenerateKB(unittest.TestCase):
 
     def setUp(self):
         self.test_dir = Path(tempfile.mkdtemp(prefix="ha_genkb_"))
@@ -373,33 +378,33 @@ class TestGenerateAutomationsKB(unittest.TestCase):
 
     def test_generates_kb(self):
         write_file(self.test_dir / "automations.yaml", make_automations_yaml("Kitchen: Light On", "Bedroom: Fan Off"))
-        r = run_tool(sys.executable, str(TOOLS / "generate_automations_kb.py"), cwd=self.test_dir)
+        r = run_tool(sys.executable, str(TOOLS / "ha_toolkit.py"), "generate-kb", cwd=self.test_dir)
         self.assertEqual(r.returncode, 0)
-        kb = (self.test_dir / "automations_kb.md").read_text()
+        kb = (self.test_dir / "automations_kb.md").read_text(encoding="utf-8")
         self.assertIn("Kitchen: Light On", kb)
         self.assertIn("Bedroom: Fan Off", kb)
 
     def test_empty_automations(self):
         write_file(self.test_dir / "automations.yaml", "[]")
-        r = run_tool(sys.executable, str(TOOLS / "generate_automations_kb.py"), cwd=self.test_dir)
+        r = run_tool(sys.executable, str(TOOLS / "ha_toolkit.py"), "generate-kb", cwd=self.test_dir)
         self.assertEqual(r.returncode, 0)
-        kb = (self.test_dir / "automations_kb.md").read_text()
+        kb = (self.test_dir / "automations_kb.md").read_text(encoding="utf-8")
         self.assertIn("Home Assistant Automations Knowledge Base", kb)
 
     def test_triggers_and_actions(self):
         write_file(self.test_dir / "automations.yaml", make_automations_yaml("Kitchen: Test"))
-        r = run_tool(sys.executable, str(TOOLS / "generate_automations_kb.py"), cwd=self.test_dir)
-        kb = (self.test_dir / "automations_kb.md").read_text()
+        r = run_tool(sys.executable, str(TOOLS / "ha_toolkit.py"), "generate-kb", cwd=self.test_dir)
+        kb = (self.test_dir / "automations_kb.md").read_text(encoding="utf-8")
         self.assertIn("### Triggers", kb)
         self.assertIn("### Actions", kb)
 
     def test_missing_automations_yaml(self):
-        r = run_tool(sys.executable, str(TOOLS / "generate_automations_kb.py"), cwd=self.test_dir)
+        r = run_tool(sys.executable, str(TOOLS / "ha_toolkit.py"), "generate-kb", cwd=self.test_dir)
         self.assertNotEqual(r.returncode, 0)
 
     def test_malformed_yaml(self):
         write_file(self.test_dir / "automations.yaml", "invalid: [yaml: {broken")
-        r = run_tool(sys.executable, str(TOOLS / "generate_automations_kb.py"), cwd=self.test_dir)
+        r = run_tool(sys.executable, str(TOOLS / "ha_toolkit.py"), "generate-kb", cwd=self.test_dir)
         self.assertNotEqual(r.returncode, 0)
 
 
@@ -442,7 +447,7 @@ class TestWriteYamlTemplate(unittest.TestCase):
         write_file(src, "test: value\n")
         r = run_tool(sys.executable, str(TOOLS / "write_yaml_template.py"), str(dst), str(src))
         self.assertIn("Written", r.stdout)
-        self.assertEqual(dst.read_text(), "test: value\n")
+        self.assertEqual(dst.read_text(encoding="utf-8"), "test: value\n")
 
     def test_missing_source(self):
         dst = self.test_dir / "output.yaml"
@@ -459,7 +464,7 @@ class TestWriteYamlTemplate(unittest.TestCase):
         content = "key:\n  - item1\n  - item2\n"
         write_file(src, content)
         run_tool(sys.executable, str(TOOLS / "write_yaml_template.py"), str(dst), str(src))
-        self.assertEqual(dst.read_text(), content)
+        self.assertEqual(dst.read_text(encoding="utf-8"), content)
 
     def test_overwrites_existing(self):
         src = self.test_dir / "source.yaml"
@@ -468,7 +473,7 @@ class TestWriteYamlTemplate(unittest.TestCase):
         write_file(src, "new content\n")
         r = run_tool(sys.executable, str(TOOLS / "write_yaml_template.py"), str(dst), str(src))
         self.assertEqual(r.returncode, 0)
-        self.assertEqual(dst.read_text(), "new content\n")
+        self.assertEqual(dst.read_text(encoding="utf-8"), "new content\n")
 
 
 if __name__ == "__main__":

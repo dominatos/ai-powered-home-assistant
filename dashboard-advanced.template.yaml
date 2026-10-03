@@ -331,7 +331,7 @@ views:
     title: Kitchen Tablet
     show_header_toggle: false
     entities:
-    - entity: input_boolean.kitchen_tablet_screen_awake
+    - entity: input_boolean.<your_kitchen_tablet_screen_awake>
       name: Screen State
       icon: mdi:tablet
     - entity: sensor.<your_tablet_hostname>_battery_charge_remaining_percentage
@@ -549,7 +549,7 @@ views:
     - entity: sensor.<your_tablet_hostname>_battery_charge_status
       name: Charge
       icon: mdi:battery-charging
-    - entity: input_boolean.kitchen_tablet_screen_awake
+    - entity: input_boolean.<your_kitchen_tablet_screen_awake>
       name: Screen
       icon: mdi:tablet
     - entity: sensor.<your_tablet_hostname>_activewindow
