@@ -220,6 +220,7 @@ class TestAuditDashboard(unittest.TestCase):
         write_file(self.test_dir / "dashboard.yaml", dashboard)
         r = run_tool(sys.executable, str(TOOLS / "ha_toolkit.py"), "audit-dashboard", cwd=self.test_dir)
         self.assertIn("NOT IN INVENTORY", r.stdout)
+        self.assertNotEqual(r.returncode, 0)
 
     def test_input_booleans(self):
         inventory = {

@@ -332,6 +332,8 @@ def audit_dashboard(args, repo: Path):
         print("  All dashboard entity references found in inventory ✓")
     else:
         print(f"\n  {len(missing)} reference(s) not in inventory (may be template sensors in configuration.yaml)")
+        print()
+        sys.exit(1)
     print()
     
     if args.details:
