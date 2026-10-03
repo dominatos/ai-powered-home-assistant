@@ -38,6 +38,9 @@ def main():
                         filepath = os.path.join(root, filename)
                         relative_path = os.path.relpath(filepath, os.path.dirname(m3u_file))
                         title = os.path.splitext(filename)[0]
+                        if "\n" in title or "\r" in title or "\n" in relative_path or "\r" in relative_path:
+                            print(f"WARNING: Skipping file with newline in name: {filename}", file=sys.stderr)
+                            continue
                         f.write(f"#EXTINF:0,{title}\n")
                         f.write(f"{relative_path}\n\n")
                         count += 1

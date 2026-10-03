@@ -1342,10 +1342,12 @@
       event_type: mobile_app_notification_action
       event_data:
         action: BEDROOM_MOTION_REENABLE
+        tag: bedroom_motion_reenable
     - platform: event
       event_type: mobile_app_notification_action
       event_data:
         action: BEDROOM_MOTION_DISMISS
+        tag: bedroom_motion_reenable
     timeout: 00:05:00
     continue_on_timeout: true
   - action: notify.mobile_app_<your_phone>
@@ -1357,6 +1359,9 @@
     - condition: template
       value_template: "{{ wait.trigger is not none and wait.trigger.event.data.action == 'BEDROOM_MOTION_REENABLE' }}"
     then:
+      - condition: state
+        entity_id: automation.<your_bedroom_motion_automation_id>
+        state: 'off'
       - action: input_boolean.turn_off
         target:
           entity_id: input_boolean.bedroom_kill_motion_logic
