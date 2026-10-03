@@ -150,7 +150,7 @@ thermostat_pull_schedule_from_device:
                   {% set temp = parts[1] | replace('°C','') %}
                   {% if not (hh.isdigit() and mm.isdigit() and 0 <= hh|int <= 23 and 0 <= mm|int <= 59) %}
                     {% set ns.valid = false %}
-                  {% elif not (temp | replace('.','',1)).isdigit() %}
+                  {% elif not (temp | replace('.','',1)).isdigit() or temp|int < 15 or temp|int > 30 %}
                     {% set ns.valid = false %}
                   {% endif %}
                 {% endif %}
@@ -220,7 +220,7 @@ thermostat_pull_schedule_from_device:
                   {% set temp = parts[1] | replace('°C','') %}
                   {% if not (hh.isdigit() and mm.isdigit() and 0 <= hh|int <= 23 and 0 <= mm|int <= 59) %}
                     {% set ns.valid = false %}
-                  {% elif not (temp | replace('.','',1)).isdigit() %}
+                  {% elif not (temp | replace('.','',1)).isdigit() or temp|int < 15 or temp|int > 30 %}
                     {% set ns.valid = false %}
                   {% endif %}
                 {% endif %}
@@ -290,7 +290,7 @@ thermostat_pull_schedule_from_device:
                   {% set temp = parts[1] | replace('°C','') %}
                   {% if not (hh.isdigit() and mm.isdigit() and 0 <= hh|int <= 23 and 0 <= mm|int <= 59) %}
                     {% set ns.valid = false %}
-                  {% elif not (temp | replace('.','',1)).isdigit() %}
+                  {% elif not (temp | replace('.','',1)).isdigit() or temp|int < 15 or temp|int > 30 %}
                     {% set ns.valid = false %}
                   {% endif %}
                 {% endif %}
