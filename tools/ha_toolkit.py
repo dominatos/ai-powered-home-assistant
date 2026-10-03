@@ -197,7 +197,7 @@ def analyze_traces(args, repo: Path):
             
         if args.output:
             filename = f"{args.output}_{i+1}.json"
-            with open(filename, 'w') as out:
+            with open(filename, 'w', encoding='utf-8') as out:
                 json.dump(trace, out, indent=2)
             print(f"Saved full trace to {filename}")
 
