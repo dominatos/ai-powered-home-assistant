@@ -106,12 +106,12 @@ shell_command:
 
 1. Open **Music Assistant** from the HA sidebar.
 2. Go to **Settings → Providers → Add Provider**.
-3. Select **Filesystem (local/network)**.
+3. Select the appropriate filesystem provider:
+   - **Filesystem (local)** for a local disk — enter the mounted path (e.g., `/media/music`) in the **Path** field.
+   - **Filesystem (NFS share)** for an NFS mount — enter the server IP in the **Server** field and the absolute export path (e.g., `/export/music`) in the **Path** field.
 4. Configure:
    - **Name**: `NFS Music Library` (or any name)
-   - **Path type**: NFS
-   - **URL**: `nfs://192.168.1.X/export/music` (or the mounted path `/media/music`)
-   - **Playlist folder**: Inside the NFS music source (e.g., `/media/music` or `/export/music`)
+   - **Playlist folder**: Inside the music source (e.g., `/media/music`)
 5. Save. Music Assistant will scan and index the files.
 
 ## Step 6 — Store Playlist Name
