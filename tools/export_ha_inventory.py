@@ -243,7 +243,17 @@ def load_legacy_text_numbers(path: Path, devices_by_id: dict[str, dict]) -> dict
         devices_by_name_area.setdefault(key, []).append(device)
 
     line_pattern = re.compile(r"^(?P<number>\d+)\.\s+(?P<name>.+)\s+\((?P<area>.*)\)$")
-    for line in path.read_text(encoding="utf-8").splitlines():
+    content = None
+    for encoding in ("utf-8", "latin-1", "cp1252", "cp437"):
+        try:
+            content = path.read_text(encoding=encoding)
+            break
+        except UnicodeDecodeError:
+            continue
+    if content is None:
+        print(f"WARNING: Could not decode {path} with any supported encoding; skipping legacy number migration.", file=sys.stderr)
+        return number_map
+    for line in content.splitlines():
         match = line_pattern.match(line)
         if not match:
             continue
