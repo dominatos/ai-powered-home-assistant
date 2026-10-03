@@ -176,7 +176,7 @@ Use `music_assistant.transfer_queue` to move playback between speakers:
 
 | Setting | Where | Notes |
 |---------|-------|-------|
-| Audio formats | `create_playlist.py` line 10 | Add/remove extensions in `AUDIO_EXTENSIONS` tuple |
+| Audio formats | `create_playlist.py` | Add/remove extensions in `AUDIO_EXTENSIONS` tuple |
 | Playlist location | `shell_command` + script args | Change `/media/music/playlist.m3u` to any path |
 | Sync interval | Automation `time_pattern` | Change `"/10"` to `"/5"`, `"/30"`, etc. |
 | Playlist name | `input_text.media_playlist_name` | Must match the M3U filename (without `.m3u`) |
