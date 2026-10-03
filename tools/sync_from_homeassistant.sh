@@ -147,17 +147,24 @@ git_available() {
     git -C "${REPO_ROOT}" rev-parse --is-inside-work-tree > /dev/null 2>&1
 }
 
-# stage_paths stages only the given repo-relative paths. Paths that do not
-# exist, or that are gitignored, are silently skipped. Returns 0 if anything
-# was actually staged, 1 otherwise.
+# stage_paths stages only the given repo-relative paths. Paths that are
+# gitignored are skipped after explicit confirmation. Staging errors are
+# reported. Returns 0 if anything was actually staged, 1 otherwise.
 #
 # This is deliberately narrow. `git add -A` swept every unrelated modified or
 # untracked file in the working tree into an automatic, pushed commit.
 stage_paths() {
   local rel
   for rel in "$@"; do
-    [[ -e "${REPO_ROOT}/${rel}" ]] || continue
-    git -C "${REPO_ROOT}" add -- "${rel}" > /dev/null 2>&1 || true
+    if [[ ! -e "${REPO_ROOT}/${rel}" ]]; then
+      continue
+    fi
+    if git -C "${REPO_ROOT}" check-ignore -q -- "${rel}" 2>/dev/null; then
+      continue
+    fi
+    if ! git -C "${REPO_ROOT}" add -- "${rel}" > /dev/null 2>&1; then
+      log "WARNING: git add failed for ${rel}"
+    fi
   done
   ! git -C "${REPO_ROOT}" diff --cached --quiet 2>/dev/null
 }
