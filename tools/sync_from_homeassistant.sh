@@ -19,6 +19,7 @@ SHOW_STATUS=0
 WITH_INVENTORY=1
 WITH_ERRORS=1
 SKIP_CONFIRM=0
+LAST_STAGED_PATHS=()
 
 # cleanup removes the temporary synchronization directory and its contents.
 cleanup() {
@@ -151,12 +152,13 @@ git_available() {
 # gitignored are skipped after explicit confirmation. Returns 0 if changes
 # were staged, 1 if there were no changes, 2 if staging failed.
 #
+# Populates LAST_STAGED_PATHS with the paths that were actually staged.
 # This is deliberately narrow. `git add -A` swept every unrelated modified or
 # untracked file in the working tree into an automatic, pushed commit.
 stage_paths() {
   local rel
   local add_failed=0
-  local staged_paths=()
+  LAST_STAGED_PATHS=()
   for rel in "$@"; do
     if [[ ! -e "${REPO_ROOT}/${rel}" ]]; then
       continue
@@ -169,15 +171,15 @@ stage_paths() {
       add_failed=1
       continue
     fi
-    staged_paths+=("${rel}")
+    LAST_STAGED_PATHS+=("${rel}")
   done
   if [[ "${add_failed}" -eq 1 ]]; then
     return 2
   fi
-  if [[ ${#staged_paths[@]} -eq 0 ]]; then
+  if [[ ${#LAST_STAGED_PATHS[@]} -eq 0 ]]; then
     return 1
   fi
-  if ! git -C "${REPO_ROOT}" diff --cached --quiet -- "${staged_paths[@]}" 2>/dev/null; then
+  if ! git -C "${REPO_ROOT}" diff --cached --quiet -- "${LAST_STAGED_PATHS[@]}" 2>/dev/null; then
     return 0
   fi
   return 1
@@ -193,7 +195,7 @@ commit_synced_files() {
   stage_paths ${FILES[@]+"${FILES[@]}"} || rc=$?
   if [[ "${rc}" -eq 0 ]]; then
     log "Committing synced files to git"
-    git -C "${REPO_ROOT}" commit -m "sync: pull from homeassistant $(date +%Y-%m-%dT%H:%M:%S)" -- ${FILES[@]+"${FILES[@]}"}
+    git -C "${REPO_ROOT}" commit -m "sync: pull from homeassistant $(date +%Y-%m-%dT%H:%M:%S)" -- "${LAST_STAGED_PATHS[@]}"
     git -C "${REPO_ROOT}" push || log "WARNING: git push failed — continuing without push"
   elif [[ "${rc}" -eq 2 ]]; then
     log "WARNING: staging failed — skipping commit and push"
@@ -312,7 +314,7 @@ commit_inventory_files() {
   stage_paths "${inventory_outputs[@]}" || rc=$?
   if [[ "${rc}" -eq 0 ]]; then
     log "Committing inventory files to git"
-    git -C "${REPO_ROOT}" commit -m "inventory: update snapshot $(date +%Y-%m-%dT%H:%M:%S)" -- "${inventory_outputs[@]}"
+    git -C "${REPO_ROOT}" commit -m "inventory: update snapshot $(date +%Y-%m-%dT%H:%M:%S)" -- "${LAST_STAGED_PATHS[@]}"
     git -C "${REPO_ROOT}" push || log "WARNING: git push failed — continuing without push"
   elif [[ "${rc}" -eq 2 ]]; then
     log "WARNING: staging failed — skipping inventory commit and push"
