@@ -5,7 +5,7 @@
 # actionable notifications, and multi-step logic.
 #
 # Usage: Rename to automations.yaml and replace all <device_id_here>,
-#        <tablet_hostname>, <Your City>, notify.mobile_app_<your_phone>,
+#        <your_tablet_hostname>, <Your City>, notify.mobile_app_<your_phone>,
 #        and other placeholders with your actual values.
 # Requires: Ollama or OpenCode integration, input_select.ai_provider_selector.
 
@@ -267,7 +267,7 @@
       - condition: time
         before: '20:00:00'
       - condition: state
-        entity_id: light.kitchen_light
+        entity_id: light.<your_kitchen_light>
         state: 'on'
     then:
     - action: media_player.volume_set
@@ -295,8 +295,8 @@
     - condition: template
       value_template: '{{ trigger.id == ''arrival'' }}'
     - condition: template
-      value_template: '{% set now_ts = now().timestamp() %} {% set person_1 = states.person.person_1
-        %} {% set person_2 = states.person.person_2 %} {% set person_1_was_home =
+      value_template: '{% set now_ts = now().timestamp() %} {% set person_1 = states.person.<your_person_1>
+        %} {% set person_2 = states.person.<your_person_2> %} {% set person_1_was_home =
         person_1.state == ''home'' and (now_ts - person_1.last_changed.timestamp())
         > 300 %} {% set person_2_was_home = person_2.state == ''home'' and (now_ts
         - person_2.last_changed.timestamp()) > 300 %} {{ not person_1_was_home and
@@ -361,12 +361,12 @@
     - condition: not
       conditions:
       - condition: zone
-        entity_id: person.person_1
+        entity_id: person.<your_person_1>
         zone: zone.home
     - condition: not
       conditions:
       - condition: zone
-        entity_id: person.person_2
+        entity_id: person.<your_person_2>
         zone: zone.home
     - condition: template
       value_template: '{{ is_state(''light.<zigbee_device_1>'', ''on'') or is_state(''light.<your_kitchen_light>'',
@@ -1342,12 +1342,10 @@
       event_type: mobile_app_notification_action
       event_data:
         action: BEDROOM_MOTION_REENABLE
-        tag: bedroom_motion_reenable
     - platform: event
       event_type: mobile_app_notification_action
       event_data:
         action: BEDROOM_MOTION_DISMISS
-        tag: bedroom_motion_reenable
     timeout: 00:05:00
     continue_on_timeout: true
   - action: notify.mobile_app_<your_phone>

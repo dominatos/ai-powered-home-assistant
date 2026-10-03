@@ -271,6 +271,9 @@ This repo currently includes at least:
 - `AUTOMATIONS_KB.template.md` (rename to `automations_kb.md` after setup)
 - `FUTURE-automations.template.md` (rename to `FUTURE-automations.md` after setup)
 - `patterns/standardize.md`
+- `tools/ha_toolkit.py` (unified CLI: audit_docs, audit_dashboard, generate_kb, trace, inventory)
+- `python_scripts/create_playlist.py` (NFS audio → M3U playlist generator)
+- `readme-nfs.md` (NFS + Music Assistant setup guide)
 - `to-implement-after.template.md` (rename to `to-implement-after.md` after setup)
 - `to-improve.template.md` (rename to `to-improve.md` after setup)
 - `to-assign.template.md` (rename to `to-assign.md` after setup)

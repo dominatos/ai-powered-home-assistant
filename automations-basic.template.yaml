@@ -5,7 +5,7 @@
 # These require no AI integration and work with standard HA components.
 #
 # Usage: Rename to automations.yaml and replace all <device_id_here>,
-#        <tablet_hostname>, <Your City>, notify.mobile_app_<your_phone>,
+#        <your_tablet_hostname>, <Your City>, notify.mobile_app_<your_phone>,
 #        and other placeholders with your actual values.
 
 # ---- SECTION 1: SAFETY & SENSORS ----
@@ -57,7 +57,7 @@
   - alias: Mark tablet screen as awake
     action: input_boolean.turn_on
     target:
-      entity_id: input_boolean.kitchen_tablet_screen_awake
+      entity_id: input_boolean.<your_kitchen_tablet_screen_awake>
     data: {}
   mode: single
 
@@ -221,7 +221,7 @@
   actions:
   - action: light.turn_on
     target:
-      entity_id: light.bedroom_light
+      entity_id: light.<your_bedroom_light>
     data:
       flash: short
   - wait_for_trigger:
@@ -236,13 +236,13 @@
       sequence:
       - action: light.turn_on
         target:
-          entity_id: light.bedroom_light
+          entity_id: light.<your_bedroom_light>
         data:
           brightness_pct: 100
     default:
     - action: light.turn_off
       target:
-        entity_id: light.bedroom_light
+        entity_id: light.<your_bedroom_light>
   mode: single
 
 - id: '1778572239645'
@@ -274,10 +274,10 @@
     - condition: or
       conditions:
       - condition: zone
-        entity_id: person.person_1
+        entity_id: person.<your_person_1>
         zone: zone.home
       - condition: zone
-        entity_id: person.person_2
+        entity_id: person.<your_person_2>
         zone: zone.home
     then:
     - if:
@@ -456,12 +456,12 @@
     after: '12:00:00'
     before: '20:00:00'
   - condition: state
-    entity_id: light.bedroom_light
+    entity_id: light.<your_bedroom_light>
     state: 'off'
   actions:
   - action: light.turn_on
     target:
-      entity_id: light.bedroom_light
+      entity_id: light.<your_bedroom_light>
     data:
       brightness_pct: 100
   - wait_for_trigger:
@@ -472,7 +472,7 @@
       minutes: 20
   - action: light.turn_off
     target:
-      entity_id: light.bedroom_light
+      entity_id: light.<your_bedroom_light>
 
 - id: kitchen_dish_light_on_night_motion
   alias: 'Kitchen: Dish Light on Night Motion'
@@ -525,12 +525,12 @@
     after: '15:00:00'
     before: '20:00:00'
   - condition: state
-    entity_id: light.child_room_light
+    entity_id: light.<your_child_room_light>
     state: 'off'
   actions:
   - action: light.turn_on
     target:
-      entity_id: light.child_room_light
+      entity_id: light.<your_child_room_light>
     data:
       brightness_pct: 100
   mode: single
@@ -549,12 +549,12 @@
       seconds: 0
   conditions:
   - condition: state
-    entity_id: light.child_room_light
+    entity_id: light.<your_child_room_light>
     state: 'on'
   actions:
   - action: light.turn_off
     target:
-      entity_id: light.child_room_light
+      entity_id: light.<your_child_room_light>
   mode: single
 
 - id: kitchen_turn_off_led_on_no_motion
@@ -663,15 +663,15 @@
     above: 70
   conditions:
   - condition: state
-    entity_id: light.bathroom_light
+    entity_id: light.<your_bathroom_light>
     state: 'on'
   - condition: template
-    value_template: '{{ state_attr(''light.bathroom_light'', ''brightness'') | int(0)
+    value_template: '{{ state_attr(''light.<your_bathroom_light>'', ''brightness'') | int(0)
       < 255 }}'
   actions:
   - action: light.turn_on
     target:
-      entity_id: light.bathroom_light
+      entity_id: light.<your_bathroom_light>
     data:
       brightness_pct: 100
   mode: single
@@ -698,7 +698,7 @@
   actions:
   - action: light.turn_on
     target:
-      entity_id: light.bathroom_light
+      entity_id: light.<your_bathroom_light>
     data:
       brightness_pct: 100
   - wait_for_trigger:
@@ -712,7 +712,7 @@
       seconds: 2
   - action: light.turn_off
     target:
-      entity_id: light.bathroom_light
+      entity_id: light.<your_bathroom_light>
 
 - id: child_room_toggle_main_light
   alias: 'Child Room: Toggle Kitchen Light'
@@ -1038,8 +1038,8 @@
   triggers:
   - trigger: state
     entity_id:
-    - person.person_1
-    - person.person_2
+    - person.<your_person_1>
+    - person.<your_person_2>
     to: 'not_home'
     for:
       hours: 0
@@ -1048,8 +1048,8 @@
     id: away
   - trigger: zone
     entity_id:
-    - person.person_1
-    - person.person_2
+    - person.<your_person_1>
+    - person.<your_person_2>
     zone: zone.home
     event: enter
     id: home
@@ -1057,8 +1057,8 @@
   - condition: template
     value_template: >-
       {% if trigger.id == 'away' %}
-        {% set person_1_home = is_state('person.person_1', 'home') %}
-        {% set person_2_home = is_state('person.person_2', 'home') %}
+        {% set person_1_home = is_state('person.<your_person_1>', 'home') %}
+        {% set person_2_home = is_state('person.<your_person_2>', 'home') %}
         {{ not person_1_home and not person_2_home }}
       {% else %}
         true
@@ -1097,11 +1097,11 @@
   actions:
   - wait_for_trigger:
     - trigger: zone
-      entity_id: person.person_1
+      entity_id: person.<your_person_1>
       zone: zone.home
       event: enter
     - trigger: zone
-      entity_id: person.person_2
+      entity_id: person.<your_person_2>
       zone: zone.home
       event: enter
     - trigger: time
@@ -1530,12 +1530,12 @@
       entity_id: counter.tv_daily_usage
   mode: single
 
-- id: kitchen_fairy_lights_auto_off
-  alias: 'Kitchen: Fairy Lights Auto-Off'
+- id: 'kitchen_<your_fairy_lights>_auto_off'
+  alias: 'Kitchen: <your_fairy_lights> Auto-Off'
   description: Turns off the fairy lights after they have been on for 1 hour.
   triggers:
   - trigger: state
-    entity_id: light.fairy_lights
+    entity_id: 'light.<your_fairy_lights>'
     to: 'on'
     for:
       hours: 1
@@ -1545,7 +1545,7 @@
   actions:
   - action: light.turn_off
     target:
-      entity_id: light.fairy_lights
+      entity_id: 'light.<your_fairy_lights>'
   mode: single
 
 # ---- SECTION 7: BUTTON / REMOTE / NFC TOGGLES ----
