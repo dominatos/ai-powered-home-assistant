@@ -303,7 +303,8 @@ def audit_dashboard(args, repo: Path):
         if input_booleans:
             print(f"\n  ALL INPUT_BOOLEAN HELPERS ({len(input_booleans)}):")
             for ib in sorted(input_booleans, key=lambda x: x.get("entity_id", "")):
-                print(f"    - {ib['entity_id']} ({ib.get('original_name', '\u2014')})")
+                original_name = ib.get('original_name', '\u2014')
+                print(f"    - {ib['entity_id']} ({original_name})")
 
         print("\n" + "=" * 70)
         print("TEMPERATURE & HUMIDITY SENSORS")
