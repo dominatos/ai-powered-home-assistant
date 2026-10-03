@@ -10,6 +10,10 @@ import tempfile
 
 AUDIO_EXTENSIONS = (".mp3", ".wav", ".flac", ".aac", ".ogg", ".m4a", ".wma", ".opus")
 
+def _raise_walk_error(err):
+    """Re-raise os.walk errors so unreadable directories abort the scan."""
+    raise err
+
 def main():
     if len(sys.argv) < 3:
         print("Usage: python3 create_playlist.py <audio_folder> <m3u_file>")
@@ -28,7 +32,7 @@ def main():
         fd, tmp_path = tempfile.mkstemp(dir=dest_dir, suffix=".m3u.tmp")
         with os.fdopen(fd, "w", encoding="utf-8") as f:
             f.write("#EXTM3U\n\n")
-            for root, _dirs, files in sorted(os.walk(audio_folder)):
+            for root, _dirs, files in sorted(os.walk(audio_folder, onerror=_raise_walk_error)):
                 for filename in sorted(files):
                     if filename.lower().endswith(AUDIO_EXTENSIONS):
                         filepath = os.path.join(root, filename)
