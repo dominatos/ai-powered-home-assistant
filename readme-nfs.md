@@ -26,7 +26,7 @@ NFS Server (your NAS / Linux box)
 | Component | Requirement |
 |-----------|-------------|
 | NFS server | A NAS or Linux machine sharing an audio folder (e.g., `/export/music`) |
-| Home Assistant OS | `python_scripts` must be enabled in `configuration.yaml` |
+| Home Assistant | `shell_command` must be enabled in `configuration.yaml` |
 | Music Assistant | Installed as an HACS integration or add-on |
 | NFS client | HA host must be able to mount NFS shares (HAOS has built-in NFS support) |
 
@@ -61,7 +61,7 @@ Use the built-in network storage workflow:
 2. Click **Add network storage**.
 3. Select **NFS** as the type.
 4. Enter the NFS server address and share path (e.g., `192.168.1.X:/export/music`).
-5. Set the mount point to `/media/music`.
+5. Name the storage `music` and select **Media** as the usage type, producing `/media/music`.
 6. Save. Home Assistant will mount the share and make it available at `/media/music`.
 
 ### Docker / HA Core
@@ -70,49 +70,39 @@ Add a volume mount to your `docker-compose.yml` or `docker run` command:
 
 ```yaml
 volumes:
-  - /export/music:/media/music:ro
+  - /export/music:/media/music:rw
 ```
 
 Or mount on the host and map into the container.
 
-## Step 3 — Enable python_scripts
-
-In `configuration.yaml`:
-
-```yaml
-python_script:
-```
-
-That's it — just the one line. HA will look for scripts in `/config/python_scripts/`.
-
-## Step 4 — Place create_playlist.py
+## Step 3 — Place create_playlist.py
 
 Copy `python_scripts/create_playlist.py` to your HA config directory:
 
 ```bash
-cp python_scripts/create_playlist.py /config/python_scripts/
+cp python_scripts/create_playlist.py /config/
 ```
 
 ### Test it manually
 
 ```bash
 # On the HA host:
-    python3 /config/python_scripts/create_playlist.py /media/music /media/music/playlist.m3u
+    python3 /config/create_playlist.py /media/music /media/music/playlist.m3u
 ```
 
 You should see: `Playlist saved to /media/music/playlist.m3u (N tracks)`
 
-## Step 5 — Configure shell_command
+## Step 4 — Configure shell_command
 
 Add to `configuration.yaml`:
 
 ```yaml
 shell_command:
   create_playlist: >
-python3 /config/python_scripts/create_playlist.py /media/music /media/music/playlist.m3u
+    python3 /config/create_playlist.py /media/music /media/music/playlist.m3u
 ```
 
-## Step 6 — Set Up Music Assistant Filesystem Provider
+## Step 5 — Set Up Music Assistant Filesystem Provider
 
 1. Open **Music Assistant** from the HA sidebar.
 2. Go to **Settings → Providers → Add Provider**.
@@ -124,7 +114,7 @@ python3 /config/python_scripts/create_playlist.py /media/music /media/music/play
    - **Playlist folder**: Inside the NFS music source (e.g., `/media/music` or `/export/music`)
 5. Save. Music Assistant will scan and index the files.
 
-## Step 7 — Store Playlist Name
+## Step 6 — Store Playlist Name
 
 Add an `input_text` helper (already in `configuration.template.yaml`):
 
@@ -138,7 +128,7 @@ input_text:
 
 Music Assistant matches this name against the M3U files in its configured playlist folder.
 
-## Step 8 — Automate Playlist Regeneration (Optional)
+## Step 7 — Automate Playlist Regeneration (Optional)
 
 Create an automation to regenerate the playlist periodically (e.g., every 10 minutes) so new files are picked up automatically:
 
@@ -155,7 +145,7 @@ Create an automation to regenerate the playlist periodically (e.g., every 10 min
   mode: single
 ```
 
-## Step 9 — Play via Automation
+## Step 8 — Play via Automation
 
 Use Music Assistant's `play_media` action in your automations:
 
@@ -205,9 +195,9 @@ Use `music_assistant.transfer_queue` to move playback between speakers:
 - Restart Music Assistant after adding the provider
 
 **`shell_command` fails:**
-- Ensure `python_script:` is in `configuration.yaml`
+- Ensure `shell_command:` is in `configuration.yaml`
 - Check HA logs for the exact error
-- Verify the script has no syntax errors: `python3 -c "import py_compile; py_compile.compile('/config/python_scripts/create_playlist.py')"`
+- Verify the script has no syntax errors: `python3 -c "import py_compile; py_compile.compile('/config/create_playlist.py')"`
 
 **NFS mount drops after reboot:**
 - Add to `/etc/fstab` with `_netdev` option
