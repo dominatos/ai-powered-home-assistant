@@ -44,7 +44,7 @@ command -v git > /dev/null 2>&1 || die "git is not installed"
 # Refuse to clobber an existing history. `git push --force` here would
 # silently destroy whatever the target repository already contained.
 echo "Checking that the target repository is empty..."
-if ! existing_refs="$(git ls-remote --heads "${PRIVATE_URL}" 2>/dev/null)"; then
+if ! existing_refs="$(git ls-remote "${PRIVATE_URL}" 2>/dev/null)"; then
   die "Cannot reach ${PRIVATE_URL} — check the URL and your SSH/HTTPS credentials."
 fi
 if [[ -n "${existing_refs}" ]]; then
@@ -82,6 +82,7 @@ git add .
 git commit -m "Initial setup with renamed templates"
 if [[ "${FORCE}" -eq 1 ]]; then
   git push --set-upstream origin main --force
+  git push origin main:master --force 2>/dev/null || true
 else
   git push --set-upstream origin main
 fi
