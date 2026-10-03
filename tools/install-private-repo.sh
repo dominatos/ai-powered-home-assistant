@@ -85,6 +85,24 @@ if [[ "${FORCE}" -eq 1 ]]; then
   if printf '%s\n' "${existing_refs}" | grep -q $'\trefs/heads/master$'; then
     git push origin main:master --force
   fi
+  # Remove any remaining remote branches other than main/master
+  while IFS=$'\t' read -r _hash ref; do
+    branch="${ref#refs/heads/}"
+    if [[ "${ref}" == refs/heads/* && "${branch}" != "main" && "${branch}" != "master" ]]; then
+      if ! git push origin --delete "${branch}" 2>/dev/null; then
+        echo "WARNING: Failed to delete remote branch ${branch}" >&2
+      fi
+    fi
+  done <<< "${existing_refs}"
+  # Remove all remote tags
+  while IFS=$'\t' read -r _hash ref; do
+    if [[ "${ref}" == refs/tags/* ]]; then
+      tag="${ref#refs/tags/}"
+      if ! git push origin --delete "refs/tags/${tag}" 2>/dev/null; then
+        echo "WARNING: Failed to delete remote tag ${tag}" >&2
+      fi
+    fi
+  done <<< "$(git ls-remote --tags origin 2>/dev/null)"
 else
   git push --set-upstream origin main
 fi
