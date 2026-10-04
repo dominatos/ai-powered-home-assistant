@@ -1073,6 +1073,7 @@
       target:
         entity_id: '{{ helper }}'
 - alias: 'Room: Media Playback (Dashboard)'
+  id: room_media_playback_dashboard
   description: Toggles a media playlist (<your_playlist_folder>) from dashboard boolean on the kitchen
     speaker. Only allowed between 07:00 and 21:00. Auto-off after 10 min of no kitchen
     motion. Hard stop after 60 min of no motion or at 23:00.
@@ -1241,6 +1242,7 @@
         data: {}
   mode: restart
 - alias: 'Media: Pause After Current Track'
+  id: media_pause_after_current_track
   description: Waits until the current playing track finishes or playback stops, then
     turns off media playback.
   mode: restart
