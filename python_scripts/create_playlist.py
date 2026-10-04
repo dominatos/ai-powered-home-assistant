@@ -22,8 +22,8 @@ def main():
     audio_folder = sys.argv[1]
     m3u_file = sys.argv[2]
 
-    if not os.path.exists(audio_folder):
-        print(f"Error: Folder '{audio_folder}' does not exist.")
+    if not os.path.isdir(audio_folder):
+        print(f"Error: '{audio_folder}' is not a directory or does not exist.")
         sys.exit(1)
 
     count = 0
