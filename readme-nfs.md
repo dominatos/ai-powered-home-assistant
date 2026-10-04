@@ -38,8 +38,10 @@ On your NFS server (example: Ubuntu/Debian):
 # Install NFS server
 sudo apt install nfs-kernel-server
 
-# Create the music directory
+# Create the music directory and give the playlist writer (nobody under root
+# squashing) ownership so it can create playlist.m3u
 sudo mkdir -p /export/music
+sudo chown nobody:nogroup /export/music
 
 # Add to /etc/exports:
 # /export/music 192.168.1.X/24(rw,sync,no_subtree_check)
@@ -48,6 +50,9 @@ sudo exportfs -ra
 # Start the service
 sudo systemctl enable --now nfs-kernel-server
 ```
+
+> [!NOTE]
+> Root squashing is enabled by default on most NFS servers. Under root squashing, the Home Assistant container's root user maps to `nobody` on the server. The `chown nobody:nogroup` step ensures the playlist writer can create `playlist.m3u` inside the export. Keep root squashing enabled for security.
 
 Place your audio files in `/export/music` (subdirectories are supported and sorted alphabetically).
 
