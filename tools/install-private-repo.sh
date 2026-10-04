@@ -81,12 +81,18 @@ echo "Committing and pushing..."
 git add .
 git commit -m "Initial setup with renamed templates"
 if [[ "${FORCE}" -eq 1 ]]; then
-  # Back up existing remote refs before destructive operations.
-  backup_file="${REPO_DIR}/.remote_refs_backup_$(date +%Y%m%d_%H%M%S).txt"
-  if ! printf '%s\n' "${existing_refs}" > "${backup_file}"; then
-    die "Failed to back up existing remote refs to ${backup_file}. Aborting before destructive push."
+  # Back up existing remote history with a complete mirror before destructive operations.
+  # Stored outside REPO_DIR so the backup survives the force-push that replaces this work tree.
+  backup_dir="$(mktemp -d "${TMPDIR:-/tmp}/ha_repo_backup_XXXXXX")"
+  backup_mirror="${backup_dir}/remote_mirror.git"
+  if ! git clone --mirror "${PRIVATE_URL}" "${backup_mirror}" 2>/dev/null; then
+    rm -rf "${backup_dir}"
+    die "Failed to create mirror backup of ${PRIVATE_URL} at ${backup_mirror}. Aborting before destructive push."
   fi
-  echo "Backed up existing remote refs to ${backup_file}"
+  # Also save the ref list for quick inspection.
+  printf '%s\n' "${existing_refs}" > "${backup_dir}/remote_refs.txt"
+  echo "Backed up remote history to ${backup_mirror}"
+  echo "Ref list saved to ${backup_dir}/remote_refs.txt"
   git push --set-upstream origin main --force
   if printf '%s\n' "${existing_refs}" | grep -q $'\trefs/heads/master$'; then
     git push origin main:master --force
