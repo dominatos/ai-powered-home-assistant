@@ -123,9 +123,9 @@ result="$(cd "${REPO_ROOT}" && bash -c "
   source tools/sync_common.sh
   load_managed_files
   ensure_requirements '${opt_src}'
-  echo \"KEPT:\${FILES[*]}\"
+  echo \"KEPT:\${#FILES[@]}:\${FILES[*]}\"
 " 2>&1 || true)"
-check "optional managed file is skipped when absent" "KEPT:a.yaml" "${result}"
+check "optional managed file is skipped when absent" "KEPT:1:a.yaml" "${result}"
 
 # Test: a missing REQUIRED managed file still aborts
 req_list="${TMPDIR_TEST}/managed_required.txt"
