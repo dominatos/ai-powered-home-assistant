@@ -81,6 +81,12 @@ echo "Committing and pushing..."
 git add .
 git commit -m "Initial setup with renamed templates"
 if [[ "${FORCE}" -eq 1 ]]; then
+  # Back up existing remote refs before destructive operations.
+  backup_file="${REPO_DIR}/.remote_refs_backup_$(date +%Y%m%d_%H%M%S).txt"
+  if ! printf '%s\n' "${existing_refs}" > "${backup_file}"; then
+    die "Failed to back up existing remote refs to ${backup_file}. Aborting before destructive push."
+  fi
+  echo "Backed up existing remote refs to ${backup_file}"
   git push --set-upstream origin main --force
   if printf '%s\n' "${existing_refs}" | grep -q $'\trefs/heads/master$'; then
     git push origin main:master --force
