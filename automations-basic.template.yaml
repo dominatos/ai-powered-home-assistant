@@ -1700,7 +1700,7 @@
 - id: led_color_mode_toggle
   alias: 'Room: LED Color Mode Toggle'
   description: Button alternates an LED between random color and white. Requires
-    input_boolean.<room>_led_color_mode to track state.
+    input_boolean.<your_room>_led_color_mode to track state.
   triggers:
   - domain: mqtt
     device_id: <your_button_device_id>
