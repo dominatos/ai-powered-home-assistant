@@ -31,33 +31,91 @@ class HASafeLoader(yaml.SafeLoader):
     pass
 
 def _ha_constructor(loader: yaml.SafeLoader, tag_suffix: str, node: yaml.Node) -> Any:
+    """Handle Home Assistant custom tags."""
+    if tag_suffix == "include":
+        # Resolve !include directives by loading the referenced file
+        if isinstance(node, yaml.ScalarNode):
+            include_path = loader.construct_scalar(node)
+            # Resolve relative to the loader's source directory if available
+            if hasattr(loader, "_ha_base_dir"):
+                base_dir = loader._ha_base_dir
+            else:
+                base_dir = Path(".")
+            full_path = base_dir / include_path
+            if not full_path.exists():
+                raise ValueError(
+                    f"!include file not found: {include_path} (resolved to {full_path})"
+                )
+            try:
+                content = full_path.read_text(encoding="utf-8")
+                included = yaml.load(content, Loader=HASafeLoader)
+                # Mark the result as coming from an include for flattening
+                if isinstance(included, list):
+                    included = _FlattenedList(included)
+                return included
+            except (OSError, UnicodeDecodeError, yaml.YAMLError) as e:
+                raise ValueError(
+                    f"Error loading included file {include_path}: {e}"
+                )
+        else:
+            raise ValueError(
+                "!include only supports scalar file paths, not complex nodes"
+            )
+    # For other HA tags (!secret, !include_dir_*, etc.), return a placeholder
     return f"__{tag_suffix}__"
 
+
+class _FlattenedList(list):
+    """List subclass that indicates its contents should be flattened into the parent list."""
+    pass
+
 HASafeLoader.add_multi_constructor("!", _ha_constructor)
+
+
+def _load_yaml_with_includes(file_path: Path) -> Any:
+    """Load a YAML file with !include resolution enabled."""
+    try:
+        content = file_path.read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError) as e:
+        raise ValueError(f"Error reading {file_path}: {e}")
+    loader = HASafeLoader(content)
+    loader._ha_base_dir = file_path.parent
+    try:
+        return loader.get_single_data()
+    finally:
+        loader.dispose()
+
+
+def _flatten_includes(items: list) -> list:
+    """Flatten nested lists that came from !include directives."""
+    result = []
+    for item in items:
+        if isinstance(item, _FlattenedList):
+            result.extend(_flatten_includes(item))
+        else:
+            result.append(item)
+    return result
 
 
 def load_automations(repo: Path) -> list:
     """
     Load automations from automations.yaml using the HA custom yaml loader.
+    Resolves !include directives recursively and flattens included lists.
     
     Raises:
         FileNotFoundError: If the file is missing or unreadable.
-        ValueError: If the YAML is malformed or does not contain a list.
+        ValueError: If the YAML is malformed, an include cannot be resolved,
+                    or the file does not contain a list.
     """
     auto_file = repo / "automations.yaml"
     try:
-        content = auto_file.read_text(encoding='utf-8')
-    except (OSError, UnicodeDecodeError) as e:
-        raise FileNotFoundError(f"Error reading {auto_file}: {e}")
-
-    try:
-        automations = yaml.load(content, Loader=HASafeLoader)
-    except yaml.YAMLError as e:
+        automations = _load_yaml_with_includes(auto_file)
+    except ValueError as e:
         raise ValueError(f"Error parsing automations.yaml: {e}")
 
     if not isinstance(automations, list):
         raise ValueError("Error: automations.yaml is not a list.")
-    return automations
+    return _flatten_includes(automations)
 
 
 # ==============================================================================

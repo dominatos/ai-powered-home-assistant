@@ -170,8 +170,9 @@ class TestAuditDocs(unittest.TestCase):
         write_file(self.test_dir / "automations.yaml", "- !include my_automation.yaml\n")
         write_file(self.test_dir / "HOUSE_CONTEXT.md", "# House\n\nNo automations configured yet.\n")
         r = run_tool(sys.executable, str(TOOLS / "ha_toolkit.py"), "audit-docs", cwd=self.test_dir)
-        self.assertNotIn("Kitchen: Included Light", r.stdout)
-        self.assertEqual(r.returncode, 0)
+        # Include is resolved, so the automation alias is found and reported missing
+        self.assertIn("Kitchen: Included Light", r.stdout)
+        self.assertNotEqual(r.returncode, 0)
 
 
 # ===========================================================================
