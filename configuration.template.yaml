@@ -130,9 +130,6 @@ input_button:
   tv_start_timer:
     name: Start TV Timer
     icon: mdi:play-circle
-  missed_call_alert:
-    name: Trigger Missed Call Alert
-    icon: mdi:phone-missed
 
 # --- Thermostat schedule helpers ---
 # 4 time slots × 3 days (weekday, Saturday, Sunday) = 12 helpers each.
