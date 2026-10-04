@@ -140,7 +140,7 @@ Reload the `shell_command` integration (**Settings → System → Reload** or re
    - **Filesystem (NFS share)** for an NFS mount — enter the server IP in the **Server** field and the absolute export path (e.g., `/export/music`) in the **Path** field.
 4. Configure:
    - **Name**: `NFS Music Library` (or any name)
-   - **Playlist folder**: Inside the music source (e.g., `/media/music`)
+   - **Import playlists (m3u files)**: Enable this setting so generated playlists are added to the library.
 5. Save. Music Assistant will scan and index the files.
 
 ## Step 6 — Store Playlist Name
@@ -155,7 +155,7 @@ input_text:
     icon: mdi:playlist-music
 ```
 
-Music Assistant matches this name against the M3U files in its configured playlist folder.
+Music Assistant matches this name against the M3U files in its configured music source.
 
 ## Step 7 — Automate Playlist Regeneration (Optional)
 
