@@ -142,11 +142,12 @@ thermostat_pull_schedule_from_device:
                 {% set ns.valid = false %}
               {% else %}
                 {% set parts = weekday_tokens[i].split('/') %}
-                {% if parts|length != 2 or parts[0]|length != 5 or ':' not in parts[0] or parts[1]|length == 0 %}
+                {% set time_part = parts[0] if parts|length > 0 else '' %}
+                {% if parts|length != 2 or time_part.count(':') != 1 or time_part.split(':')|length != 2 or time_part.split(':')[0]|length != 2 or time_part.split(':')[1]|length != 2 or parts[1]|length == 0 %}
                   {% set ns.valid = false %}
                 {% else %}
-                  {% set hh = parts[0].split(':')[0] %}
-                  {% set mm = parts[0].split(':')[1] %}
+                  {% set hh = time_part.split(':')[0] %}
+                  {% set mm = time_part.split(':')[1] %}
                   {% set temp = parts[1] | replace('°C','') %}
                   {% if not (hh.isdigit() and mm.isdigit() and 0 <= hh|int <= 23 and 0 <= mm|int <= 59) %}
                     {% set ns.valid = false %}
@@ -212,11 +213,12 @@ thermostat_pull_schedule_from_device:
                 {% set ns.valid = false %}
               {% else %}
                 {% set parts = saturday_tokens[i].split('/') %}
-                {% if parts|length != 2 or parts[0]|length != 5 or ':' not in parts[0] or parts[1]|length == 0 %}
+                {% set time_part = parts[0] if parts|length > 0 else '' %}
+                {% if parts|length != 2 or time_part.count(':') != 1 or time_part.split(':')|length != 2 or time_part.split(':')[0]|length != 2 or time_part.split(':')[1]|length != 2 or parts[1]|length == 0 %}
                   {% set ns.valid = false %}
                 {% else %}
-                  {% set hh = parts[0].split(':')[0] %}
-                  {% set mm = parts[0].split(':')[1] %}
+                  {% set hh = time_part.split(':')[0] %}
+                  {% set mm = time_part.split(':')[1] %}
                   {% set temp = parts[1] | replace('°C','') %}
                   {% if not (hh.isdigit() and mm.isdigit() and 0 <= hh|int <= 23 and 0 <= mm|int <= 59) %}
                     {% set ns.valid = false %}
@@ -282,11 +284,12 @@ thermostat_pull_schedule_from_device:
                 {% set ns.valid = false %}
               {% else %}
                 {% set parts = sunday_tokens[i].split('/') %}
-                {% if parts|length != 2 or parts[0]|length != 5 or ':' not in parts[0] or parts[1]|length == 0 %}
+                {% set time_part = parts[0] if parts|length > 0 else '' %}
+                {% if parts|length != 2 or time_part.count(':') != 1 or time_part.split(':')|length != 2 or time_part.split(':')[0]|length != 2 or time_part.split(':')[1]|length != 2 or parts[1]|length == 0 %}
                   {% set ns.valid = false %}
                 {% else %}
-                  {% set hh = parts[0].split(':')[0] %}
-                  {% set mm = parts[0].split(':')[1] %}
+                  {% set hh = time_part.split(':')[0] %}
+                  {% set mm = time_part.split(':')[1] %}
                   {% set temp = parts[1] | replace('°C','') %}
                   {% if not (hh.isdigit() and mm.isdigit() and 0 <= hh|int <= 23 and 0 <= mm|int <= 59) %}
                     {% set ns.valid = false %}
