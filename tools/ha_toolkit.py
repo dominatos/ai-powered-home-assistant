@@ -316,7 +316,11 @@ def audit_dashboard(args, repo: Path):
         print()
         return
 
-    dash = dash_file.read_text(encoding='utf-8')
+    try:
+        dash = dash_file.read_text(encoding='utf-8')
+    except (OSError, UnicodeDecodeError) as e:
+        print(f"Error: failed to read dashboard {dash_file}: {e}")
+        sys.exit(1)
     ent_refs = set(re.findall(r"entity(?:_id)?:\s+[\"']?([\w.]+)[\"']?", dash))
     print(f"  Entities referenced in dashboard.yaml: {len(ent_refs)}")
 
