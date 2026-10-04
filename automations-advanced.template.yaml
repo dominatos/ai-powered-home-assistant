@@ -1374,8 +1374,8 @@
 
 - id: notification_missed_call_message
   alias: 'Notification: Missed Call or Message Alert'
-  description: When a phone is detected as not_home, checks for missed calls/messages
-    and sends a TTS + push alert. Resets when the person returns home.
+  description: When a person leaves home, sends a departure reminder that they may
+    want to check for missed calls or messages. Resets when the person returns home.
   triggers:
   - trigger: state
     entity_id: person.<your_person>
@@ -1406,7 +1406,7 @@
   - action: notify.mobile_app_<your_phone>
     data:
       title: Missed Communication
-      message: You may have missed calls or messages while away.
+      message: You left home. Check for missed calls or messages.
       data:
         tag: missed_call
   - action: tts.speak
@@ -1416,7 +1416,7 @@
       cache: false
       media_player_entity_id: media_player.<your_speaker>
       language: en
-      message: You may have missed calls or messages.
+      message: You left home. Check for missed calls or messages.
   mode: single
 
 # ---- SECTION: FRIDGE / APPLIANCE ----
