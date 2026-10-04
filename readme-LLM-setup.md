@@ -168,7 +168,7 @@ rest_command:
       Authorization: !secret opencode_authorization
 
   ghostfolio_api_get_performance:
-    url: "http://<your_ghostfolio_ip>:3333/api/performance/<your_ghostfolio_portfolio_id>"
+    url: "https://<your_ghostfolio_ip>:3333/api/performance/<your_ghostfolio_portfolio_id>"
     method: GET
     timeout: 30
     headers:
