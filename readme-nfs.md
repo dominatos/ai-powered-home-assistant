@@ -129,6 +129,8 @@ shell_command:
     python3 /config/create_playlist.py /media/music /media/music/playlist.m3u
 ```
 
+Reload the `shell_command` integration (**Settings → System → Reload** or restart Home Assistant) before using the command in Step 7.
+
 ## Step 5 — Set Up Music Assistant Filesystem Provider
 
 1. Open **Music Assistant** from the HA sidebar.
