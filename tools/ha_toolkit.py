@@ -196,10 +196,13 @@ def analyze_traces(args, repo: Path):
             print("Run with --full to see the full JSON dump.")
             
         if args.output:
-            filename = f"{args.output}_{i+1}.json"
-            with open(filename, 'w', encoding='utf-8') as out:
-                json.dump(trace, out, indent=2)
-            print(f"Saved full trace to {filename}")
+            filename = Path(f"{args.output}_{i+1}.json")
+            try:
+                filename.write_text(json.dumps(trace, indent=2), encoding='utf-8')
+            except OSError as e:
+                print(f"Error: failed to write trace to {filename}: {e}")
+            else:
+                print(f"Saved full trace to {filename}")
 
 
 # ==============================================================================
