@@ -161,6 +161,15 @@ stage_paths() {
   LAST_STAGED_PATHS=()
   for rel in "$@"; do
     if [[ ! -e "${REPO_ROOT}/${rel}" ]]; then
+      # Skip untracked absent paths, but stage deletions of tracked files.
+      if git -C "${REPO_ROOT}" ls-files --error-unmatch -- "${rel}" > /dev/null 2>&1; then
+        if ! git -C "${REPO_ROOT}" add -A -- "${rel}" > /dev/null 2>&1; then
+          log "WARNING: git add failed for deleted ${rel}"
+          add_failed=1
+          continue
+        fi
+        LAST_STAGED_PATHS+=("${rel}")
+      fi
       continue
     fi
     if git -C "${REPO_ROOT}" check-ignore -q -- "${rel}" 2>/dev/null; then
