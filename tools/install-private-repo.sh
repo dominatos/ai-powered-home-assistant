@@ -17,7 +17,7 @@ Example:
   bash <(curl -s https://raw.githubusercontent.com/<TEMPLATE_ORG>/ai-powered-home-assistant/main/tools/install-private-repo.sh) git@github.com:username/my-home.git
 
 EOF
-  exit 0
+  exit "${1:-0}"
 }
 
 die() { echo "Error: $*" >&2; exit 1; }
@@ -26,14 +26,14 @@ FORCE=0
 ARGS=()
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    -h|--help) usage ;;
+    -h|--help) usage 0 ;;
     -f|--force) FORCE=1 ;;
     *) ARGS+=("$1") ;;
   esac
   shift
 done
 
-[[ ${#ARGS[@]} -eq 1 ]] || usage
+[[ ${#ARGS[@]} -eq 1 ]] || usage 1
 
 PRIVATE_URL="${ARGS[0]}"
 TEMPLATE_URL="https://github.com/dominatos/ai-powered-home-assistant.git"
