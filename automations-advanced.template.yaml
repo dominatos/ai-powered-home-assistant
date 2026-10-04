@@ -1255,7 +1255,7 @@
   - variables:
       active_player: '{% if is_state(''input_boolean.child_room_media_playback'',
         ''on'') %} media_player.<your_child_room_speaker> {% elif is_state(''input_boolean.kitchen_media_playback'',
-        ''on'') %} media_player.<your_kitchen_speaker> {% elif is_state(''input_boolean.bedroom_media_playback'',
+        ''on'') %} media_player.<your_kitchen_playback_speaker> {% elif is_state(''input_boolean.bedroom_media_playback'',
         ''on'') %} media_player.<your_bedroom_speaker> {% else %} none {% endif %}
 
         '
