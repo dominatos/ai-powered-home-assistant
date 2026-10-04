@@ -110,12 +110,14 @@ cp python_scripts/create_playlist.py /config/
 
 ### Test it manually
 
+Run the command inside the Home Assistant container (where `/config` resolves correctly), not on the host shell:
+
 ```bash
-# On the HA host:
+# Inside the HA container (e.g., via docker exec or the HA terminal add-on):
 python3 /config/create_playlist.py /media/music /media/music/playlist.m3u
 ```
 
-You should see: `Playlist saved to /media/music/playlist.m3u (N tracks)`
+Or use the configured `shell_command` from Step 4 once Home Assistant has loaded it.
 
 ## Step 4 — Configure shell_command
 
