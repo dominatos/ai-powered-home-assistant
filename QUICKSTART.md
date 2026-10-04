@@ -188,6 +188,26 @@ This gives you a clean, auditable history of every change.
 - Scripts require a clean git tree before running
 - Never commit `secrets.yaml` or `.storage/` (`.gitignore` handles this)
 
+## What's Not Covered Here
+
+This guide covers the core workflow only. For advanced features, see:
+
+| Topic | Where |
+|-------|-------|
+| CodeRabbit automated PR reviews | [README.md §Code Review](README.md#-code-review-coderabbit) |
+| Local AI with Ollama | [README-ollama.template.md](README-ollama.template.md) |
+| NFS + Music Assistant audio library | [readme-nfs.md](readme-nfs.md) |
+| LLM provider setup (OpenAI, OpenCode, Ghostfolio) | [readme-LLM-setup.md](readme-LLM-setup.md) |
+| Dashboard templates and usage | [dashboard.template.yaml](dashboard.template.yaml) and [README.md §What's Included](README.md#-whats-included) |
+| Thermostat / heating schedule setup | [heating.template.md](heating.template.md) |
+| `ha_toolkit.py` CLI (audit-docs, generate-kb, audit-dashboard) | [README.md §Sync & Export Scripts](README.md#️-sync--export-scripts-tools) |
+| Backup and restore workflows | [README.md §Sync & Export Scripts](README.md#️-sync--export-scripts-tools) |
+| Secrets management and safety | [README.md §Security Warning](README.md#security-warning) |
+| Prompt templates catalog | [prompts/](prompts/) |
+| Reusable automation patterns | [patterns/standardize.md](patterns/standardize.md) |
+| Runtime sell-mode pattern | [sell-mode-plan.template.md](sell-mode-plan.template.md) |
+| Handover / removal checklist | [remove-customization.template.md](remove-customization.template.md) |
+
 ## Next Steps
 
 - Read the full [README.md](README.md) for advanced features
