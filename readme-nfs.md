@@ -71,14 +71,34 @@ Use the built-in network storage workflow:
 
 ### Docker / HA Core
 
-Add a volume mount to your `docker-compose.yml` or `docker run` command:
+A Docker bind mount references a path on the Docker daemon host — it does not access a remote NFS server directly. Mount the NFS share on the host first, then map it into the container:
+
+```bash
+# On the Docker host, mount the NFS share:
+sudo mkdir -p /export/music
+sudo mount -t nfs <nfs_server>:/export/music /export/music
+```
+
+Then add a volume mount to your `docker-compose.yml` or `docker run` command:
 
 ```yaml
 volumes:
   - /export/music:/media/music:rw
 ```
 
-Or mount on the host and map into the container.
+Alternatively, use a Docker NFS volume so Docker manages the NFS mount:
+
+```yaml
+volumes:
+  music_data:
+    driver: local
+    driver_opts:
+      type: nfs
+      o: "addr=<nfs_server>,rw"
+      device: ":/export/music"
+```
+
+Then reference `music_data` in your service's volumes list.
 
 ## Step 3 — Place create_playlist.py
 
