@@ -1104,6 +1104,7 @@ GPS tracking (`person` entities) can occasionally drift, causing false "not_home
 
 **Key design decisions:**
 - **Debounced Departures:** Use `input_boolean.<person>_home_stable` helpers. On arrival, turn on immediately. On departure, wait 5 minutes before turning off. If the person returns to `home` within the 5 minutes, the timer cancels and the helper stays on uninterrupted.
+- **Parallel Departure Processing:** Use `mode: parallel` (with `max: 10`) so departures from different people are processed independently. Each person's departure gets its own 5-minute debounce delay; a person returning invalidates only their own pending departure without affecting others.
 - **Unified Master Sensor:** `binary_sensor.house_occupied` combines all stable helpers, `input_boolean.guest_mode`, and internal motion trackers (like Magic Areas) into a single unified `on`/`off` state.
 - **Guest Mode:** Always include an `input_boolean.guest_mode` in the master occupancy logic to prevent the house from shutting down when owners leave guests behind.
 
@@ -1159,6 +1160,8 @@ GPS tracking (`person` entities) can occasionally drift, causing false "not_home
               - action: input_boolean.turn_off
                 target:
                   entity_id: "{{ helper }}"
+  mode: parallel
+  max: 10
 ```
 
 **Template (Master Occupancy Template Sensor):**
