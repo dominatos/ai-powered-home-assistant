@@ -387,7 +387,10 @@ def audit_docs(args, repo: Path):
         print(f"Error reading HOUSE_CONTEXT.md: {e}")
         sys.exit(1)
 
-    missing = [alias for alias in aliases if alias not in doc]
+    missing = [
+        alias for alias in aliases
+        if not re.search(re.escape(alias) + r'(?![\w])', doc)
+    ]
 
     potential_aliases = set(re.findall(r"`([A-Z][a-zA-Z0-9\s]+:\s[^`\n]+)`", doc))
     stale = [
