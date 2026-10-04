@@ -209,15 +209,7 @@ def analyze_traces(args, repo: Path):
 # 2. INVENTORY ANALYZER (from ha_debug_cli.py)
 # ==============================================================================
 def analyze_inventory(args, repo: Path):
-    inv_file = repo / 'ha_device_inventory.json'
-    try:
-        data = json.loads(inv_file.read_text(encoding='utf-8'))
-    except FileNotFoundError:
-        print(f"Error: {inv_file} not found.")
-        sys.exit(1)
-    except (json.JSONDecodeError, OSError) as e:
-        print(f"Error reading {inv_file}: {e}")
-        sys.exit(1)
+    data = load_inventory(repo)
 
     print(f"Searching inventory for '{args.query}'...")
     found = set()
@@ -274,6 +266,9 @@ def load_inventory(repo: Path) -> dict:
         sys.exit(1)
     if not isinstance(data, dict) or "entities" not in data:
         print("Error: ha_device_inventory.json must contain an 'entities' key.")
+        sys.exit(1)
+    if not isinstance(data["entities"], list):
+        print("Error: ha_device_inventory.json 'entities' value must be a list.")
         sys.exit(1)
     return data
 
