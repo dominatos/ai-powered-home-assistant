@@ -22,6 +22,17 @@ EOF
 
 die() { echo "Error: $*" >&2; exit 1; }
 
+# Strip HTTPS userinfo (user:pass@) from a URL for safe display.
+redact_url() {
+  local url="$1"
+  # Match scheme://user:pass@host and replace with scheme://host
+  if [[ "${url}" =~ ^(https?://)[^/]+@(.+)$ ]]; then
+    echo "${BASH_REMATCH[1]}${BASH_REMATCH[2]}"
+  else
+    echo "${url}"
+  fi
+}
+
 FORCE=0
 ARGS=()
 while [[ $# -gt 0 ]]; do
@@ -45,7 +56,7 @@ command -v git > /dev/null 2>&1 || die "git is not installed"
 # silently destroy whatever the target repository already contained.
 echo "Checking that the target repository is empty..."
 if ! existing_refs="$(git ls-remote "${PRIVATE_URL}" 2>/dev/null)"; then
-  die "Cannot reach ${PRIVATE_URL} — check the URL and your SSH/HTTPS credentials."
+  die "Cannot reach $(redact_url "${PRIVATE_URL}") — check the URL and your SSH/HTTPS credentials."
 fi
 if [[ -n "${existing_refs}" ]]; then
   if [[ "${FORCE}" -ne 1 ]]; then
@@ -55,9 +66,9 @@ if [[ -n "${existing_refs}" ]]; then
     echo "" >&2
     die "Refusing to overwrite an existing history.
 Create an empty repository, or re-run with --force if you are certain you want
-to discard everything currently in ${PRIVATE_URL}."
+to discard everything currently in $(redact_url "${PRIVATE_URL}")."
   fi
-  echo "WARNING: --force given; overwriting the existing history in ${PRIVATE_URL}"
+  echo "WARNING: --force given; overwriting the existing history in $(redact_url "${PRIVATE_URL}")"
 fi
 
 echo "Cloning template..."
@@ -87,7 +98,7 @@ if [[ "${FORCE}" -eq 1 ]]; then
   backup_mirror="${backup_dir}/remote_mirror.git"
   if ! git clone --mirror "${PRIVATE_URL}" "${backup_mirror}" 2>/dev/null; then
     rm -rf "${backup_dir}"
-    die "Failed to create mirror backup of ${PRIVATE_URL} at ${backup_mirror}. Aborting before destructive push."
+    die "Failed to create mirror backup of $(redact_url "${PRIVATE_URL}") at ${backup_mirror}. Aborting before destructive push."
   fi
   # Also save the ref list for quick inspection.
   printf '%s\n' "${existing_refs}" > "${backup_dir}/remote_refs.txt"
