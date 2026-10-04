@@ -35,8 +35,9 @@ HA_CONFIG="${HA_CONFIG:-/config}"
 
 if [[ -z "${HA_HOST}" ]]; then
   echo "Error: HA_HOST is not set."
-  echo "  Set it via environment variable:  HA_HOST=192.168.1.X ./tools/pull_debug_files.sh"
-  echo "  Or export it in your shell:       export HA_HOST=192.168.1.X"
+  echo "  Set it via environment variable:  HA_HOST=<your_ha_ip> ./tools/pull_debug_files.sh"
+  echo "  Or export it in your shell:       export HA_HOST=<your_ha_ip>"
+  echo "  Replace <your_ha_ip> with your Home Assistant server's IP address (e.g., 192.168.1.10)."
   exit 1
 fi
 
