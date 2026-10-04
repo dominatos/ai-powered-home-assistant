@@ -27,7 +27,7 @@ NFS Server (your NAS / Linux box)
 |-----------|-------------|
 | NFS server | A NAS or Linux machine sharing an audio folder (e.g., `/export/music`) |
 | Home Assistant | `shell_command` must be enabled in `configuration.yaml` |
-| Music Assistant | Installed as an HACS integration or add-on |
+| Music Assistant | Installed as an HACS integration or add-on; the Home Assistant integration is required for the automation steps (Step 8) |
 | NFS client | HA host must be able to mount NFS shares (HAOS has built-in NFS support) |
 
 ## Step 1 — Export the NFS Share
