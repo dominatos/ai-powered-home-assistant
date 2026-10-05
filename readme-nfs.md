@@ -43,8 +43,9 @@ sudo apt install nfs-kernel-server
 sudo mkdir -p /export/music
 sudo chown nobody:nogroup /export/music
 
-# Add to /etc/exports (replace with your HA and Music Assistant client IPs):
+# Add the export entry to /etc/exports (replace with your HA and Music Assistant client IPs):
 # /export/music 192.168.1.10(rw,sync,no_subtree_check) 192.168.1.11(rw,sync,no_subtree_check)
+# After adding the entry, reload the exports:
 sudo exportfs -ra
 
 # Start the service

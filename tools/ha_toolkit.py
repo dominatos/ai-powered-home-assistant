@@ -41,14 +41,25 @@ def _ha_constructor(loader: yaml.SafeLoader, tag_suffix: str, node: yaml.Node) -
                 base_dir = loader._ha_base_dir
             else:
                 base_dir = Path(".")
-            full_path = base_dir / include_path
+            full_path = (base_dir / include_path).resolve()
             if not full_path.exists():
                 raise ValueError(
                     f"!include file not found: {include_path} (resolved to {full_path})"
                 )
+            # Cycle detection: reject if this path is already being loaded
+            if hasattr(loader, "_ha_active_paths"):
+                active_paths = loader._ha_active_paths
+            else:
+                active_paths = set()
+            if full_path in active_paths:
+                raise ValueError(
+                    f"Recursive !include detected: {full_path} is already being loaded"
+                )
             try:
-                content = full_path.read_text(encoding="utf-8")
-                included = yaml.load(content, Loader=HASafeLoader)
+                # Load through _load_yaml_with_includes so nested includes
+                # resolve relative to the included file's directory
+                active_paths.add(full_path)
+                included = _load_yaml_with_includes(full_path, active_paths)
                 # Mark the result as coming from an include for flattening
                 if isinstance(included, list):
                     included = _FlattenedList(included)
@@ -72,7 +83,7 @@ class _FlattenedList(list):
 HASafeLoader.add_multi_constructor("!", _ha_constructor)
 
 
-def _load_yaml_with_includes(file_path: Path) -> Any:
+def _load_yaml_with_includes(file_path: Path, active_paths: set | None = None) -> Any:
     """Load a YAML file with !include resolution enabled."""
     try:
         content = file_path.read_text(encoding="utf-8")
@@ -80,6 +91,8 @@ def _load_yaml_with_includes(file_path: Path) -> Any:
         raise ValueError(f"Error reading {file_path}: {e}")
     loader = HASafeLoader(content)
     loader._ha_base_dir = file_path.parent
+    if active_paths is not None:
+        loader._ha_active_paths = active_paths
     try:
         return loader.get_single_data()
     finally:

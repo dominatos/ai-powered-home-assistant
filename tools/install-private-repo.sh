@@ -58,6 +58,14 @@ echo "Checking that the target repository is empty..."
 if ! existing_refs="$(git ls-remote "${PRIVATE_URL}" 2>/dev/null)"; then
   die "Cannot reach $(redact_url "${PRIVATE_URL}") — check the URL and your SSH/HTTPS credentials."
 fi
+# Get the remote's default branch from the HEAD symref (e.g., "ref: refs/heads/main")
+remote_default_branch=""
+if ! head_ref="$(git ls-remote --symref "${PRIVATE_URL}" HEAD 2>/dev/null)"; then
+  die "Cannot determine the remote's default branch from $(redact_url "${PRIVATE_URL}")"
+fi
+if [[ "${head_ref}" =~ ref:\ refs/heads/([^\t\n]+) ]]; then
+  remote_default_branch="${BASH_REMATCH[1]}"
+fi
 if [[ -n "${existing_refs}" ]]; then
   if [[ "${FORCE}" -ne 1 ]]; then
     echo "" >&2
@@ -92,6 +100,15 @@ echo "Committing and pushing..."
 git add .
 git commit -m "Initial setup with renamed templates"
 if [[ "${FORCE}" -eq 1 ]]; then
+  # Validate the remote's default branch before any destructive operations.
+  # GitHub (and other hosts) refuse to delete the current default branch,
+  # so we must ensure it is main or master before proceeding.
+  if [[ -z "${remote_default_branch}" ]]; then
+    die "Could not determine the remote's default branch. Cannot safely force-push. Please set the default branch to main or master first."
+  fi
+  if [[ "${remote_default_branch}" != "main" && "${remote_default_branch}" != "master" ]]; then
+    die "Remote default branch is '${remote_default_branch}', which is neither main nor master. Change the default branch to main or master before force-pushing."
+  fi
   # Back up existing remote history with a complete mirror before destructive operations.
   # Stored outside REPO_DIR so the backup survives the force-push that replaces this work tree.
   backup_dir="$(mktemp -d "${TMPDIR:-/tmp}/ha_repo_backup_XXXXXX")"
