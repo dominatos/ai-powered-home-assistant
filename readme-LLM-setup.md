@@ -4,13 +4,15 @@ This guide explains how to connect Home Assistant to AI models for dynamic text 
 
 The template supports switching between two providers using a dashboard dropdown helper (`input_select.ai_provider_selector`):
 1. **Local (Ollama)** — Runs on your own hardware, free, secure, but requires a good GPU/CPU.
-2. **Cloud (OpenCode)** — Connects to a cloud AI endpoint via the OpenCode proxy.
+2. **Cloud (OpenCode)** — Runs an [OpenCode Server](https://opencode.ai/docs/server) bridge that HA calls over HTTP.
+
+**Production notes for this house** (real hosts) are in [§7](#7-production-notes-this-house). Live incident write-up: `haos/temp/incident-opencode-healthcheck-20261005.md`.
 
 ---
 
 ## 1. Setting Up Local AI (Ollama)
 
-Ollama allows you to run models like Qwen, Llama, or Gemma locally. 
+Ollama allows you to run models like Qwen, Llama, or Gemma locally.
 
 ### Prerequisites
 - A machine running [Ollama](https://ollama.com/) on your local network (e.g., `192.168.X.Y:11434`).
@@ -97,6 +99,9 @@ If you use the [OpenCode Server](https://opencode.ai/docs/server) as a bridge, y
 
 ### 1. Systemd Service Setup
 Create the service at `~/.config/systemd/user/opencode-server.service`:
+
+**Local tools only** (HA on another machine — do **not** use this for HA Cloud):
+
 ```ini
 [Unit]
 Description=OpenCode Server (port 4096)
@@ -112,6 +117,18 @@ RestartSec=5
 [Install]
 WantedBy=default.target
 ```
+
+**HA-reachable on a trusted LAN** (Home Assistant on a different host — this house uses this mode on `hp-server`):
+
+```ini
+ExecStart=/home/YOUR_USER/.opencode/bin/opencode serve --hostname 0.0.0.0 --port 4096
+```
+
+| Bind | Use when |
+|------|----------|
+| `127.0.0.1` | Scripts/agents on the **same** machine only |
+| `0.0.0.0` | HA (or other LAN clients) must call this host; LAN is trusted |
+| loopback + reverse proxy | Untrusted network — terminate TLS/auth at proxy; never send Basic Auth in plaintext over the open LAN |
 
 Create `/etc/opencode/env` with your secrets:
 ```ini
@@ -132,24 +149,71 @@ systemctl --user start opencode-server
 systemctl --user status opencode-server
 ```
 
-> **Note:** The `--hostname 127.0.0.1` flag restricts access to the local machine. If Home Assistant is on a different host, keep OpenCode bound to loopback and expose it through a TLS-authenticated reverse proxy or tunnel. Then set `<OPENCODE_IP>` to the proxy's reachable address in the REST commands below, ensuring `opencode_authorization` is not sent in plaintext.
+### 2. Linger — required for HA-reachable servers
 
-### 2. Home Assistant REST Command
+OpenCode runs as a **systemd user** service. If linger is off, the user
+manager (and therefore `opencode-server`) stops when your last SSH session
+ends. Home Assistant then logs:
+
+```text
+Cannot connect to http://<OPENCODE_IP>:4096/global/health
+```
+
+This was the root cause of the 2026-10-05 health-check outage.
+
+```bash
+loginctl enable-linger YOUR_USER
+loginctl show-user YOUR_USER | grep Linger   # expect: Linger=yes
+```
+
+**Verify:** log out, wait ~60s, log in again — service must still be `active (running)`.
+
+### 3. Do not restart this unit on a short cron
+
+**Do not** add crontab entries such as:
+
+```bash
+0 * * * * /usr/bin/systemctl --user restart opencode-server.service
+```
+
+That creates a brief outage every hour (and HA health checks that fire
+near :00 can fail even when the rest of the hour is fine). Use
+`Restart=on-failure` for crashes and linger for logout survival.
+
+### 4. Health endpoint
+
+Live OpenCode Server health path is:
+
+```http
+GET /global/health
+Authorization: Basic base64(opencode:<OPENCODE_SERVER_PASSWORD>)
+```
+
+Example success body:
+
+```json
+{"healthy": true, "version": "1.18.34"}
+```
+
+Older notes sometimes used `/health`. Confirm the path on your build
+(`GET /doc` OpenAPI spec, or a curl test) before hardcoding it in HA.
+
+### 5. Home Assistant REST Command
 Add this to your `configuration.yaml`.
 
 ```yaml
 rest_command:
   opencode_create_session:
-    url: "https://<OPENCODE_IP>:4096/session"
+    url: "http://<OPENCODE_IP>:4096/session"
     method: POST
     timeout: 30
     headers:
       Content-Type: "application/json"
       Authorization: !secret opencode_authorization
     payload: "{}"
-  
+
   opencode_post_message:
-    url: "https://<OPENCODE_IP>:4096/session/{{ session_id }}/message"
+    url: "http://<OPENCODE_IP>:4096/session/{{ session_id }}/message"
     method: POST
     timeout: 60
     headers:
@@ -161,12 +225,18 @@ rest_command:
       }
 
   opencode_health_check:
-    url: "http://<OPENCODE_IP>:4096/health"
+    url: "http://<OPENCODE_IP>:4096/global/health"
     method: GET
     timeout: 10
     headers:
       Authorization: !secret opencode_authorization
+```
 
+Basic Auth username: `opencode`. Store the Authorization header value in
+`secrets.yaml` (this house: `opencode_api_key`). Use `https://` URLs if
+you front the server with TLS.
+
+```yaml
   ghostfolio_api_get_performance:
     url: "https://<your_ghostfolio_reverse_proxy_host>/api/performance/<your_ghostfolio_portfolio_id>"
     method: GET
@@ -174,6 +244,15 @@ rest_command:
     headers:
       Authorization: !secret ghostfolio_authorization
 ```
+
+### 6. HA-reachable vs loopback
+
+| Instance | Bind | Auth | Called by HA? |
+|----------|------|------|----------------|
+| OpenCode on HA’s AI host (e.g. `hp-server`) | `0.0.0.0:4096` | Basic Auth + password | **Yes** — Cloud (OpenCode) provider |
+| OpenCode on your workstation | `127.0.0.1:4096` | Often none / local only | **No** — local coding agents only |
+
+Do not point HA `rest_command` URLs at a workstation loopback instance.
 
 ---
 
@@ -266,3 +345,93 @@ Use this pattern in your automations (`automations.yaml`) when you need to gener
 ```
 
 By using this template, you build a resilient smart home that benefits from AI but gracefully falls back if services go down.
+
+### 3. Hourly health-check automation (optional but recommended)
+
+```yaml
+- alias: "System: AI Provider Hourly Health Check"
+  description: >
+    Checks OpenCode API health every hour (at :30). Auto-switches to Local
+    (Ollama) on failure and auto-recovers back to Cloud (OpenCode) when
+    healthy. Scheduled runs are silent; notify only on manual trigger.
+  trigger:
+    - platform: time
+      at: "00:30:00"
+  action:
+    - action: rest_command.opencode_health_check
+      continue_on_error: true
+      response_variable: health_response
+    - variables:
+        is_healthy: >-
+          {{ health_response is defined
+             and health_response.status == 200
+             and health_response.content is defined
+             and health_response.content.healthy | default(false) }}
+        current_provider: "{{ states('input_select.ai_provider_selector') }}"
+    - choose:
+        - conditions:
+            - "{{ not is_healthy and current_provider == 'Cloud (OpenCode)' }}"
+          sequence:
+            - action: input_select.select_option
+              target:
+                entity_id: input_select.ai_provider_selector
+              data:
+                option: "Local (Ollama)"
+        - conditions:
+            - "{{ is_healthy and current_provider == 'Local (Ollama)' }}"
+          sequence:
+            - action: input_select.select_option
+              target:
+                entity_id: input_select.ai_provider_selector
+              data:
+                option: "Cloud (OpenCode)"
+  mode: single
+```
+
+---
+
+## 5. Troubleshooting
+
+| Symptom | Likely cause | Fix |
+|---------|--------------|-----|
+| `Cannot connect to http://<OPENCODE_IP>:4096/...` | Service down; linger off; wrong `--hostname`; firewall | Enable linger; start unit; confirm listen address; health curl |
+| Service stops when you log out of SSH | `Linger=no` | `loginctl enable-linger YOUR_USER` |
+| Failures only near :00 | Hourly `systemctl --user restart` cron | Remove that crontab line |
+| HTTP 401 | Basic Auth password mismatch | Align env password ↔ `secrets.yaml` |
+| Health 404 | Wrong path | Use `/global/health` (confirm on your build) |
+| HA can't see workstation OpenCode | Bound to `127.0.0.1` | Expected — point HA at an HA-reachable host |
+
+```bash
+systemctl --user status opencode-server
+ss -lntp | grep 4096
+set -a; . /etc/opencode/env; set +a
+curl -sS -u "opencode:${OPENCODE_SERVER_PASSWORD}" http://127.0.0.1:4096/global/health
+```
+
+---
+
+## 6. Security notes
+
+- Keep `OPENCODE_SERVER_PASSWORD`, `OPENCODE_API_KEY`, and HA `secrets.yaml` out of Git.
+- Prefer `--hostname 0.0.0.0` only on a trusted LAN; otherwise use TLS reverse proxy.
+- Do not send Basic Auth over plaintext HTTP on untrusted networks.
+- Local loopback OpenCode instances are for tools on that machine, not for Home Assistant.
+
+---
+
+## 7. Production notes (this house)
+
+Optional real-world mapping (replace with your own hosts on other installs):
+
+| Role | Host | Endpoint |
+|------|------|----------|
+| Home Assistant | 192.168.1.25 | `/homeassistant` |
+| OpenCode Server (Cloud provider) | hp-server 192.168.1.220 | `http://192.168.1.220:4096` |
+| Ollama (Local fallback) | sviatoslav-pc 192.168.1.26 | `http://192.168.1.26:11434/api/generate` |
+| OpenCode on sviatoslav-pc | 192.168.1.26 | `127.0.0.1:4096` only — **not** used by HA |
+
+Live unit (hp-server): `--hostname 0.0.0.0 --port 4096`, `EnvironmentFile=/etc/opencode/env`, linger **yes**, no restart cron, health `/global/health`.
+
+HA secrets: `opencode_api_key` = Basic Auth header for user `opencode`.
+
+More context: `haos/README-LLM-setup.md`, `haos/README-ollama.md`, `haos/HOUSE_CONTEXT.md`.
