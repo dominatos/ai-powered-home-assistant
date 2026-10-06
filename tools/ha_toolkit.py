@@ -68,6 +68,10 @@ def _ha_constructor(loader: yaml.SafeLoader, tag_suffix: str, node: yaml.Node) -
                 raise ValueError(
                     f"Error loading included file {include_path}: {e}"
                 )
+            finally:
+                # Always release the path so a later sibling include of the
+                # same file is not falsely treated as a recursive cycle.
+                active_paths.discard(full_path)
         else:
             raise ValueError(
                 "!include only supports scalar file paths, not complex nodes"
