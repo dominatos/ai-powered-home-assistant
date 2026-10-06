@@ -408,9 +408,11 @@ By using this template, you build a resilient smart home that benefits from AI b
 systemctl --user status opencode-server
 ss -lntp | grep 4096
 # /etc/opencode/env is mode 600 owned by YOUR_USER (required for the user service).
-# The password is expanded only inside the shell and is not printed.
+# Credentials are passed via curl config on stdin so OPENCODE_SERVER_PASSWORD is
+# never expanded into curl's command-line arguments (visible in ps).
 # This curl targets the raw loopback service only — not the HA-facing HTTPS endpoint.
-set -a; . /etc/opencode/env; set +a; curl -sS -u "opencode:${OPENCODE_SERVER_PASSWORD}" http://127.0.0.1:4096/global/health
+set -a; . /etc/opencode/env; set +a
+printf 'user = "opencode:%s"\n' "${OPENCODE_SERVER_PASSWORD}" | curl -sS -K - http://127.0.0.1:4096/global/health
 ```
 
 ---
