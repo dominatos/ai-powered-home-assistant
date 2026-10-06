@@ -130,20 +130,23 @@ if [[ "${FORCE}" -eq 1 ]]; then
   while IFS=$'\t' read -r _hash ref; do
     branch="${ref#refs/heads/}"
     if [[ "${ref}" == refs/heads/* && "${branch}" != "main" && "${branch}" != "master" ]]; then
-      if ! git push origin --delete "${branch}" 2>/dev/null; then
-        echo "WARNING: Failed to delete remote branch ${branch}" >&2
+      if ! git push origin --delete "${branch}"; then
+        die "Failed to delete remote branch ${branch}. Aborting; the remote still contains this branch."
       fi
     fi
   done <<< "${existing_refs}"
-  # Remove all remote tags
+  # Remove all remote tags (--refs skips peeled entries for annotated tags)
+  if ! tag_refs="$(git ls-remote --refs --tags origin 2>/dev/null)"; then
+    die "Failed to list remote tags from $(redact_url "${PRIVATE_URL}"). Aborting; remote tags were not cleaned up."
+  fi
   while IFS=$'\t' read -r _hash ref; do
     if [[ "${ref}" == refs/tags/* ]]; then
       tag="${ref#refs/tags/}"
-      if ! git push origin --delete "refs/tags/${tag}" 2>/dev/null; then
-        echo "WARNING: Failed to delete remote tag ${tag}" >&2
+      if ! git push origin --delete "refs/tags/${tag}"; then
+        die "Failed to delete remote tag ${tag}. Aborting; the remote still contains this tag."
       fi
     fi
-  done <<< "$(git ls-remote --tags origin 2>/dev/null)"
+  done <<< "${tag_refs}"
 else
   git push --set-upstream origin main
 fi
