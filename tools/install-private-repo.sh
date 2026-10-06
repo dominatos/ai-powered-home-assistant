@@ -103,14 +103,18 @@ echo "Committing and pushing..."
 git add .
 git commit -m "Initial setup with renamed templates"
 if [[ "${FORCE}" -eq 1 ]]; then
-  # Validate the remote's default branch before any destructive operations.
-  # GitHub (and other hosts) refuse to delete the current default branch,
-  # so we must ensure it is main or master before proceeding.
-  if [[ -z "${remote_default_branch}" ]]; then
-    die "Could not determine the remote's default branch. Cannot safely force-push. Please set the default branch to main or master first."
-  fi
-  if [[ "${remote_default_branch}" != "main" && "${remote_default_branch}" != "master" ]]; then
-    die "Remote default branch is '${remote_default_branch}', which is neither main nor master. Change the default branch to main or master before force-pushing."
+  # Validate the remote's default branch before any destructive operations,
+  # but only when the target has an existing branch. GitHub (and other hosts)
+  # refuse to delete the current default branch, so a non-main/master default
+  # must be changed before force-pushing. A tags-only remote has no branch to
+  # preserve, so an empty remote_default_branch is acceptable there.
+  if printf '%s\n' "${existing_refs}" | grep -q $'\trefs/heads/'; then
+    if [[ -z "${remote_default_branch}" ]]; then
+      die "Could not determine the remote's default branch, but the remote has existing branches. Cannot safely force-push. Please set the default branch to main or master first."
+    fi
+    if [[ "${remote_default_branch}" != "main" && "${remote_default_branch}" != "master" ]]; then
+      die "Remote default branch is '${remote_default_branch}', which is neither main nor master. Change the default branch to main or master before force-pushing."
+    fi
   fi
   # Back up existing remote history with a complete mirror before destructive operations.
   # Stored in a persistent location outside REPO_DIR so the backup survives both
