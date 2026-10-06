@@ -63,7 +63,8 @@ remote_default_branch=""
 if ! head_ref="$(git ls-remote --symref "${PRIVATE_URL}" HEAD 2>/dev/null)"; then
   die "Cannot determine the remote's default branch from $(redact_url "${PRIVATE_URL}")"
 fi
-if [[ "${head_ref}" =~ ref:\ refs/heads/([^\t\n]+) ]]; then
+# Capture the complete branch name up to the whitespace field separator before HEAD
+if [[ "${head_ref}" =~ ref:\ refs/heads/([^[:space:]]+) ]]; then
   remote_default_branch="${BASH_REMATCH[1]}"
 fi
 if [[ -n "${existing_refs}" ]]; then
