@@ -136,7 +136,7 @@ thermostat_pull_schedule_from_device:
         - condition: template
           value_template: >
             {% if weekday_tokens | length < 4 %}false{% else %}
-            {% set ns = namespace(valid=true) %}
+            {% set ns = namespace(valid=true, prev=-1) %}
             {% for i in range(4) %}
               {% if '/' not in weekday_tokens[i] %}
                 {% set ns.valid = false %}
@@ -153,6 +153,13 @@ thermostat_pull_schedule_from_device:
                     {% set ns.valid = false %}
                   {% elif not (temp | replace('.','',1)).isdigit() or temp|float < 15 or temp|float > 30 %}
                     {% set ns.valid = false %}
+                  {% else %}
+                    {% set mins = (hh|int * 60) + mm|int %}
+                    {% if mins <= ns.prev %}
+                      {% set ns.valid = false %}
+                    {% else %}
+                      {% set ns.prev = mins %}
+                    {% endif %}
                   {% endif %}
                 {% endif %}
               {% endif %}
@@ -207,7 +214,7 @@ thermostat_pull_schedule_from_device:
         - condition: template
           value_template: >
             {% if saturday_tokens | length < 4 %}false{% else %}
-            {% set ns = namespace(valid=true) %}
+            {% set ns = namespace(valid=true, prev=-1) %}
             {% for i in range(4) %}
               {% if '/' not in saturday_tokens[i] %}
                 {% set ns.valid = false %}
@@ -224,6 +231,13 @@ thermostat_pull_schedule_from_device:
                     {% set ns.valid = false %}
                   {% elif not (temp | replace('.','',1)).isdigit() or temp|float < 15 or temp|float > 30 %}
                     {% set ns.valid = false %}
+                  {% else %}
+                    {% set mins = (hh|int * 60) + mm|int %}
+                    {% if mins <= ns.prev %}
+                      {% set ns.valid = false %}
+                    {% else %}
+                      {% set ns.prev = mins %}
+                    {% endif %}
                   {% endif %}
                 {% endif %}
               {% endif %}
@@ -278,7 +292,7 @@ thermostat_pull_schedule_from_device:
         - condition: template
           value_template: >
             {% if sunday_tokens | length < 4 %}false{% else %}
-            {% set ns = namespace(valid=true) %}
+            {% set ns = namespace(valid=true, prev=-1) %}
             {% for i in range(4) %}
               {% if '/' not in sunday_tokens[i] %}
                 {% set ns.valid = false %}
@@ -295,6 +309,13 @@ thermostat_pull_schedule_from_device:
                     {% set ns.valid = false %}
                   {% elif not (temp | replace('.','',1)).isdigit() or temp|float < 15 or temp|float > 30 %}
                     {% set ns.valid = false %}
+                  {% else %}
+                    {% set mins = (hh|int * 60) + mm|int %}
+                    {% if mins <= ns.prev %}
+                      {% set ns.valid = false %}
+                    {% else %}
+                      {% set ns.prev = mins %}
+                    {% endif %}
                   {% endif %}
                 {% endif %}
               {% endif %}
