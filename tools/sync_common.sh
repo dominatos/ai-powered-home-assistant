@@ -155,10 +155,22 @@ detect_yaml_validation() {
   CAN_VALIDATE_YAML=0
   PYTHON_CMD=()
 
+  # If HA_PYTHON is set, it is the exclusive selection — do not fall back
+  # to python3/python/py when it is missing or lacks PyYAML.
+  if [[ -n "${HA_PYTHON:-}" ]]; then
+    if command -v "${HA_PYTHON}" >/dev/null 2>&1 &&
+       "${HA_PYTHON}" -c 'import yaml' >/dev/null 2>&1; then
+      PYTHON_CMD=("${HA_PYTHON}")
+      CAN_VALIDATE_YAML=1
+      return 0
+    fi
+    log "WARNING: HA_PYTHON=${HA_PYTHON} is set but is not a usable Python interpreter with PyYAML. Not falling back to other interpreters."
+    return 0
+  fi
+
   # "python3" is absent on many Windows installs, where the interpreter is
   # exposed as "python" or only via the "py" launcher.
-  for candidate in "${HA_PYTHON:-}" python3 python; do
-    [[ -n "${candidate}" ]] || continue
+  for candidate in python3 python; do
     if command -v "${candidate}" >/dev/null 2>&1 &&
        "${candidate}" -c 'import yaml' >/dev/null 2>&1; then
       PYTHON_CMD=("${candidate}")
