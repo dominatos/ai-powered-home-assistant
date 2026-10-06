@@ -1459,10 +1459,6 @@
       event_type: mobile_app_notification_action
       event_data:
         action: FRIDGE_BOTH
-    - platform: event
-      event_type: mobile_app_notification_action
-      event_data:
-        action: FRIDGE_NONE
     timeout: 00:10:00
     continue_on_timeout: true
   - action: notify.mobile_app_<your_phone>
