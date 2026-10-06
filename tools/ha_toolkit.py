@@ -99,6 +99,8 @@ def _load_yaml_with_includes(file_path: Path, active_paths: set | None = None) -
         loader._ha_active_paths = active_paths
     try:
         return loader.get_single_data()
+    except yaml.YAMLError as e:
+        raise ValueError(f"Error parsing {file_path}: {e}") from e
     finally:
         loader.dispose()
 
