@@ -1635,7 +1635,7 @@
   - domain: mqtt
     device_id: <your_button_device_id>
     type: action
-    subtype: single
+    subtype: 1_single
     trigger: device
     id: button_press
   conditions: []
