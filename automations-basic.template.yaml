@@ -5,7 +5,7 @@
 # These require no AI integration and work with standard HA components.
 #
 # Usage: Rename to automations.yaml and replace all <device_id_here>,
-#        <your_tablet_hostname>, <Your City>, notify.mobile_app_<your_phone>,
+#        <your_tablet_hostname>, <your_city>, notify.mobile_app_<your_phone>,
 #        and other placeholders with your actual values.
 
 # ---- SECTION 1: SAFETY & SENSORS ----

@@ -5,7 +5,7 @@
 # actionable notifications, and multi-step logic.
 #
 # Usage: Rename to automations.yaml and replace all <device_id_here>,
-#        <your_tablet_hostname>, <Your City>, notify.mobile_app_<your_phone>,
+#        <your_tablet_hostname>, <your_city>, notify.mobile_app_<your_phone>,
 #        and other placeholders with your actual values.
 # Requires: Ollama or OpenCode integration, input_select.ai_provider_selector.
 
