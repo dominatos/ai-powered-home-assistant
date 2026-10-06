@@ -149,10 +149,13 @@ git_available() {
 }
 
 # stage_paths stages only the given repo-relative paths. Paths that are
-# gitignored are skipped after explicit confirmation. Returns 0 if changes
-# were staged, 1 if there were no changes, 2 if staging failed.
+# gitignored or absent and untracked are skipped; tracked deletions are staged.
+# Returns 0 when the scoped cached diff is nonzero (including diff errors),
+# 1 for no staged changes, or 2 if any git add failed. Earlier staging is retained
+# on failure.
 #
-# Populates LAST_STAGED_PATHS with the paths that were actually staged.
+# Resets LAST_STAGED_PATHS to paths successfully passed to git add, including
+# unchanged paths.
 # This is deliberately narrow. `git add -A` swept every unrelated modified or
 # untracked file in the working tree into an automatic, pushed commit.
 stage_paths() {
@@ -194,9 +197,10 @@ stage_paths() {
   return 1
 }
 
-# commit_synced_files commits the files this sync actually touched, then pushes
-# so the repo is clean before the inventory exporter runs its own
-# require_git_clean check.
+# commit_synced_files stages and commits eligible FILES paths in REPO_ROOT,
+# then attempts to push. Skips when Git is unavailable, staging fails, or there
+# are no scoped changes. Push failures are nonfatal; commit failures reach the
+# script's error trap.
 commit_synced_files() {
   git_available || return 0
 

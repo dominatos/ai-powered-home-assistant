@@ -24,13 +24,16 @@ def load_storage_json(path: Path, optional: bool = False) -> list[dict]:
     
     Parameters:
         path (Path): Path to the storage file.
-        optional (bool): Whether a missing or empty entries list should produce an empty result.
+        optional (bool): Return an empty result for a missing file or a falsy
+            entries value; malformed JSON and invalid structure still fail.
     
     Returns:
         list[dict]: Valid dictionary entries from the storage file.
     
     Raises:
-        SystemExit: If a required file is missing, the JSON is invalid, or the file structure is unexpected.
+        SystemExit: If a required file is missing, UTF-8 or JSON is invalid,
+            or the file structure is unexpected.
+        OSError: If reading fails for a reason other than a missing file.
     """
     try:
         data = json.loads(path.read_text(encoding="utf-8"))
@@ -214,6 +217,11 @@ def validate_number_map(number_map: dict, source: Path) -> None:
 
 
 def load_number_map(path: Path) -> dict:
+    """Return a validated number map, or an empty version-1 map if absent.
+
+    Raise SystemExit for invalid UTF-8, JSON, map structure, or nonpositive or
+    duplicate numbers. File read errors propagate as OSError.
+    """
     if not path.exists():
         return {
             "version": 1,
@@ -232,6 +240,15 @@ def load_number_map(path: Path) -> dict:
 
 
 def load_legacy_text_numbers(path: Path, devices_by_id: dict[str, dict]) -> dict:
+    """Migrate numbered text entries into a version-1 device number map.
+
+    Match devices by exact name and area, using 'Unassigned' for absent areas;
+    reserve unmatched entries under legacy IDs with present=False. Try UTF-8,
+    cp1252, then Latin-1, ignoring lines outside the 'number. name (area)' form.
+    Return an empty map for a missing file. Raise SystemExit for ambiguous
+    device matches or invalid resulting numbers; file read errors propagate
+    as OSError.
+    """
     number_map = {
         "version": 1,
         "devices": {},
@@ -389,6 +406,12 @@ def build_virtual_inventory(inventory: dict) -> dict:
 def export_yaml_entities(config_dir: Path, output_dir: Path) -> None:
     """
     Export automation, script, and scene definitions from YAML files to JSON inventories.
+
+    Write UTF-8 JSON summaries to automations_inventory.json,
+    scripts_inventory.json, and scenes_inventory.json, creating output_dir
+    as needed. Skip missing, empty, unreadable, or unparseable YAML inputs,
+    leaving any existing output for those inputs untouched. Output directory
+    and write errors propagate as OSError; serialization TypeError propagates.
     
     Parameters:
     	config_dir (Path): Directory containing the YAML configuration files.
@@ -444,6 +467,16 @@ def export_yaml_entities(config_dir: Path, output_dir: Path) -> None:
 
 
 def main() -> int:
+    """Export CLI-selected registries and YAML summaries, returning 0 on success.
+
+    Create output directories and overwrite UTF-8 inventory snapshots and the
+    persistent number map. Preserve assigned numbers, migrating the legacy
+    text inventory when no map exists. Auxiliary outputs default to the main
+    JSON output's directory. Invalid arguments or registry/number-map data
+    raise SystemExit; file I/O errors propagate as OSError. YAML input load
+    failures are skipped by export_yaml_entities; serialization TypeError
+    propagates.
+    """
     parser = argparse.ArgumentParser(
         description="Export a sanitized Home Assistant entity/device inventory from .storage."
     )

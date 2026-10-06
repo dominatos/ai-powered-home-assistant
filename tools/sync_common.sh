@@ -117,6 +117,9 @@ require_file() {
 # line instead of aborting the run. OPTIONAL_FILES holds the un-prefixed names.
 OPTIONAL_FILES=()
 
+# load_managed_files resets FILES and OPTIONAL_FILES from MANAGED_FILES_PATH,
+# stripping optional "?" prefixes and skipping empty lines and "#" comments.
+# Exits with status 1 if the manifest is unset, missing, or has no file entries.
 load_managed_files() {
   [[ -n "${MANAGED_FILES_PATH}" ]] || die "MANAGED_FILES_PATH is not set"
   require_file "${MANAGED_FILES_PATH}"
@@ -150,6 +153,9 @@ load_managed_files() {
 # ---------------------------------------------------------------------------
 PYTHON_CMD=()
 
+# detect_yaml_validation sets PYTHON_CMD and CAN_VALIDATE_YAML for an interpreter
+# with PyYAML. HA_PYTHON is exclusive when set; otherwise try python3, python,
+# then py -3. Returns 0 even if unavailable, leaving CAN_VALIDATE_YAML=0.
 detect_yaml_validation() {
   local candidate
   CAN_VALIDATE_YAML=0
@@ -189,6 +195,10 @@ detect_yaml_validation() {
   return 0
 }
 
+# validate_yaml_file checks the given UTF-8 file using the detected interpreter,
+# accepting HA tags without resolving includes. Returns the interpreter status
+# for read, decoding, or YAML errors. If validation is unavailable, exits 1
+# unless ALLOW_UNVALIDATED_YAML=1, which skips the check and returns 0.
 validate_yaml_file() {
   local file_path=$1
 
@@ -250,6 +260,8 @@ print_diff() {
   fi
 }
 
+# is_optional_file returns 0 if the given path exactly matches OPTIONAL_FILES,
+# or 1 otherwise. Paths omit the manifest's "?" prefix.
 is_optional_file() {
   local needle=$1 candidate
   for candidate in ${OPTIONAL_FILES[@]+"${OPTIONAL_FILES[@]}"}; do
@@ -261,6 +273,7 @@ is_optional_file() {
 # ensure_requirements verifies that every managed file exists under the given
 # source root. Missing required files abort the run; missing optional files are
 # pruned from FILES so downstream backup/diff/sync steps skip them cleanly.
+# Exits with status 1 if no managed files remain under the source root.
 ensure_requirements() {
   local root rel path
   local kept=() skipped=()

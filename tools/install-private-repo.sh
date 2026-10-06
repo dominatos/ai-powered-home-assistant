@@ -4,6 +4,7 @@ set -Eeuo pipefail
 # This script clones the template repo, renames files, and pushes to your private repo.
 # Run it from anywhere — it creates the directory for you.
 
+# usage prints CLI help and exits with the supplied status (default 0).
 usage() {
   cat <<'EOF'
 Usage: install-private-repo.sh [--force] <your-private-repo-url>
@@ -22,7 +23,8 @@ EOF
 
 die() { echo "Error: $*" >&2; exit 1; }
 
-# Strip HTTPS userinfo (user:pass@) from a URL for safe display.
+# redact_url prints the URL with HTTP(S) userinfo removed; other URLs and
+# credentials outside userinfo are unchanged.
 redact_url() {
   local url="$1"
   # Match scheme://user:pass@host and replace with scheme://host

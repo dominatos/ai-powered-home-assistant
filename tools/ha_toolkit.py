@@ -31,7 +31,12 @@ class HASafeLoader(yaml.SafeLoader):
     pass
 
 def _ha_constructor(loader: yaml.SafeLoader, tag_suffix: str, node: yaml.Node) -> Any:
-    """Handle Home Assistant custom tags."""
+    """Resolve scalar !include paths relative to the containing YAML file.
+
+    Return included data, marking included lists for later flattening, or a
+    ``__tag_suffix__`` placeholder for other tags. Raise ValueError for invalid
+    include nodes, missing files, recursive includes, or read/parse failures.
+    """
     if tag_suffix == "include":
         # Resolve !include directives by loading the referenced file
         if isinstance(node, yaml.ScalarNode):
@@ -88,7 +93,12 @@ HASafeLoader.add_multi_constructor("!", _ha_constructor)
 
 
 def _load_yaml_with_includes(file_path: Path, active_paths: set | None = None) -> Any:
-    """Load a YAML file with !include resolution enabled."""
+    """Return parsed UTF-8 YAML with relative !include resolution enabled.
+
+    active_paths is the shared set of resolved paths currently being loaded
+    for cycle detection. Included lists remain marked until flattened by the
+    caller. Raise ValueError for read, decoding, parsing, or include errors.
+    """
     try:
         content = file_path.read_text(encoding="utf-8")
     except (OSError, UnicodeDecodeError) as e:
@@ -122,9 +132,8 @@ def load_automations(repo: Path) -> list:
     Resolves !include directives recursively and flattens included lists.
     
     Raises:
-        FileNotFoundError: If the file is missing or unreadable.
-        ValueError: If the YAML is malformed, an include cannot be resolved,
-                    or the file does not contain a list.
+        ValueError: If the file is missing, unreadable, not UTF-8, malformed,
+                    an include cannot be resolved, or the file is not a list.
     """
     auto_file = repo / "automations.yaml"
     try:
@@ -141,7 +150,11 @@ def load_automations(repo: Path) -> list:
 # 1. TRACE ANALYZER (from ha_debug_cli.py)
 # ==============================================================================
 def _extract_trace_meta(trace: dict) -> dict:
-    """Extract start_time, state, script_execution, trigger from HA saved_traces format."""
+    """Return start, finish, state, error, script_execution, and trigger metadata.
+
+    Use the first truthy value from the trace, short_dict, then extended_dict.
+    Missing times and state become 'Unknown'; other missing values become ''.
+    """
     sd = trace.get('short_dict') if isinstance(trace.get('short_dict'), dict) else {}
     ed = trace.get('extended_dict') if isinstance(trace.get('extended_dict'), dict) else {}
     
@@ -173,6 +186,20 @@ def _extract_trace_meta(trace: dict) -> dict:
 
 
 def analyze_traces(args, repo: Path):
+    """Print saved trace summaries from repo/temp/trace.saved_traces.
+
+    args.list lists IDs, optionally filtered by args.query; otherwise use the
+    first ID or alias containing args.automation, ignoring case. valid_only
+    excludes failed_single and 'Already running' traces. limit uses Python
+    slice semantics after attempting to sort newest first. full prints JSON;
+    output writes numbered JSON files, resolving relative paths from the
+    current directory.
+
+    Raise SystemExit(1) for trace read/JSON errors or a missing/unmatched
+    automation selection. UnicodeDecodeError propagates. Alias lookup and
+    sorting failures are ignored; output OSError failures allow processing
+    to continue. Return normally when filtering leaves no traces.
+    """
     trace_file = repo / 'temp/trace.saved_traces'
     try:
         data = json.loads(trace_file.read_text(encoding='utf-8'))
@@ -286,6 +313,13 @@ def analyze_traces(args, repo: Path):
 # 2. INVENTORY ANALYZER (from ha_debug_cli.py)
 # ==============================================================================
 def analyze_inventory(args, repo: Path):
+    """Print inventory matches for the case-insensitive args.query substring.
+
+    Search entity IDs/names and device IDs/names/models/manufacturers. Report
+    each device or standalone entity once; args.show_all_entities lists all
+    entities of matching devices. Propagate load_inventory's SystemExit(1)
+    when the inventory cannot be read or has an invalid top-level structure.
+    """
     data = load_inventory(repo)
 
     print(f"Searching inventory for '{args.query}'...")
@@ -334,6 +368,11 @@ def analyze_inventory(args, repo: Path):
 # 3. DASHBOARD AUDIT (from dashboard_audit.py)
 # ==============================================================================
 def load_inventory(repo: Path) -> dict:
+    """Return repo/ha_device_inventory.json with an entities list.
+
+    Raise SystemExit(1) for read, decoding, JSON, or top-level structure errors.
+    Individual entries in the entities list are not validated.
+    """
     inv_file = repo / "ha_device_inventory.json"
     try:
         content = inv_file.read_text(encoding='utf-8')
@@ -354,8 +393,11 @@ def audit_dashboard(args, repo: Path):
     """
     Audit dashboard.yaml for missing entities against the HA device inventory.
     
-    Errors non-fatally and returns early if ha_device_inventory.json is missing,
-    but treats missing referenced entities as a test failure (sys.exit(1)).
+    Return early if ha_device_inventory.json is missing. If dashboard.yaml is
+    missing, print an inventory summary instead. Check scalar entity/entity_id
+    references found in dashboard text; args.details adds sensor/light lists.
+    Raise SystemExit(1) for invalid inventory, dashboard read/decoding errors,
+    or referenced entities absent from the inventory.
     """
     print("=" * 70)
     print("DASHBOARD AUDIT")
@@ -448,8 +490,10 @@ def audit_docs(args, repo: Path):
     """
     Audit HOUSE_CONTEXT.md to ensure all automation aliases are documented.
     
-    Exits with sys.exit(1) if automations cannot be loaded or if there is a
-    mismatch between documented and actual automations.
+    Exits with sys.exit(0) on success and sys.exit(1) if either input cannot be
+    read, automations cannot be loaded, or aliases are missing or appear stale.
+    Stale detection considers backtick-quoted, capitalized alias-like text,
+    excluding IGNORE_ALIASES.
     """
     try:
         automations = load_automations(repo)
@@ -510,7 +554,11 @@ def generate_kb(args, repo: Path):
     """
     Regenerate automations_kb.md from the current automations.yaml configuration.
     
-    Exits with sys.exit(1) if the automations file cannot be loaded or parsed.
+    Write to args.output, resolving relative paths from the current directory,
+    or overwrite repo/automations_kb.md by default. Preserve the Phone → Person
+    Quick Reference section through its following separator when readable.
+    Failure to read the old KB is ignored. Exit with sys.exit(1) for automation
+    load errors or output write failures; serialization TypeError propagates.
     """
     try:
         automations = load_automations(repo)
@@ -609,7 +657,7 @@ def main():
     Main entry point for the Home Assistant Toolkit.
     
     Parses CLI subcommands and dispatches to the appropriate toolkit function.
-    Fatal errors within subcommands exit with sys.exit(1).
+    Invalid CLI arguments raise SystemExit(2); subcommand exceptions propagate.
     """
     parser = argparse.ArgumentParser(description="Home Assistant Toolkit")
     parser.add_argument("--repo", default=".", help="Path to HA repository (default: .)")
