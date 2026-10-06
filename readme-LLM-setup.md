@@ -4,7 +4,7 @@ This guide explains how to connect Home Assistant to AI models for dynamic text 
 
 The template supports switching between two providers using a dashboard dropdown helper (`input_select.ai_provider_selector`):
 1. **Local (Ollama)** — Runs on your own hardware, free, secure, but requires a good GPU/CPU.
-2. **Cloud (OpenCode)** — Runs an [OpenCode Server](https://opencode.ai/docs/server) bridge that HA calls over HTTP.
+2. **Cloud (OpenCode)** — Runs an [OpenCode Server](https://opencode.ai/docs/server) bridge that HA calls over HTTPS via a TLS reverse proxy.
 
 **Example deployment notes** (roles, binds, and endpoints) are in [§7](#7-production-notes-example).
 
@@ -127,8 +127,8 @@ ExecStart=/home/YOUR_USER/.opencode/bin/opencode serve --hostname 0.0.0.0 --port
 | Bind | Use when |
 |------|----------|
 | `127.0.0.1` | Scripts/agents on the **same** machine only |
-| `0.0.0.0` | HA (or other LAN clients) must call this host; LAN is trusted |
-| loopback + reverse proxy | Untrusted network — terminate TLS/auth at proxy; never send Basic Auth in plaintext over the open LAN |
+| loopback + TLS reverse proxy | HA (or other LAN clients) must call this host — terminate TLS at the proxy; HA rest_commands send Basic Auth over HTTPS |
+| `0.0.0.0` | Raw service bind on a trusted LAN only; still front with a TLS reverse proxy before HA authenticates |
 
 Create `/etc/opencode/env` with your secrets:
 ```ini
@@ -156,7 +156,7 @@ manager (and therefore `opencode-server`) stops when your last SSH session
 ends. Home Assistant then logs:
 
 ```text
-Cannot connect to http://<OPENCODE_IP>:4096/global/health
+Cannot connect to https://<your_opencode_reverse_proxy_host>/global/health
 ```
 
 This was the root cause of the 2026-10-05 health-check outage.
@@ -204,7 +204,7 @@ Add this to your `configuration.yaml`.
 ```yaml
 rest_command:
   opencode_create_session:
-    url: "http://<OPENCODE_IP>:4096/session"
+    url: "https://<your_opencode_reverse_proxy_host>/session"
     method: POST
     timeout: 30
     headers:
@@ -213,7 +213,7 @@ rest_command:
     payload: "{}"
 
   opencode_post_message:
-    url: "http://<OPENCODE_IP>:4096/session/{{ session_id }}/message"
+    url: "https://<your_opencode_reverse_proxy_host>/session/{{ session_id }}/message"
     method: POST
     timeout: 60
     headers:
@@ -225,7 +225,7 @@ rest_command:
       }
 
   opencode_health_check:
-    url: "http://<OPENCODE_IP>:4096/global/health"
+    url: "https://<your_opencode_reverse_proxy_host>/global/health"
     method: GET
     timeout: 10
     headers:
@@ -233,8 +233,9 @@ rest_command:
 ```
 
 Basic Auth username: `opencode`. Store the Authorization header value in
-`secrets.yaml` (e.g., `opencode_api_key`). Use `https://` URLs if
-you front the server with TLS.
+`secrets.yaml` (e.g., `opencode_api_key`). These URLs send the Basic Auth
+secret, so they **must** use `https://` (terminate TLS at a reverse proxy in
+front of OpenCode; do not send Basic Auth over plaintext HTTP).
 
 ```yaml
   ghostfolio_api_get_performance:
@@ -249,7 +250,7 @@ you front the server with TLS.
 
 | Instance | Bind | Auth | Called by HA? |
 |----------|------|------|----------------|
-| OpenCode on HA's AI host (e.g., `YOUR_AI_HOST`) | `0.0.0.0:4096` | Basic Auth + password | **Yes** — Cloud (OpenCode) provider |
+| OpenCode on HA's AI host (e.g., `YOUR_AI_HOST`) | Behind TLS reverse proxy | Basic Auth + password over HTTPS | **Yes** — Cloud (OpenCode) provider |
 | OpenCode on your workstation | `127.0.0.1:4096` | Often none / local only | **No** — local coding agents only |
 
 Do not point HA `rest_command` URLs at a workstation loopback instance.
@@ -394,7 +395,7 @@ By using this template, you build a resilient smart home that benefits from AI b
 
 | Symptom | Likely cause | Fix |
 |---------|--------------|-----|
-| `Cannot connect to http://<OPENCODE_IP>:4096/...` | Service down; linger off; wrong `--hostname`; firewall | Enable linger; start unit; confirm listen address; health curl |
+| `Cannot connect to https://<your_opencode_reverse_proxy_host>/...` | Service down; linger off; wrong `--hostname`; firewall; proxy down | Enable linger; start unit; confirm listen address; health curl |
 | Service stops when you log out of SSH | `Linger=no` | `loginctl enable-linger YOUR_USER` |
 | Failures only near :00 | Hourly `systemctl --user restart` cron | Remove that crontab line |
 | HTTP 401 | Basic Auth password mismatch | Align env password ↔ `secrets.yaml` |
@@ -406,6 +407,7 @@ systemctl --user status opencode-server
 ss -lntp | grep 4096
 # /etc/opencode/env is root-owned mode 600 — run the health curl under sudo.
 # The password is expanded only inside the elevated shell and is not printed.
+# This curl targets the raw loopback service only — not the HA-facing HTTPS endpoint.
 sudo sh -c 'set -a; . /etc/opencode/env; set +a; curl -sS -u "opencode:${OPENCODE_SERVER_PASSWORD}" http://127.0.0.1:4096/global/health'
 ```
 
@@ -414,8 +416,7 @@ sudo sh -c 'set -a; . /etc/opencode/env; set +a; curl -sS -u "opencode:${OPENCOD
 ## 6. Security notes
 
 - Keep `OPENCODE_SERVER_PASSWORD`, `OPENCODE_API_KEY`, and HA `secrets.yaml` out of Git.
-- Prefer `--hostname 0.0.0.0` only on a trusted LAN; otherwise use TLS reverse proxy.
-- Do not send Basic Auth over plaintext HTTP on untrusted networks.
+- HA-facing OpenCode URLs must use HTTPS (TLS reverse proxy); never send Basic Auth over plaintext HTTP to Home Assistant.
 - Local loopback OpenCode instances are for tools on that machine, not for Home Assistant.
 
 ---
@@ -427,7 +428,7 @@ Optional deployment mapping (replace with your own hosts on your install):
 | Role | Host | Endpoint |
 |------|------|----------|
 | Home Assistant | `<your_ha_host>` | `/homeassistant` |
-| OpenCode Server (Cloud provider) | `<your_opencode_host>` | `http://<your_opencode_host>:4096` |
+| OpenCode Server (Cloud provider) | `<your_opencode_host>` | `https://<your_opencode_reverse_proxy_host>` |
 | Ollama (Local fallback) | `<your_ollama_host>` | `http://<your_ollama_host>:11434/api/generate` |
 | OpenCode on local workstation | `<your_workstation>` | `127.0.0.1:4096` only — **not** used by HA |
 
