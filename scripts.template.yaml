@@ -151,7 +151,7 @@ thermostat_pull_schedule_from_device:
                   {% set temp = parts[1] | replace('°C','') %}
                   {% if not (hh.isdigit() and mm.isdigit() and 0 <= hh|int <= 23 and 0 <= mm|int <= 59) %}
                     {% set ns.valid = false %}
-                  {% elif not (temp | replace('.','',1)).isdigit() or temp|int < 15 or temp|int > 30 %}
+                  {% elif not (temp | replace('.','',1)).isdigit() or temp|float < 15 or temp|float > 30 %}
                     {% set ns.valid = false %}
                   {% endif %}
                 {% endif %}
@@ -169,7 +169,7 @@ thermostat_pull_schedule_from_device:
         target:
           entity_id: input_number.thermostat_schedule_temp_1
         data:
-          value: "{{ weekday_tokens[0].split('/')[1] | replace('°C','') | int }}"
+          value: "{{ weekday_tokens[0].split('/')[1] | replace('°C','') | float | round | int }}"
       - action: input_datetime.set_datetime
         target:
           entity_id: input_datetime.thermostat_schedule_time_2
@@ -179,7 +179,7 @@ thermostat_pull_schedule_from_device:
         target:
           entity_id: input_number.thermostat_schedule_temp_2
         data:
-          value: "{{ weekday_tokens[1].split('/')[1] | replace('°C','') | int }}"
+          value: "{{ weekday_tokens[1].split('/')[1] | replace('°C','') | float | round | int }}"
       - action: input_datetime.set_datetime
         target:
           entity_id: input_datetime.thermostat_schedule_time_3
@@ -189,7 +189,7 @@ thermostat_pull_schedule_from_device:
         target:
           entity_id: input_number.thermostat_schedule_temp_3
         data:
-          value: "{{ weekday_tokens[2].split('/')[1] | replace('°C','') | int }}"
+          value: "{{ weekday_tokens[2].split('/')[1] | replace('°C','') | float | round | int }}"
       - action: input_datetime.set_datetime
         target:
           entity_id: input_datetime.thermostat_schedule_time_4
@@ -199,7 +199,7 @@ thermostat_pull_schedule_from_device:
         target:
           entity_id: input_number.thermostat_schedule_temp_4
         data:
-          value: "{{ weekday_tokens[3].split('/')[1] | replace('°C','') | int }}"
+          value: "{{ weekday_tokens[3].split('/')[1] | replace('°C','') | float | round | int }}"
     # ── Saturday schedule ──
     - variables:
         saturday_tokens: "{{ states('sensor.<your_thermostat_schedule_saturday>').split() }}"
@@ -222,7 +222,7 @@ thermostat_pull_schedule_from_device:
                   {% set temp = parts[1] | replace('°C','') %}
                   {% if not (hh.isdigit() and mm.isdigit() and 0 <= hh|int <= 23 and 0 <= mm|int <= 59) %}
                     {% set ns.valid = false %}
-                  {% elif not (temp | replace('.','',1)).isdigit() or temp|int < 15 or temp|int > 30 %}
+                  {% elif not (temp | replace('.','',1)).isdigit() or temp|float < 15 or temp|float > 30 %}
                     {% set ns.valid = false %}
                   {% endif %}
                 {% endif %}
@@ -240,7 +240,7 @@ thermostat_pull_schedule_from_device:
           target:
             entity_id: input_number.thermostat_schedule_saturday_temp_1
           data:
-            value: "{{ saturday_tokens[0].split('/')[1] | replace('°C','') | int }}"
+            value: "{{ saturday_tokens[0].split('/')[1] | replace('°C','') | float | round | int }}"
         - action: input_datetime.set_datetime
           target:
             entity_id: input_datetime.thermostat_schedule_saturday_time_2
@@ -250,7 +250,7 @@ thermostat_pull_schedule_from_device:
           target:
             entity_id: input_number.thermostat_schedule_saturday_temp_2
           data:
-            value: "{{ saturday_tokens[1].split('/')[1] | replace('°C','') | int }}"
+            value: "{{ saturday_tokens[1].split('/')[1] | replace('°C','') | float | round | int }}"
         - action: input_datetime.set_datetime
           target:
             entity_id: input_datetime.thermostat_schedule_saturday_time_3
@@ -260,7 +260,7 @@ thermostat_pull_schedule_from_device:
           target:
             entity_id: input_number.thermostat_schedule_saturday_temp_3
           data:
-            value: "{{ saturday_tokens[2].split('/')[1] | replace('°C','') | int }}"
+            value: "{{ saturday_tokens[2].split('/')[1] | replace('°C','') | float | round | int }}"
         - action: input_datetime.set_datetime
           target:
             entity_id: input_datetime.thermostat_schedule_saturday_time_4
@@ -270,7 +270,7 @@ thermostat_pull_schedule_from_device:
           target:
             entity_id: input_number.thermostat_schedule_saturday_temp_4
           data:
-            value: "{{ saturday_tokens[3].split('/')[1] | replace('°C','') | int }}"
+            value: "{{ saturday_tokens[3].split('/')[1] | replace('°C','') | float | round | int }}"
     # ── Sunday schedule ──
     - variables:
         sunday_tokens: "{{ states('sensor.<your_thermostat_schedule_sunday>').split() }}"
@@ -293,7 +293,7 @@ thermostat_pull_schedule_from_device:
                   {% set temp = parts[1] | replace('°C','') %}
                   {% if not (hh.isdigit() and mm.isdigit() and 0 <= hh|int <= 23 and 0 <= mm|int <= 59) %}
                     {% set ns.valid = false %}
-                  {% elif not (temp | replace('.','',1)).isdigit() or temp|int < 15 or temp|int > 30 %}
+                  {% elif not (temp | replace('.','',1)).isdigit() or temp|float < 15 or temp|float > 30 %}
                     {% set ns.valid = false %}
                   {% endif %}
                 {% endif %}
@@ -311,7 +311,7 @@ thermostat_pull_schedule_from_device:
           target:
             entity_id: input_number.thermostat_schedule_sunday_temp_1
           data:
-            value: "{{ sunday_tokens[0].split('/')[1] | replace('°C','') | int }}"
+            value: "{{ sunday_tokens[0].split('/')[1] | replace('°C','') | float | round | int }}"
         - action: input_datetime.set_datetime
           target:
             entity_id: input_datetime.thermostat_schedule_sunday_time_2
@@ -321,7 +321,7 @@ thermostat_pull_schedule_from_device:
           target:
             entity_id: input_number.thermostat_schedule_sunday_temp_2
           data:
-            value: "{{ sunday_tokens[1].split('/')[1] | replace('°C','') | int }}"
+            value: "{{ sunday_tokens[1].split('/')[1] | replace('°C','') | float | round | int }}"
         - action: input_datetime.set_datetime
           target:
             entity_id: input_datetime.thermostat_schedule_sunday_time_3
@@ -331,7 +331,7 @@ thermostat_pull_schedule_from_device:
           target:
             entity_id: input_number.thermostat_schedule_sunday_temp_3
           data:
-            value: "{{ sunday_tokens[2].split('/')[1] | replace('°C','') | int }}"
+            value: "{{ sunday_tokens[2].split('/')[1] | replace('°C','') | float | round | int }}"
         - action: input_datetime.set_datetime
           target:
             entity_id: input_datetime.thermostat_schedule_sunday_time_4
@@ -341,7 +341,7 @@ thermostat_pull_schedule_from_device:
           target:
             entity_id: input_number.thermostat_schedule_sunday_temp_4
           data:
-            value: "{{ sunday_tokens[3].split('/')[1] | replace('°C','') | int }}"
+            value: "{{ sunday_tokens[3].split('/')[1] | replace('°C','') | float | round | int }}"
 transfer_media_playback:
   alias: Transfer Media Playback (Cycle)
   description: Cycles the active media playback between Child Room, Kitchen,
