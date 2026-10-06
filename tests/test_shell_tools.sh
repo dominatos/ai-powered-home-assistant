@@ -118,13 +118,13 @@ printf 'a.yaml
 ' > "${opt_list}"
 printf 'x: 1
 ' > "${opt_src}/a.yaml"
-result="$(cd "${REPO_ROOT}" && bash -c "
-  MANAGED_FILES_PATH='${opt_list}'
+result="$(cd "${REPO_ROOT}" && bash -c '
+  MANAGED_FILES_PATH="$1"
   source tools/sync_common.sh
   load_managed_files
-  ensure_requirements '${opt_src}'
-  echo \"KEPT:\${#FILES[@]}:\${FILES[*]}\"
-" 2>&1 || true)"
+  ensure_requirements "$2"
+  echo "KEPT:${#FILES[@]}:${FILES[*]}"
+' _ "${opt_list}" "${opt_src}" 2>&1 || true)"
 check "optional managed file is skipped when absent" "KEPT:1:a.yaml" "${result}"
 
 # Test: a missing REQUIRED managed file still aborts
@@ -132,13 +132,13 @@ req_list="${TMPDIR_TEST}/managed_required.txt"
 printf 'a.yaml
 missing.yaml
 ' > "${req_list}"
-result="$(cd "${REPO_ROOT}" && bash -c "
-  MANAGED_FILES_PATH='${req_list}'
+result="$(cd "${REPO_ROOT}" && bash -c '
+  MANAGED_FILES_PATH="$1"
   source tools/sync_common.sh
   load_managed_files
-  ensure_requirements '${opt_src}'
+  ensure_requirements "$2"
   echo REACHED
-" 2>&1 || true)"
+' _ "${req_list}" "${opt_src}" 2>&1 || true)"
 if [[ "${result}" == *"REACHED"* ]]; then
   FAIL=$((FAIL + 1))
   printf "  ❌ missing required managed file aborts
@@ -152,23 +152,23 @@ fi
 # Test: validate_yaml_file with valid YAML
 valid_yaml="${TMPDIR_TEST}/valid.yaml"
 echo "key: value" > "${valid_yaml}"
-result="$(cd "${REPO_ROOT}" && bash -c "
+result="$(cd "${REPO_ROOT}" && bash -c '
   source tools/sync_common.sh
   detect_yaml_validation
-  validate_yaml_file '${valid_yaml}'
+  validate_yaml_file "$1"
   echo OK
-" 2>&1 || true)"
+' _ "${valid_yaml}" 2>&1 || true)"
 check "validate_yaml_file accepts valid YAML" "OK" "${result}"
 
 # Test: validate_yaml_file with invalid YAML
 invalid_yaml="${TMPDIR_TEST}/invalid.yaml"
 echo "key: value: bad: {{yaml" > "${invalid_yaml}"
-result="$(cd "${REPO_ROOT}" && bash -c "
+result="$(cd "${REPO_ROOT}" && bash -c '
   source tools/sync_common.sh
   detect_yaml_validation
-  validate_yaml_file '${invalid_yaml}'
+  validate_yaml_file "$1"
   echo OK
-" 2>&1 || true)"
+' _ "${invalid_yaml}" 2>&1 || true)"
 # invalid YAML should fail
 if [[ "${result}" == *"OK"* ]]; then
   FAIL=$((FAIL + 1))
@@ -181,13 +181,13 @@ fi
 # Test: validate_yaml_file is fail-closed when no interpreter is available
 # Set CAN_VALIDATE_YAML directly rather than manipulating PATH: which
 # interpreters are reachable varies with how the suite is invoked.
-result="$(cd "${REPO_ROOT}" && bash -c "
+result="$(cd "${REPO_ROOT}" && bash -c '
   unset ALLOW_UNVALIDATED_YAML
   source tools/sync_common.sh
   CAN_VALIDATE_YAML=0
-  validate_yaml_file '${valid_yaml}'
+  validate_yaml_file "$1"
   echo ACCEPTED
-" 2>&1 || true)"
+' _ "${valid_yaml}" 2>&1 || true)"
 if [[ "${result}" == *"ACCEPTED"* ]]; then
   FAIL=$((FAIL + 1))
   printf "  \xe2\x9d\x8c validate_yaml_file fails closed without an interpreter\n"
@@ -197,23 +197,23 @@ else
 fi
 
 # Test: ALLOW_UNVALIDATED_YAML=1 is an explicit opt-out
-result="$(cd "${REPO_ROOT}" && bash -c "
+result="$(cd "${REPO_ROOT}" && bash -c '
   source tools/sync_common.sh
   CAN_VALIDATE_YAML=0
-  ALLOW_UNVALIDATED_YAML=1 validate_yaml_file '${valid_yaml}'
+  ALLOW_UNVALIDATED_YAML=1 validate_yaml_file "$1"
   echo ACCEPTED
-" 2>&1 || true)"
+' _ "${valid_yaml}" 2>&1 || true)"
 check "ALLOW_UNVALIDATED_YAML=1 bypasses validation" "ACCEPTED" "${result}"
 
 # Test: validate_yaml_file accepts UTF-8 content (Windows cp1252 regression)
 utf8_yaml="${TMPDIR_TEST}/utf8.yaml"
 printf 'name: Caf\xc3\xa9\ntemp: 21\xc2\xb0C\n' > "${utf8_yaml}"
-result="$(cd "${REPO_ROOT}" && bash -c "
+result="$(cd "${REPO_ROOT}" && bash -c '
   source tools/sync_common.sh
   detect_yaml_validation
-  validate_yaml_file '${utf8_yaml}'
+  validate_yaml_file "$1"
   echo OK
-" 2>&1 || true)"
+' _ "${utf8_yaml}" 2>&1 || true)"
 check "validate_yaml_file accepts UTF-8 YAML" "OK" "${result}"
 
 # Test: files_differ
