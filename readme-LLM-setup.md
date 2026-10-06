@@ -6,7 +6,7 @@ The template supports switching between two providers using a dashboard dropdown
 1. **Local (Ollama)** — Runs on your own hardware, free, secure, but requires a good GPU/CPU.
 2. **Cloud (OpenCode)** — Runs an [OpenCode Server](https://opencode.ai/docs/server) bridge that HA calls over HTTP.
 
-**Production notes for this house** (real hosts) are in [§7](#7-production-notes-this-house). Live incident write-up: `haos/temp/incident-opencode-healthcheck-20261005.md`.
+**Example deployment notes** (roles, binds, and endpoints) are in [§7](#7-production-notes-example).
 
 ---
 
@@ -118,7 +118,7 @@ RestartSec=5
 WantedBy=default.target
 ```
 
-**HA-reachable on a trusted LAN** (Home Assistant on a different host — this house uses this mode on `hp-server`):
+**HA-reachable on a trusted LAN** (Home Assistant on a different host):
 
 ```ini
 ExecStart=/home/YOUR_USER/.opencode/bin/opencode serve --hostname 0.0.0.0 --port 4096
@@ -233,7 +233,7 @@ rest_command:
 ```
 
 Basic Auth username: `opencode`. Store the Authorization header value in
-`secrets.yaml` (this house: `opencode_api_key`). Use `https://` URLs if
+`secrets.yaml` (e.g., `opencode_api_key`). Use `https://` URLs if
 you front the server with TLS.
 
 ```yaml
@@ -249,7 +249,7 @@ you front the server with TLS.
 
 | Instance | Bind | Auth | Called by HA? |
 |----------|------|------|----------------|
-| OpenCode on HA’s AI host (e.g. `hp-server`) | `0.0.0.0:4096` | Basic Auth + password | **Yes** — Cloud (OpenCode) provider |
+| OpenCode on HA's AI host (e.g., `YOUR_AI_HOST`) | `0.0.0.0:4096` | Basic Auth + password | **Yes** — Cloud (OpenCode) provider |
 | OpenCode on your workstation | `127.0.0.1:4096` | Often none / local only | **No** — local coding agents only |
 
 Do not point HA `rest_command` URLs at a workstation loopback instance.
@@ -420,19 +420,17 @@ sudo sh -c 'set -a; . /etc/opencode/env; set +a; curl -sS -u "opencode:${OPENCOD
 
 ---
 
-## 7. Production notes (this house)
+## 7. Production notes (example)
 
-Optional real-world mapping (replace with your own hosts on other installs):
+Optional deployment mapping (replace with your own hosts on your install):
 
 | Role | Host | Endpoint |
 |------|------|----------|
-| Home Assistant | 192.168.1.25 | `/homeassistant` |
-| OpenCode Server (Cloud provider) | hp-server 192.168.1.220 | `http://192.168.1.220:4096` |
-| Ollama (Local fallback) | sviatoslav-pc 192.168.1.26 | `http://192.168.1.26:11434/api/generate` |
-| OpenCode on sviatoslav-pc | 192.168.1.26 | `127.0.0.1:4096` only — **not** used by HA |
+| Home Assistant | `<your_ha_host>` | `/homeassistant` |
+| OpenCode Server (Cloud provider) | `<your_opencode_host>` | `http://<your_opencode_host>:4096` |
+| Ollama (Local fallback) | `<your_ollama_host>` | `http://<your_ollama_host>:11434/api/generate` |
+| OpenCode on local workstation | `<your_workstation>` | `127.0.0.1:4096` only — **not** used by HA |
 
-Live unit (hp-server): `--hostname 0.0.0.0 --port 4096`, `EnvironmentFile=/etc/opencode/env`, linger **yes**, no restart cron, health `/global/health`.
+Live unit example: `--hostname 0.0.0.0 --port 4096`, `EnvironmentFile=/etc/opencode/env`, linger **yes**, no restart cron, health `/global/health`.
 
-HA secrets: `opencode_api_key` = Basic Auth header for user `opencode`.
-
-More context: `haos/README-LLM-setup.md`, `haos/README-ollama.md`, `haos/HOUSE_CONTEXT.md`.
+HA secrets example: `opencode_api_key` = Basic Auth header for user `opencode`.
