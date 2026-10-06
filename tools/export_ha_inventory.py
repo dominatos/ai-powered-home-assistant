@@ -222,6 +222,8 @@ def load_number_map(path: Path) -> dict:
 
     try:
         number_map = json.loads(path.read_text(encoding="utf-8"))
+    except UnicodeDecodeError:
+        raise SystemExit(f"Invalid UTF-8 encoding in {path}")
     except json.JSONDecodeError as exc:
         raise SystemExit(f"Invalid JSON in {path}: {exc}")
 
