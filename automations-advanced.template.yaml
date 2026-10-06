@@ -295,12 +295,12 @@
     - condition: template
       value_template: '{{ trigger.id == ''arrival'' }}'
     - condition: template
-      value_template: '{% set now_ts = now().timestamp() %} {% set person_1 = states.person.<your_person_1>
-        %} {% set person_2 = states.person.<your_person_2> %} {% set person_1_was_home =
-        person_1.state == ''home'' and (now_ts - person_1.last_changed.timestamp())
-        > 300 %} {% set person_2_was_home = person_2.state == ''home'' and (now_ts
-        - person_2.last_changed.timestamp()) > 300 %} {{ not person_1_was_home and
-        not person_2_was_home }}
+      value_template: '{% set now_ts = now().timestamp() %} {% set person_1 = states[''person.<your_person_1>'']
+        %} {% set person_2 = states[''person.<your_person_2>''] %} {% set person_1_was_home
+        = person_1 is defined and person_1.state == ''home'' and (now_ts - person_1.last_changed.timestamp())
+        > 300 %} {% set person_2_was_home = person_2 is defined and person_2.state == ''home''
+        and (now_ts - person_2.last_changed.timestamp()) > 300 %} {{ not person_1_was_home
+        and not person_2_was_home }}
 
         '
     then:
