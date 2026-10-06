@@ -404,8 +404,9 @@ By using this template, you build a resilient smart home that benefits from AI b
 ```bash
 systemctl --user status opencode-server
 ss -lntp | grep 4096
-set -a; . /etc/opencode/env; set +a
-curl -sS -u "opencode:${OPENCODE_SERVER_PASSWORD}" http://127.0.0.1:4096/global/health
+# /etc/opencode/env is root-owned mode 600 — run the health curl under sudo.
+# The password is expanded only inside the elevated shell and is not printed.
+sudo sh -c 'set -a; . /etc/opencode/env; set +a; curl -sS -u "opencode:${OPENCODE_SERVER_PASSWORD}" http://127.0.0.1:4096/global/health'
 ```
 
 ---
