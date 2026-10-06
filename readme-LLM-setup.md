@@ -136,9 +136,10 @@ OPENCODE_SERVER_PASSWORD=txxxx
 OPENCODE_API_KEY=sk-xxxxx
 ```
 
-Secure the environment file:
+Secure the environment file (the systemd **user** service runs as `YOUR_USER`
+and cannot read a root-owned mode-600 file):
 ```bash
-sudo chown root:root /etc/opencode/env
+sudo chown YOUR_USER:YOUR_USER /etc/opencode/env
 sudo chmod 600 /etc/opencode/env
 ```
 
@@ -233,7 +234,8 @@ rest_command:
 ```
 
 Basic Auth username: `opencode`. Store the Authorization header value in
-`secrets.yaml` (e.g., `opencode_api_key`). These URLs send the Basic Auth
+`secrets.yaml` as `opencode_authorization` (matching the `!secret
+opencode_authorization` references above). These URLs send the Basic Auth
 secret, so they **must** use `https://` (terminate TLS at a reverse proxy in
 front of OpenCode; do not send Basic Auth over plaintext HTTP).
 
@@ -405,10 +407,10 @@ By using this template, you build a resilient smart home that benefits from AI b
 ```bash
 systemctl --user status opencode-server
 ss -lntp | grep 4096
-# /etc/opencode/env is root-owned mode 600 — run the health curl under sudo.
-# The password is expanded only inside the elevated shell and is not printed.
+# /etc/opencode/env is mode 600 owned by YOUR_USER (required for the user service).
+# The password is expanded only inside the shell and is not printed.
 # This curl targets the raw loopback service only — not the HA-facing HTTPS endpoint.
-sudo sh -c 'set -a; . /etc/opencode/env; set +a; curl -sS -u "opencode:${OPENCODE_SERVER_PASSWORD}" http://127.0.0.1:4096/global/health'
+set -a; . /etc/opencode/env; set +a; curl -sS -u "opencode:${OPENCODE_SERVER_PASSWORD}" http://127.0.0.1:4096/global/health
 ```
 
 ---
@@ -434,4 +436,4 @@ Optional deployment mapping (replace with your own hosts on your install):
 
 Live unit example: `--hostname 0.0.0.0 --port 4096`, `EnvironmentFile=/etc/opencode/env`, linger **yes**, no restart cron, health `/global/health`.
 
-HA secrets example: `opencode_api_key` = Basic Auth header for user `opencode`.
+HA secrets example: `opencode_authorization` = Basic Auth header for user `opencode`.
