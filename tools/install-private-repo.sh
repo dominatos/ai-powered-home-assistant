@@ -111,10 +111,18 @@ if [[ "${FORCE}" -eq 1 ]]; then
     die "Remote default branch is '${remote_default_branch}', which is neither main nor master. Change the default branch to main or master before force-pushing."
   fi
   # Back up existing remote history with a complete mirror before destructive operations.
-  # Stored outside REPO_DIR so the backup survives the force-push that replaces this work tree.
-  backup_dir="$(mktemp -d "${TMPDIR:-/tmp}/ha_repo_backup_XXXXXX")"
+  # Stored in a persistent location outside REPO_DIR so the backup survives both
+  # the force-push that replaces this work tree and a reboot (unlike /tmp).
+  # Override with HA_REPO_BACKUP_DIR if desired.
+  backup_root="${HA_REPO_BACKUP_DIR:-${HOME}/.local/share/ai-powered-home-assistant/backups}"
+  if ! mkdir -p "${backup_root}"; then
+    die "Cannot create backup directory ${backup_root}. Aborting before destructive push."
+  fi
+  if ! backup_dir="$(mktemp -d "${backup_root}/ha_repo_backup_XXXXXX")"; then
+    die "Cannot create a backup directory under ${backup_root}. Aborting before destructive push."
+  fi
   backup_mirror="${backup_dir}/remote_mirror.git"
-  if ! git clone --mirror "${PRIVATE_URL}" "${backup_mirror}" 2>/dev/null; then
+  if ! git clone --mirror "${PRIVATE_URL}" "${backup_mirror}"; then
     rm -rf "${backup_dir}"
     die "Failed to create mirror backup of $(redact_url "${PRIVATE_URL}") at ${backup_mirror}. Aborting before destructive push."
   fi
