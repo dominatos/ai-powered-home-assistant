@@ -1436,7 +1436,7 @@
   - action: notify.mobile_app_<your_phone>
     data:
       title: Fridge Preparation
-      message: You left the supermarket. Set fridge preparation mode?
+      message: You left the supermarket. Choose Cool, Freeze, or Both. Dismiss to leave the fridge unchanged.
       data:
         tag: fridge_supermarket
         actions:
@@ -1446,8 +1446,6 @@
           title: Freeze
         - action: FRIDGE_BOTH
           title: Both
-        - action: FRIDGE_NONE
-          title: None
   - wait_for_trigger:
     - platform: event
       event_type: mobile_app_notification_action
