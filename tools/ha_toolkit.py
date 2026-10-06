@@ -371,7 +371,8 @@ def load_inventory(repo: Path) -> dict:
     """Return repo/ha_device_inventory.json with an entities list.
 
     Raise SystemExit(1) for read, decoding, JSON, or top-level structure errors.
-    Individual entries in the entities list are not validated.
+    Non-dict entries in the entities list are discarded so callers only
+    receive dictionaries.
     """
     inv_file = repo / "ha_device_inventory.json"
     try:
@@ -386,6 +387,7 @@ def load_inventory(repo: Path) -> dict:
     if not isinstance(data["entities"], list):
         print("Error: ha_device_inventory.json 'entities' value must be a list.")
         sys.exit(1)
+    data["entities"] = [e for e in data["entities"] if isinstance(e, dict)]
     return data
 
 
