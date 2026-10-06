@@ -641,8 +641,8 @@
     - condition: template
       value_template: '{% set now_ts = now().timestamp() %} {% set p1 = states(''person.<your_person_1>'')
         %} {% set p2 = states(''person.<your_person_2>'') %} {% set p1_ts = states[''person.<your_person_1>''].last_changed.timestamp()
-        if states[''person.<your_person_1>''] is defined else now_ts %} {% set p2_ts = states[''person.<your_person_2>''].last_changed.timestamp()
-        if states[''person.<your_person_2>''] is defined else now_ts %} {% set person_1_was_home
+        if states[''person.<your_person_1>''] is not none else now_ts %} {% set p2_ts = states[''person.<your_person_2>''].last_changed.timestamp()
+        if states[''person.<your_person_2>''] is not none else now_ts %} {% set person_1_was_home
         = p1 == ''home'' and (now_ts - p1_ts) > 300 %} {% set person_2_was_home = p2
         == ''home'' and (now_ts - p2_ts) > 300 %} {{ not person_1_was_home and not
         person_2_was_home }}
