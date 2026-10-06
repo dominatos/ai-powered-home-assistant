@@ -355,8 +355,8 @@ By using this template, you build a resilient smart home that benefits from AI b
     (Ollama) on failure and auto-recovers back to Cloud (OpenCode) when
     healthy. Scheduled runs are silent; notify only on manual trigger.
   trigger:
-    - platform: time
-      at: "00:30:00"
+    - platform: time_pattern
+      minutes: '30'
   action:
     - action: rest_command.opencode_health_check
       continue_on_error: true
