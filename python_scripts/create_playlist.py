@@ -44,7 +44,8 @@ def main():
         fd, tmp_path = tempfile.mkstemp(dir=dest_dir, suffix=".m3u.tmp")
         with os.fdopen(fd, "w", encoding="utf-8") as f:
             f.write("#EXTM3U\n\n")
-            for root, _dirs, files in sorted(os.walk(audio_folder, onerror=_raise_walk_error)):
+            for root, dirs, files in os.walk(audio_folder, onerror=_raise_walk_error):
+                dirs.sort(key=lambda name: name + os.sep)
                 for filename in sorted(files):
                     if filename.lower().endswith(AUDIO_EXTENSIONS):
                         filepath = os.path.join(root, filename)
