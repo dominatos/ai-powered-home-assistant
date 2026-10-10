@@ -132,6 +132,12 @@ if [[ "${FORCE}" -eq 1 ]]; then
     rm -rf "${backup_dir}"
     die "Failed to create mirror backup of $(redact_url "${PRIVATE_URL}") at ${backup_mirror}. Aborting before destructive push."
   fi
+  # Strip embedded credentials from the mirror's stored remote URL so the
+  # on-disk backup never retains HTTPS userinfo.
+  if ! git -C "${backup_mirror}" remote set-url origin "$(redact_url "${PRIVATE_URL}")"; then
+    rm -rf "${backup_dir}"
+    die "Failed to remove credentials from the backup mirror remote URL at ${backup_mirror}. Aborting before destructive push."
+  fi
   # Also save the ref list for quick inspection.
   printf '%s\n' "${existing_refs}" > "${backup_dir}/remote_refs.txt"
   echo "Backed up remote history to ${backup_mirror}"
