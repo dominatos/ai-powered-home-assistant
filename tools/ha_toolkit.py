@@ -157,17 +157,20 @@ def _extract_trace_meta(trace: dict) -> dict:
     """
     sd = trace.get('short_dict') if isinstance(trace.get('short_dict'), dict) else {}
     ed = trace.get('extended_dict') if isinstance(trace.get('extended_dict'), dict) else {}
+    trace_ts = trace.get('timestamp') if isinstance(trace.get('timestamp'), dict) else {}
+    sd_ts = sd.get('timestamp') if isinstance(sd.get('timestamp'), dict) else {}
+    ed_ts = ed.get('timestamp') if isinstance(ed.get('timestamp'), dict) else {}
     
     start_time = (
-        trace.get('timestamp', {}).get('start')
-        or sd.get('timestamp', {}).get('start')
-        or ed.get('timestamp', {}).get('start')
+        trace_ts.get('start')
+        or sd_ts.get('start')
+        or ed_ts.get('start')
         or 'Unknown'
     )
     finish_time = (
-        trace.get('timestamp', {}).get('finish')
-        or sd.get('timestamp', {}).get('finish')
-        or ed.get('timestamp', {}).get('finish')
+        trace_ts.get('finish')
+        or sd_ts.get('finish')
+        or ed_ts.get('finish')
         or 'Unknown'
     )
     state = trace.get('state') or sd.get('state') or ed.get('state') or 'Unknown'
