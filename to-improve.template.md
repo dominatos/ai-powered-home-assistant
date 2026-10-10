@@ -6,6 +6,15 @@
 
 ---
 
+## Completed
+
+<!-- Move completed improvement entries here as you finish them. Example:
+### Example Improvement
+- **Done**: Description of what was completed
+-->
+
+---
+
 ## Priority 1: Security & Secrets
 
 ### Hardcoded Passwords in Zigbee2MQTT
