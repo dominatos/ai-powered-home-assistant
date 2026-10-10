@@ -27,7 +27,7 @@ NFS Server (your NAS / Linux box)
 |-----------|-------------|
 | NFS server | A NAS or Linux machine sharing an audio folder (e.g., `/export/music`) |
 | Home Assistant | `shell_command` must be enabled in `configuration.yaml` |
-| Music Assistant | Music Assistant server installed as a Home Assistant add-on/app or as a standalone Docker container; the Home Assistant Music Assistant integration is separately required for the automation actions in Step 8 |
+| Music Assistant | Music Assistant server installed as a Home Assistant add-on/app or as a standalone Docker container (see Step 2B); the Home Assistant Music Assistant integration is separately required for the automation actions in Step 8 |
 | NFS client | HA host must be able to mount NFS shares (HAOS has built-in NFS support) |
 
 ## Step 1 — Export the NFS Share
@@ -101,6 +101,60 @@ volumes:
 
 Then reference `music_data` in your service's volumes list.
 
+## Step 2B — Music Assistant as a Standalone Docker Container (Optional)
+
+Use this variant when Music Assistant does not run as a Home Assistant add-on — e.g., Home Assistant runs on HAOS while Music Assistant runs in Docker on a NAS or another host, or your whole stack is containerized.
+
+The key principle: **both containers must mount the same NFS share**. `create_playlist.py` writes track paths relative to the playlist directory, so the in-container mount points may differ (e.g., `/media/music` in Home Assistant vs. `/music` in Music Assistant) as long as `playlist.m3u` lives inside the shared folder.
+
+### 2B.1 — Mount the share into the Music Assistant container
+
+On the Docker host that runs Music Assistant, mount the NFS share first (same as in Step 2):
+
+```bash
+# On the Music Assistant Docker host:
+sudo mkdir -p /export/music
+sudo mount -t nfs <nfs_server>:/export/music /export/music
+```
+
+Then add the Music Assistant service to your `docker-compose.yml`:
+
+```yaml
+services:
+  music-assistant:
+    image: ghcr.io/music-assistant/server:latest
+    container_name: music-assistant
+    restart: unless-stopped
+    ports:
+      - "8095:8095"
+    volumes:
+      - ma_data:/data
+      # Same NFS share as Home Assistant, read-only is enough:
+      # Music Assistant only reads audio files and the generated M3U.
+      - /export/music:/music:ro
+    # Alternatively, reuse the Docker-managed NFS volume from Step 2:
+    # - music_data:/music:ro
+
+volumes:
+  ma_data:
+```
+
+Start it with `docker compose up -d`. The server's web interface is available at `http://<ma-host-ip>:8095`.
+
+### 2B.2 — Add the music source in Music Assistant
+
+1. Open the Music Assistant web interface at `http://<ma-host-ip>:8095`.
+2. Go to **Settings → Providers → Add Provider** and select the **Filesystem** provider.
+3. Enter the **container-internal** mount path (e.g., `/music`, not the host path) and enable **Import playlists (m3u files)** so the generated `playlist.m3u` is picked up.
+4. Save. Music Assistant will scan and index the files.
+
+### 2B.3 — Connect Home Assistant to Music Assistant
+
+In Home Assistant, go to **Settings → Devices & Services → Add Integration → Music Assistant** and enter the server URL (`http://<ma-host-ip>:8095`). Once connected, the `music_assistant.play_media` and `music_assistant.transfer_queue` actions from Step 8 work unchanged.
+
+> [!NOTE]
+> If Home Assistant and Music Assistant run on the same Docker host in one compose stack, they can share a single Docker NFS volume (`music_data` from Step 2). If they run on different hosts, mount the NFS share on each host separately and verify `playlist.m3u` is visible at the configured path inside both containers before adding the provider.
+
 ## Step 3 — Place create_playlist.py
 
 Copy `python_scripts/create_playlist.py` to your HA config directory:
@@ -139,6 +193,7 @@ Reload the `shell_command` integration via **Settings → Developer tools → YA
 3. Select the appropriate filesystem provider:
    - **Filesystem (local)** for a local disk — enter the mounted path (e.g., `/media/music`) in the **Path** field.
    - **Filesystem (NFS share)** for an NFS mount — enter the server IP in the **Server** field and the absolute export path (e.g., `/export/music`) in the **Path** field.
+   - For a standalone Docker container (Step 2B), enter the container-internal mount path (e.g., `/music`) instead.
 4. Configure:
    - **Name**: `NFS Music Library` (or any name)
    - **Import playlists (m3u files)**: Enable this setting so generated playlists are added to the library.
@@ -223,6 +278,11 @@ Use `music_assistant.transfer_queue` to move playback between speakers:
 - Verify the Filesystem provider path matches where the M3U is written
 - Check that `input_text.media_playlist_name` matches the M3U filename
 - Restart Music Assistant after adding the provider
+
+**Standalone Docker Music Assistant sees no files:**
+- Verify the share is mounted inside the container: `docker exec music-assistant ls /music`
+- The provider path must be the container-internal path (e.g., `/music`), not the host path
+- Check both containers see the same `playlist.m3u`: compare `ls /media/music/playlist.m3u` in Home Assistant with `ls /music/playlist.m3u` in Music Assistant
 
 **`shell_command` fails:**
 - Ensure `shell_command:` is in `configuration.yaml`
