@@ -163,8 +163,8 @@ Shell scripts to safely move files between your live Home Assistant and this rep
 | `tools/sync_from_homeassistant.sh` | Pull latest config from HA → repo (run *before* AI work) |
 | `tools/sync_to_homeassistant.sh` | Push AI-generated changes repo → HA (run *after* review) |
 | `tools/export_ha_inventory.sh` | Export all device/entity IDs so the AI never guesses |
-| `tools/ha_toolkit.py audit-docs` | Validates that every automation is documented in `HOUSE_CONTEXT.md` |
-| `tools/ha_toolkit.py audit-dashboard` | Validates entity references in `dashboard.yaml` against the inventory |
+| `tools/ha_toolkit.py audit-docs` | Validates that every automation alias is documented in `HOUSE_CONTEXT.md` and reports stale aliases |
+| `tools/ha_toolkit.py audit-dashboard` | Validates scalar entity references in `dashboard.yaml` against ha_device_inventory.json |
 | `tools/pull_debug_files.sh` | Securely pulls logs and traces from a remote HA instance |
 | `tools/backup_automations.py` | Creates point-in-time YAML backups of specific automations |
 

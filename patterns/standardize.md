@@ -976,7 +976,7 @@ A timer helper (`timer.<name>`) is managed with interactive dashboard controls (
 # Script for dynamic extend
 extend_timer_script:
   alias: "Extend Timer"
-  description: "Extends active/paused timer by configured input_number or starts if idle."
+  description: "Extends active timer by configured input_number or starts if idle."
   sequence:
     - if:
         - condition: state
