@@ -23,6 +23,20 @@ EOF
 
 die() { echo "Error: $*" >&2; exit 1; }
 
+# expected_sha prints the hash recorded for a ref in the pre-push snapshot
+# (fresh_refs), or an empty string when the ref is absent. An empty
+# expectation makes --force-with-lease require the remote ref to not exist.
+expected_sha() {
+  local want="$1" sha ref
+  while IFS=$'\t' read -r sha ref; do
+    if [[ "${ref}" == "${want}" ]]; then
+      printf '%s' "${sha}"
+      return 0
+    fi
+  done <<< "${fresh_refs}"
+  printf '%s' ""
+}
+
 # redact_url prints the URL with HTTP(S) userinfo removed; other URLs and
 # credentials outside userinfo are unchanged.
 redact_url() {
@@ -142,28 +156,46 @@ if [[ "${FORCE}" -eq 1 ]]; then
   printf '%s\n' "${existing_refs}" > "${backup_dir}/remote_refs.txt"
   echo "Backed up remote history to ${backup_mirror}"
   echo "Ref list saved to ${backup_dir}/remote_refs.txt"
-  git push --set-upstream origin main --force
-  if printf '%s\n' "${existing_refs}" | grep -q $'\trefs/heads/master$'; then
-    git push origin main:master --force
+  # Re-list remote refs and abort if anything changed since this run
+  # started. The backup above only covers the refs listed in it, so any
+  # difference means pushing on would destroy unreviewed history. The
+  # clean backup is retained for inspection.
+  if ! fresh_refs="$(git ls-remote "${PRIVATE_URL}" 2>/dev/null)"; then
+    die "Cannot re-list refs from $(redact_url "${PRIVATE_URL}"). Aborting before destructive push; backup retained at ${backup_mirror}."
+  fi
+  if [[ "${fresh_refs}" != "${existing_refs}" ]]; then
+    die "Remote refs changed since this run started. Aborting before destructive push; backup retained at ${backup_mirror}."
+  fi
+  # Overwrite history only if every touched ref still matches the backup
+  # snapshot. An empty expectation requires the remote ref to not exist.
+  main_expect="$(expected_sha refs/heads/main)"
+  if ! git push --set-upstream origin "--force-with-lease=refs/heads/main:${main_expect}" main; then
+    die "Remote refs/heads/main changed since the backup was taken. Aborting; backup retained at ${backup_mirror}."
+  fi
+  if printf '%s\n' "${fresh_refs}" | grep -q $'\trefs/heads/master$'; then
+    master_expect="$(expected_sha refs/heads/master)"
+    if ! git push origin "--force-with-lease=refs/heads/master:${master_expect}" main:master; then
+      die "Remote refs/heads/master changed since the backup was taken. Aborting; backup retained at ${backup_mirror}."
+    fi
   fi
   # Remove any remaining remote branches other than main/master
-  while IFS=$'\t' read -r _hash ref; do
+  while IFS=$'\t' read -r sha ref; do
     branch="${ref#refs/heads/}"
     if [[ "${ref}" == refs/heads/* && "${branch}" != "main" && "${branch}" != "master" ]]; then
-      if ! git push origin --delete "${branch}"; then
-        die "Failed to delete remote branch ${branch}. Aborting; the remote still contains this branch."
+      if ! git push origin "--force-with-lease=${ref}:${sha}" --delete "${branch}"; then
+        die "Failed to delete remote branch ${branch} (it may have changed since the backup). Aborting; the remote still contains this branch."
       fi
     fi
-  done <<< "${existing_refs}"
+  done <<< "${fresh_refs}"
   # Remove all remote tags (--refs skips peeled entries for annotated tags)
   if ! tag_refs="$(git ls-remote --refs --tags origin 2>/dev/null)"; then
     die "Failed to list remote tags from $(redact_url "${PRIVATE_URL}"). Aborting; remote tags were not cleaned up."
   fi
-  while IFS=$'\t' read -r _hash ref; do
+  while IFS=$'\t' read -r sha ref; do
     if [[ "${ref}" == refs/tags/* ]]; then
       tag="${ref#refs/tags/}"
-      if ! git push origin --delete "refs/tags/${tag}"; then
-        die "Failed to delete remote tag ${tag}. Aborting; the remote still contains this tag."
+      if ! git push origin "--force-with-lease=${ref}:${sha}" --delete "refs/tags/${tag}"; then
+        die "Failed to delete remote tag ${tag} (it may have changed). Aborting; the remote still contains this tag."
       fi
     fi
   done <<< "${tag_refs}"
