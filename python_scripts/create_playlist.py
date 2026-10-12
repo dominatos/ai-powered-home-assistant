@@ -18,7 +18,8 @@ def main():
     """Generate an M3U playlist from the audio folder and output CLI arguments.
 
     Recursively scan supported audio extensions, ignoring case, and write
-    sorted entries with paths relative to the playlist directory. Skip names
+    entries sorted by filename within each directory, before its subdirectories,
+    with paths relative to the playlist directory. Skip names
     or paths containing line breaks. Replace the output only after writing
     the complete UTF-8 playlist; its parent directory must already exist.
 
