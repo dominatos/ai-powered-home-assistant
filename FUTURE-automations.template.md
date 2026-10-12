@@ -222,4 +222,4 @@ If the tracker boolean needs a daily reset, add to the existing `System: Daily R
 3. Add daily reset action to `System: Daily Resets`
 4. Update `HOUSE_CONTEXT.md` with new automation section
 5. Update `automations_kb.md` with new entries
-6. Run `python3 tools/check_docs.py` for validation
+6. Run `python3 tools/ha_toolkit.py audit-docs` for validation

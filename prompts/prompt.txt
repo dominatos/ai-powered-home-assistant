@@ -29,8 +29,7 @@ Tooling and workflow files:
 - `tools/sync_from_homeassistant.sh`
 - `tools/sync_to_homeassistant.sh`
 - `tools/export_ha_inventory.sh`
-- `tools/check_docs.py`
-- `tools/dashboard_audit.py`
+- `tools/ha_toolkit.py` (subcommands: `audit-docs`, `audit-dashboard`, `generate-kb`)
 - `tools/pull_debug_files.sh`
 - `tools/backup_automations.py`
 

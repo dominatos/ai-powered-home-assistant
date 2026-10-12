@@ -24,20 +24,25 @@ def load_storage_json(path: Path, optional: bool = False) -> list[dict]:
     
     Parameters:
         path (Path): Path to the storage file.
-        optional (bool): Whether a missing or empty entries list should produce an empty result.
+        optional (bool): Return an empty result for a missing file or a falsy
+            entries value; malformed JSON and invalid structure still fail.
     
     Returns:
         list[dict]: Valid dictionary entries from the storage file.
     
     Raises:
-        SystemExit: If a required file is missing, the JSON is invalid, or the file structure is unexpected.
+        SystemExit: If a required file is missing, UTF-8 or JSON is invalid,
+            or the file structure is unexpected.
+        OSError: If reading fails for a reason other than a missing file.
     """
     try:
-        data = json.loads(path.read_text())
+        data = json.loads(path.read_text(encoding="utf-8"))
     except FileNotFoundError:
         if optional:
             return []
         raise SystemExit(f"Missing required storage file: {path}")
+    except UnicodeDecodeError:
+        raise SystemExit(f"Invalid UTF-8 encoding in {path}")
     except json.JSONDecodeError as exc:
         raise SystemExit(f"Invalid JSON in {path}: {exc}")
 
@@ -212,6 +217,11 @@ def validate_number_map(number_map: dict, source: Path) -> None:
 
 
 def load_number_map(path: Path) -> dict:
+    """Return a validated number map, or an empty version-1 map if absent.
+
+    Raise SystemExit for invalid UTF-8, JSON, map structure, or nonpositive or
+    duplicate numbers. File read errors propagate as OSError.
+    """
     if not path.exists():
         return {
             "version": 1,
@@ -219,7 +229,9 @@ def load_number_map(path: Path) -> dict:
         }
 
     try:
-        number_map = json.loads(path.read_text())
+        number_map = json.loads(path.read_text(encoding="utf-8"))
+    except UnicodeDecodeError:
+        raise SystemExit(f"Invalid UTF-8 encoding in {path}")
     except json.JSONDecodeError as exc:
         raise SystemExit(f"Invalid JSON in {path}: {exc}")
 
@@ -228,6 +240,15 @@ def load_number_map(path: Path) -> dict:
 
 
 def load_legacy_text_numbers(path: Path, devices_by_id: dict[str, dict]) -> dict:
+    """Migrate numbered text entries into a version-1 device number map.
+
+    Match devices by exact name and area, using 'Unassigned' for absent areas;
+    reserve unmatched entries under legacy IDs with present=False. Try UTF-8,
+    cp1252, then Latin-1, ignoring lines outside the 'number. name (area)' form.
+    Return an empty map for a missing file. Raise SystemExit for ambiguous
+    device matches or invalid resulting numbers; file read errors propagate
+    as OSError.
+    """
     number_map = {
         "version": 1,
         "devices": {},
@@ -241,7 +262,17 @@ def load_legacy_text_numbers(path: Path, devices_by_id: dict[str, dict]) -> dict
         devices_by_name_area.setdefault(key, []).append(device)
 
     line_pattern = re.compile(r"^(?P<number>\d+)\.\s+(?P<name>.+)\s+\((?P<area>.*)\)$")
-    for line in path.read_text().splitlines():
+    content = None
+    for encoding in ("utf-8", "cp1252", "latin-1"):
+        try:
+            content = path.read_text(encoding=encoding)
+            break
+        except UnicodeDecodeError:
+            continue
+    if content is None:
+        print(f"WARNING: Could not decode {path} with any supported encoding; skipping legacy number migration.", file=sys.stderr)
+        return number_map
+    for line in content.splitlines():
         match = line_pattern.match(line)
         if not match:
             continue
@@ -375,6 +406,12 @@ def build_virtual_inventory(inventory: dict) -> dict:
 def export_yaml_entities(config_dir: Path, output_dir: Path) -> None:
     """
     Export automation, script, and scene definitions from YAML files to JSON inventories.
+
+    Write UTF-8 JSON summaries to automations_inventory.json,
+    scripts_inventory.json, and scenes_inventory.json, creating output_dir
+    as needed. Skip missing, empty, unreadable, or unparseable YAML inputs,
+    leaving any existing output for those inputs untouched. Output directory
+    and write errors propagate as OSError; serialization TypeError propagates.
     
     Parameters:
     	config_dir (Path): Directory containing the YAML configuration files.
@@ -422,11 +459,24 @@ def export_yaml_entities(config_dir: Path, output_dir: Path) -> None:
                 })
                 
         out_path.parent.mkdir(parents=True, exist_ok=True)
-        out_path.write_text(json.dumps(results, indent=2, ensure_ascii=True) + "\n")
+        out_path.write_text(
+            json.dumps(results, indent=2, ensure_ascii=True) + "\n",
+            encoding="utf-8", newline="\n",
+        )
         print(f"Wrote {len(results)} items from {yaml_file} to {out_path}")
 
 
 def main() -> int:
+    """Export CLI-selected registries and YAML summaries, returning 0 on success.
+
+    Create output directories and overwrite UTF-8 inventory snapshots and the
+    persistent number map. Preserve assigned numbers, migrating the legacy
+    text inventory when no map exists. Auxiliary outputs default to the main
+    JSON output's directory. Invalid arguments or registry/number-map data
+    raise SystemExit; file I/O errors propagate as OSError. YAML input load
+    failures are skipped by export_yaml_entities; serialization TypeError
+    propagates.
+    """
     parser = argparse.ArgumentParser(
         description="Export a sanitized Home Assistant entity/device inventory from .storage."
     )
@@ -495,15 +545,27 @@ def main() -> int:
     number_map = update_number_map(number_map, devices_by_id)
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    output_path.write_text(json.dumps(inventory, indent=2, ensure_ascii=True) + "\n")
+    output_path.write_text(
+        json.dumps(inventory, indent=2, ensure_ascii=True) + "\n",
+        encoding="utf-8", newline="\n",
+    )
     number_map_path.parent.mkdir(parents=True, exist_ok=True)
-    number_map_path.write_text(json.dumps(number_map, indent=2, ensure_ascii=True) + "\n")
+    number_map_path.write_text(
+        json.dumps(number_map, indent=2, ensure_ascii=True) + "\n",
+        encoding="utf-8", newline="\n",
+    )
     text_output_path.parent.mkdir(parents=True, exist_ok=True)
-    text_output_path.write_text(build_text_inventory(devices_by_id, number_map))
+    text_output_path.write_text(
+        build_text_inventory(devices_by_id, number_map),
+        encoding="utf-8", newline="\n",
+    )
     
     virtual_inventory = build_virtual_inventory(inventory)
     virtual_output_path.parent.mkdir(parents=True, exist_ok=True)
-    virtual_output_path.write_text(json.dumps(virtual_inventory, indent=2, ensure_ascii=True) + "\n")
+    virtual_output_path.write_text(
+        json.dumps(virtual_inventory, indent=2, ensure_ascii=True) + "\n",
+        encoding="utf-8", newline="\n",
+    )
 
     print(f"Wrote inventory to {output_path}")
     print(f"Wrote inventory number map to {number_map_path}")

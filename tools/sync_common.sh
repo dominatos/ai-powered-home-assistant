@@ -112,33 +112,108 @@ require_file() {
   [[ -f "${path}" ]] || die "Missing required file: ${path}"
 }
 
+# Entries in managed_files.txt may be prefixed with "?" to mark them optional.
+# An optional file that is absent from the sync source is skipped with a log
+# line instead of aborting the run. OPTIONAL_FILES holds the un-prefixed names.
+OPTIONAL_FILES=()
+
+# load_managed_files resets FILES and OPTIONAL_FILES from MANAGED_FILES_PATH,
+# stripping optional "?" prefixes and skipping empty lines and "#" comments.
+# Exits with status 1 if the manifest is unset, missing, or has no file entries.
 load_managed_files() {
   [[ -n "${MANAGED_FILES_PATH}" ]] || die "MANAGED_FILES_PATH is not set"
   require_file "${MANAGED_FILES_PATH}"
 
   FILES=()
+  OPTIONAL_FILES=()
   while IFS= read -r rel || [[ -n "${rel}" ]]; do
     [[ -n "${rel}" ]] || continue
     [[ "${rel}" == \#* ]] && continue
+    if [[ "${rel}" == \?* ]]; then
+      rel="${rel#\?}"
+      [[ -n "${rel}" ]] || continue
+      OPTIONAL_FILES+=("${rel}")
+    fi
     FILES+=("${rel}")
   done < "${MANAGED_FILES_PATH}"
 
   [[ ${#FILES[@]} -gt 0 ]] || die "Managed file list is empty: ${MANAGED_FILES_PATH}"
 }
 
+# ---------------------------------------------------------------------------
+# YAML validation
+#
+# validate_yaml_file is the only syntax gate before a file is written over a
+# live Home Assistant configuration, so it is FAIL-CLOSED: if no Python
+# interpreter with PyYAML can be found, the sync aborts rather than silently
+# writing unvalidated YAML into a running house.
+#
+# Set ALLOW_UNVALIDATED_YAML=1 to opt out explicitly (not recommended).
+# Set HA_PYTHON to force a specific interpreter.
+# ---------------------------------------------------------------------------
+PYTHON_CMD=()
+
+# detect_yaml_validation sets PYTHON_CMD and CAN_VALIDATE_YAML for an interpreter
+# with PyYAML. HA_PYTHON is exclusive when set; otherwise try python3, python,
+# then py -3. Returns 0 even if unavailable, leaving CAN_VALIDATE_YAML=0.
 detect_yaml_validation() {
-  if command -v python3 >/dev/null 2>&1 && python3 -c 'import yaml' >/dev/null 2>&1; then
-    CAN_VALIDATE_YAML=1
-  else
-    CAN_VALIDATE_YAML=0
-    log "python3+PyYAML not available. YAML syntax validation will be skipped."
+  local candidate
+  CAN_VALIDATE_YAML=0
+  PYTHON_CMD=()
+
+  # If HA_PYTHON is set, it is the exclusive selection — do not fall back
+  # to python3/python/py when it is missing or lacks PyYAML.
+  if [[ -n "${HA_PYTHON:-}" ]]; then
+    if command -v "${HA_PYTHON}" >/dev/null 2>&1 &&
+       "${HA_PYTHON}" -c 'import yaml' >/dev/null 2>&1; then
+      PYTHON_CMD=("${HA_PYTHON}")
+      CAN_VALIDATE_YAML=1
+      return 0
+    fi
+    log "WARNING: HA_PYTHON=${HA_PYTHON} is set but is not a usable Python interpreter with PyYAML. Not falling back to other interpreters."
+    return 0
   fi
+
+  # "python3" is absent on many Windows installs, where the interpreter is
+  # exposed as "python" or only via the "py" launcher.
+  for candidate in python3 python; do
+    if command -v "${candidate}" >/dev/null 2>&1 &&
+       "${candidate}" -c 'import yaml' >/dev/null 2>&1; then
+      PYTHON_CMD=("${candidate}")
+      CAN_VALIDATE_YAML=1
+      return 0
+    fi
+  done
+
+  if command -v py >/dev/null 2>&1 && py -3 -c 'import yaml' >/dev/null 2>&1; then
+    PYTHON_CMD=(py -3)
+    CAN_VALIDATE_YAML=1
+    return 0
+  fi
+
+  log "WARNING: no Python interpreter with PyYAML found (tried python3, python, py -3)."
+  return 0
 }
 
+# validate_yaml_file checks the given UTF-8 file using the detected interpreter,
+# accepting HA tags without resolving includes. Returns the interpreter status
+# for read, decoding, or YAML errors. If validation is unavailable, exits 1
+# unless ALLOW_UNVALIDATED_YAML=1, which skips the check and returns 0.
 validate_yaml_file() {
   local file_path=$1
-  [[ "${CAN_VALIDATE_YAML:-0}" -eq 1 ]] || return 0
-  python3 - "${file_path}" <<'PY'
+
+  if [[ "${CAN_VALIDATE_YAML:-0}" -ne 1 ]]; then
+    if [[ "${ALLOW_UNVALIDATED_YAML:-0}" -eq 1 ]]; then
+      log "WARNING: skipping YAML validation for ${file_path} (ALLOW_UNVALIDATED_YAML=1)."
+      return 0
+    fi
+    die "ERROR: cannot validate ${file_path} - no Python interpreter with PyYAML found.
+Install PyYAML (pip install pyyaml), set HA_PYTHON to a suitable interpreter, or
+re-run with ALLOW_UNVALIDATED_YAML=1 to bypass validation.
+Refusing to write unvalidated YAML to a live configuration."
+  fi
+
+  "${PYTHON_CMD[@]}" - "${file_path}" <<'PY'
 import pathlib
 import sys
 import yaml
@@ -154,7 +229,7 @@ def construct_ha_tag(loader, tag_suffix, node):
     return loader.construct_scalar(node)
 
 HomeAssistantLoader.add_multi_constructor("!", construct_ha_tag)
-yaml.load(pathlib.Path(sys.argv[1]).read_text(), Loader=HomeAssistantLoader)
+yaml.load(pathlib.Path(sys.argv[1]).read_text(encoding="utf-8"), Loader=HomeAssistantLoader)
 PY
 }
 
@@ -185,13 +260,46 @@ print_diff() {
   fi
 }
 
+# is_optional_file returns 0 if the given path exactly matches OPTIONAL_FILES,
+# or 1 otherwise. Paths omit the manifest's "?" prefix.
+is_optional_file() {
+  local needle=$1 candidate
+  for candidate in ${OPTIONAL_FILES[@]+"${OPTIONAL_FILES[@]}"}; do
+    [[ "${candidate}" == "${needle}" ]] && return 0
+  done
+  return 1
+}
+
+# ensure_requirements verifies that every managed file exists under the given
+# source root. Missing required files abort the run; missing optional files are
+# pruned from FILES so downstream backup/diff/sync steps skip them cleanly.
+# Exits with status 1 if no managed files remain under the source root.
 ensure_requirements() {
   local root rel path
+  local kept=() skipped=()
   root=$1
+
   for rel in "${FILES[@]}"; do
     path="${root}/${rel}"
-    [[ -f "${path}" ]] || die "Missing required file: ${path}"
+    if [[ -f "${path}" ]]; then
+      kept+=("${rel}")
+    elif is_optional_file "${rel}"; then
+      skipped+=("${rel}")
+    else
+      die "Missing required file: ${path}"
+    fi
   done
+
+  if [[ ${#skipped[@]} -gt 0 ]]; then
+    log "Skipping ${#skipped[@]} optional file(s) not present in ${root}:"
+    printf '  - %s
+' "${skipped[@]}"
+  fi
+
+  # Guards against a mistyped SOURCE_ROOT silently becoming a no-op sync.
+  [[ ${#kept[@]} -gt 0 ]] || die "No managed files found under ${root}. Is the path correct?"
+
+  FILES=("${kept[@]}")
 }
 
 backup_targets() {

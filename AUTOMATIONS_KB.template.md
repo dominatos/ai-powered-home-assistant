@@ -6,7 +6,7 @@ It is the quick-reference index for aliases, IDs, triggers, conditions, and key 
 
 > [!TIP]
 > You can automatically generate or update this file at any time by running:
-> `python3 tools/generate_automations_kb.py`
+> `python3 tools/ha_toolkit.py generate-kb`
 >
 > If you manually edit this file, follow the format below:
 

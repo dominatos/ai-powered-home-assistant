@@ -3,7 +3,7 @@
 # ==========================================
 # Legacy combined automations template (superseded by basic/advanced split).
 # Contains both basic and advanced automations in a single file.
-# Rename to automations.yaml and fill in <device_id_here>, <tablet_hostname>,
+# Rename to automations.yaml and fill in <device_id_here>, <your_tablet_hostname>,
 # <Your City>, notify.mobile_app_<your_phone>, etc.
 
 - id: '1778264755475'
@@ -53,7 +53,7 @@
   - alias: Mark tablet screen as awake
     action: input_boolean.turn_on
     target:
-      entity_id: input_boolean.kitchen_tablet_screen_awake
+      entity_id: input_boolean.<your_kitchen_tablet_screen_awake>
     data: {}
   mode: single
 - id: water_leak_close_valve_notify
@@ -162,10 +162,10 @@
     - condition: or
       conditions:
       - condition: zone
-        entity_id: person.person_1
+        entity_id: person.<your_person_1>
         zone: zone.home
       - condition: zone
-        entity_id: person.person_2
+        entity_id: person.<your_person_2>
         zone: zone.home
     then:
     - if:
@@ -611,7 +611,7 @@
       - condition: time
         before: '20:00:00'
       - condition: state
-        entity_id: light.kitchen_light
+        entity_id: light.<your_kitchen_light>
         state: 'on'
     then:
     - action: media_player.volume_set
@@ -639,11 +639,13 @@
     - condition: template
       value_template: '{{ trigger.id == ''arrival'' }}'
     - condition: template
-      value_template: '{% set now_ts = now().timestamp() %} {% set person_1 = states.person.person_1
-        %} {% set person_2 = states.person.person_2 %} {% set person_1_was_home = person_1.state
-        == ''home'' and (now_ts - person_1.last_changed.timestamp()) > 300 %} {% set
-        person_2_was_home = person_2.state == ''home'' and (now_ts - person_2.last_changed.timestamp())
-        > 300 %} {{ not person_1_was_home and not person_2_was_home }}
+      value_template: '{% set now_ts = now().timestamp() %} {% set p1 = states(''person.<your_person_1>'')
+        %} {% set p2 = states(''person.<your_person_2>'') %} {% set p1_ts = states[''person.<your_person_1>''].last_changed.timestamp()
+        if states[''person.<your_person_1>''] is not none else now_ts %} {% set p2_ts = states[''person.<your_person_2>''].last_changed.timestamp()
+        if states[''person.<your_person_2>''] is not none else now_ts %} {% set person_1_was_home
+        = p1 == ''home'' and (now_ts - p1_ts) > 300 %} {% set person_2_was_home = p2
+        == ''home'' and (now_ts - p2_ts) > 300 %} {{ not person_1_was_home and not
+        person_2_was_home }}
 
         '
     then:
@@ -704,19 +706,19 @@
     - condition: not
       conditions:
       - condition: zone
-        entity_id: person.person_1
+        entity_id: person.<your_person_1>
         zone: zone.home
     - condition: not
       conditions:
       - condition: zone
-        entity_id: person.person_2
+        entity_id: person.<your_person_2>
         zone: zone.home
     - condition: template
-      value_template: '{{ is_state(''light.<zigbee_device_1>'', ''on'') or is_state(''light.kitchen_light'',
-        ''on'') or is_state(''light.led_strip'', ''on'') or is_state(''light.fairy_lights'',
-        ''on'') or is_state(''light.bedroom_light'', ''on'') or is_state(''light.desk_lamp'',
-        ''on'') or is_state(''light.yeelink_lamp'', ''on'')
-        or is_state(''light.bathroom_light'', ''on'') or is_state(''light.child_room_light'',
+      value_template: '{{ is_state(''light.<zigbee_device_1>'', ''on'') or is_state(''light.<your_kitchen_light>'',
+        ''on'') or is_state(''light.<your_led_strip>'', ''on'') or is_state(''light.<your_fairy_lights>'',
+        ''on'') or is_state(''light.<your_bedroom_light>'', ''on'') or is_state(''light.<your_desk_lamp>'',
+        ''on'') or is_state(''light.<your_yeelink_lamp>'', ''on'')
+        or is_state(''light.<your_bathroom_light>'', ''on'') or is_state(''light.<your_child_room_light>'',
         ''on'') }}
 
         '

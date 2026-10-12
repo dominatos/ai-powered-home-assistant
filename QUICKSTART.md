@@ -27,6 +27,8 @@ Get up and running in 5 minutes using a **private Git repository** — the recom
 **Option A: One command (recommended)**
 
 Download and run the setup script — it clones, renames, and pushes for you:
+The target repository must be **empty** — the script refuses to overwrite an existing history unless you pass `--force`.
+
 ```bash
 bash <(curl -s https://raw.githubusercontent.com/dominatos/ai-powered-home-assistant/main/tools/install-private-repo.sh) git@github.com:<your-username>/<your-private-repo>.git
 ```
@@ -58,7 +60,7 @@ done
 # Commit the initial state
 git add .
 git commit -m "Initial setup with renamed templates"
-git push --set-upstream origin main --force
+git push --set-upstream origin main
 ```
 
 This creates your working copies:
@@ -186,6 +188,26 @@ This gives you a clean, auditable history of every change.
 - Scripts require a clean git tree before running
 - Never commit `secrets.yaml` or `.storage/` (`.gitignore` handles this)
 
+## What's Not Covered Here
+
+This guide covers the core workflow only. For advanced features, see:
+
+| Topic | Where |
+|-------|-------|
+| CodeRabbit automated PR reviews | [README.md §Code Review](README.md#-code-review-coderabbit) |
+| Local AI with Ollama | [README-ollama.template.md](README-ollama.template.md) |
+| NFS + Music Assistant audio library | [readme-nfs.md](readme-nfs.md) |
+| LLM provider setup (OpenAI, OpenCode, Ghostfolio) | [readme-LLM-setup.md](readme-LLM-setup.md) |
+| Dashboard templates and usage | [dashboard.template.yaml](dashboard.template.yaml) and [README.md §What's Included](README.md#-whats-included) |
+| Thermostat / heating schedule setup | [heating.template.md](heating.template.md) |
+| `ha_toolkit.py` CLI (audit-docs, generate-kb, audit-dashboard) | [README.md §Sync & Export Scripts](README.md#️-sync--export-scripts-tools) |
+| Backup and restore workflows | [README.md §Sync & Export Scripts](README.md#️-sync--export-scripts-tools) |
+| Secrets management and safety | [README.md §Security Warning](README.md#security-warning) |
+| Prompt templates catalog | [prompts/](prompts/) |
+| Reusable automation patterns | [patterns/standardize.md](patterns/standardize.md) |
+| Runtime sell-mode pattern | [sell-mode-plan.template.md](sell-mode-plan.template.md) |
+| Handover / removal checklist | [remove-customization.template.md](remove-customization.template.md) |
+
 ## Next Steps
 
 - Read the full [README.md](README.md) for advanced features
@@ -196,6 +218,7 @@ This gives you a clean, auditable history of every change.
 ### Advanced / Optional Reference Docs
 - [FUTURE-automations.template.md](FUTURE-automations.template.md) — design complex automations before implementing
 - [heating.template.md](heating.template.md) — thermostat schedule architecture & automation interaction matrix
+- [readme-nfs.md](readme-nfs.md) — NFS + Music Assistant setup guide for local audio libraries
 - [README-ollama.template.md](README-ollama.template.md) — local AI (Ollama) integration with HA
 - [sell-mode-plan.template.md](sell-mode-plan.template.md) — runtime sell-mode pattern for disabling personal automations
 - [remove-customization.template.md](remove-customization.template.md) — handover checklist
